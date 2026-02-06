@@ -217,7 +217,6 @@ async function handleSubmit() {
   const sheetName = sheetNameInput.value.trim();
   if (!sheetName) {
     showAlert('error', '請輸入 Excel 工作表名稱');
-    sheetNameInput.focus();
     return;
   }
   
@@ -432,10 +431,14 @@ function clearResults() {
 function toggleDateFilterMode() {
   const mode = document.querySelector('input[name="dateFilterMode"]:checked');
   const isMonth = mode && mode.value === 'month';
+  const dateMonthGroup = document.getElementById('dateMonthGroup');
+  const dateDayGroup = document.getElementById('dateDayGroup');
   if (yearSelect) yearSelect.disabled = !isMonth;
   if (monthSelect) monthSelect.disabled = !isMonth;
   if (yearMonthInput) yearMonthInput.disabled = !isMonth;
   if (datePicker) datePicker.disabled = isMonth;
+  if (dateMonthGroup) dateMonthGroup.classList.toggle('hidden', !isMonth);
+  if (dateDayGroup) dateDayGroup.classList.toggle('hidden', isMonth);
 }
 
 function selectAllPersons() {
