@@ -260,11 +260,49 @@ function appendToSheet(data, targetSheetName) {
  */
 function buildDedupKey(row) {
   const name = row[0] ? row[0].toString().trim() : '';
-  const date = row[1] ? row[1].toString().trim() : '';
-  const start = row[2] ? row[2].toString().trim() : '';
-  const end = row[3] ? row[3].toString().trim() : '';
-  const shift = row[5] ? row[5].toString().trim() : '';
+  const date = normalizeDateValue(row[1]);
+  const start = normalizeTimeValue(row[2]);
+  const end = normalizeTimeValue(row[3]);
+  const shift = row[5] ? row[5].toString().trim().toUpperCase() : '';
   return [name, date, start, end, shift].join('|');
+}
+
+/**
+ * 將日期欄位統一為 YYYY/MM/DD
+ * @param {*} value
+ * @return {string}
+ */
+function normalizeDateValue(value) {
+  if (!value) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy/MM/dd');
+  }
+  const text = value.toString().trim();
+  if (!text) return '';
+  const parsed = new Date(text);
+  if (!isNaN(parsed)) {
+    return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy/MM/dd');
+  }
+  return text;
+}
+
+/**
+ * 將時間欄位統一為 HH:mm
+ * @param {*} value
+ * @return {string}
+ */
+function normalizeTimeValue(value) {
+  if (!value) return '';
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  const text = value.toString().trim();
+  if (!text) return '';
+  const parsed = new Date(text);
+  if (!isNaN(parsed)) {
+    return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  return text;
 }
 
 /**
