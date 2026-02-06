@@ -312,6 +312,109 @@ function normalizeTimeValue(value) {
 }
 
 /**
+ * 依年月/日期與人員篩選國安班表資料（AND 關係）
+ * @param {string} sheetName - 工作表名稱（預設 國安班表）
+ * @param {string} yearMonth - 年月格式 YYYYMM（如 202601），可與 date 二選一
+ * @param {string} date - 單日格式 YYYY-MM-DD（如 2026-01-15），可與 yearMonth 二選一
+ * @param {Array<string>} names - 員工姓名陣列，可多選（AND 篩選）
+ * @return {Object} { success, records, details }
+ */
+function readScheduleByYearMonth(sheetName, yearMonth, date, names) {
+  try {
+    if ((!yearMonth || yearMonth.length !== 6) && (!date || date.length !== 10)) {
+      return { success: false, error: '請提供 yearMonth（YYYYMM）或 date（YYYY-MM-DD）' };
+    }
+
+    const allData = readFromSheet(sheetName || '國安班表');
+    if (allData.length < 2) {
+      return {
+        success: true,
+        records: [],
+        details: { yearMonth: yearMonth || '', date: date || '', names: [], rowCount: 0 }
+      };
+    }
+
+    const dataRows = allData.slice(1);
+    const dateColIndex = 1;
+    const nameColIndex = 0;
+
+    var targetPrefix = '';
+    var targetExact = '';
+    if (date && date.length === 10) {
+      targetExact = date.replace(/-/g, '/');
+    } else if (yearMonth && yearMonth.length === 6) {
+      targetPrefix = yearMonth.substring(0, 4) + '/' + yearMonth.substring(4, 6);
+    }
+
+    const nameSet = (names && Array.isArray(names) && names.length > 0)
+      ? new Set(names.map(function(n) { return String(n).trim(); }))
+      : null;
+
+    const filteredByDate = [];
+    dataRows.forEach(function(row) {
+      const dateVal = row[dateColIndex];
+      if (!dateVal) return;
+      var dateStr = '';
+      if (dateVal instanceof Date) {
+        dateStr = Utilities.formatDate(dateVal, Session.getScriptTimeZone(), 'yyyy/MM/dd');
+      } else {
+        dateStr = dateVal.toString().trim();
+      }
+      var match = false;
+      if (targetExact) {
+        match = dateStr === targetExact;
+      } else if (targetPrefix) {
+        match = dateStr.indexOf(targetPrefix) === 0;
+      }
+      if (!match) return;
+      var normalizedRow = row.slice();
+      if (dateVal instanceof Date) {
+        normalizedRow[dateColIndex] = dateStr;
+      }
+      filteredByDate.push(normalizedRow);
+    });
+
+    var filteredRows = filteredByDate;
+    if (nameSet && nameSet.size > 0) {
+      filteredRows = filteredByDate.filter(function(row) {
+        const n = row[nameColIndex] ? String(row[nameColIndex]).trim() : '';
+        return nameSet.has(n);
+      });
+    }
+
+    var distinctNames = [];
+    const seen = {};
+    filteredByDate.forEach(function(row) {
+      const n = row[nameColIndex] ? String(row[nameColIndex]).trim() : '';
+      if (n && !seen[n]) {
+        seen[n] = true;
+        distinctNames.push(n);
+      }
+    });
+    distinctNames.sort();
+
+    return {
+      success: true,
+      records: filteredRows,
+      details: {
+        yearMonth: yearMonth || '',
+        date: date || '',
+        names: distinctNames,
+        rowCount: filteredRows.length
+      }
+    };
+
+  } catch (error) {
+    logError('讀取國安班表失敗: ' + error.message, {
+      sheetName: sheetName,
+      yearMonth: yearMonth,
+      error: error.toString()
+    });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * 讀取工作表的所有資料
  * @param {string} sheetName - 工作表名稱
  * @return {Array} 二維陣列資料

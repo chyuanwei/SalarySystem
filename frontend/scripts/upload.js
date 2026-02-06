@@ -19,6 +19,37 @@ const alertBox = document.getElementById('alert');
 const resultSection = document.getElementById('resultSection');
 const resultSummary = document.getElementById('resultSummary');
 const resultList = document.getElementById('resultList');
+const yearSelect = document.getElementById('yearSelect');
+const monthSelect = document.getElementById('monthSelect');
+const yearMonthInput = document.getElementById('yearMonthInput');
+const datePicker = document.getElementById('datePicker');
+const loadScheduleBtn = document.getElementById('loadScheduleBtn');
+const scheduleResultSection = document.getElementById('scheduleResultSection');
+const scheduleSummary = document.getElementById('scheduleSummary');
+const scheduleList = document.getElementById('scheduleList');
+const personCheckboxGroup = document.getElementById('personCheckboxGroup');
+const selectAllPersonsBtn = document.getElementById('selectAllPersonsBtn');
+const clearAllPersonsBtn = document.getElementById('clearAllPersonsBtn');
+
+// 初始化年月選擇器
+function initScheduleSelectors() {
+  const now = new Date();
+  const currentYear = now.getFullYear();
+  for (let y = currentYear - 2; y <= currentYear + 2; y++) {
+    const opt = document.createElement('option');
+    opt.value = String(y);
+    opt.textContent = String(y);
+    if (y === currentYear) opt.selected = true;
+    yearSelect.appendChild(opt);
+  }
+  for (let m = 1; m <= 12; m++) {
+    const opt = document.createElement('option');
+    opt.value = String(m).padStart(2, '0');
+    opt.textContent = String(m).padStart(2, '0') + ' 月';
+    if (m === now.getMonth() + 1) opt.selected = true;
+    monthSelect.appendChild(opt);
+  }
+}
 
 // 檔案選擇事件
 fileInput.addEventListener('change', handleFileSelect);
@@ -30,6 +61,25 @@ uploadSection.addEventListener('drop', handleDrop);
 
 // 提交按鈕事件
 submitBtn.addEventListener('click', handleSubmit);
+
+// 載入國安班表按鈕
+if (loadScheduleBtn) loadScheduleBtn.addEventListener('click', handleLoadSchedule);
+
+// 日期篩選模式切換
+document.querySelectorAll('input[name="dateFilterMode"]').forEach(radio => {
+  if (radio) radio.addEventListener('change', toggleDateFilterMode);
+});
+if (datePicker) datePicker.addEventListener('change', function() {});
+
+// 人員篩選按鈕
+if (selectAllPersonsBtn) selectAllPersonsBtn.addEventListener('click', selectAllPersons);
+if (clearAllPersonsBtn) clearAllPersonsBtn.addEventListener('click', clearAllPersons);
+
+// 頁面載入時初始化
+document.addEventListener('DOMContentLoaded', function() {
+  if (yearSelect && monthSelect) initScheduleSelectors();
+  toggleDateFilterMode();
+});
 
 /**
  * 處理檔案選擇
@@ -352,4 +402,140 @@ function clearResults() {
   resultSummary.innerHTML = '';
   resultList.innerHTML = '';
   resultSection.classList.remove('show');
+}
+
+function toggleDateFilterMode() {
+  const mode = document.querySelector('input[name="dateFilterMode"]:checked');
+  const isMonth = mode && mode.value === 'month';
+  if (yearSelect) yearSelect.disabled = !isMonth;
+  if (monthSelect) monthSelect.disabled = !isMonth;
+  if (yearMonthInput) yearMonthInput.disabled = !isMonth;
+  if (datePicker) datePicker.disabled = isMonth;
+}
+
+function selectAllPersons() {
+  if (!personCheckboxGroup) return;
+  personCheckboxGroup.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
+}
+
+function clearAllPersons() {
+  if (!personCheckboxGroup) return;
+  personCheckboxGroup.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
+}
+
+function getSelectedPersonNames() {
+  if (!personCheckboxGroup) return [];
+  const names = [];
+  personCheckboxGroup.querySelectorAll('input[type="checkbox"]:checked').forEach(cb => {
+    if (cb.value) names.push(cb.value);
+  });
+  return names;
+}
+
+/**
+ * 載入國安班表（依年月/日期 + 人員篩選，AND 關係）
+ */
+async function handleLoadSchedule() {
+  const mode = document.querySelector('input[name="dateFilterMode"]:checked');
+  let yearMonth = '';
+  let dateParam = '';
+
+  if (mode && mode.value === 'day' && datePicker && datePicker.value) {
+    dateParam = datePicker.value;
+  } else {
+    if (yearMonthInput && yearMonthInput.value.trim().match(/^\d{6}$/)) {
+      yearMonth = yearMonthInput.value.trim();
+    } else if (yearSelect && monthSelect) {
+      yearMonth = yearSelect.value + monthSelect.value;
+    }
+  }
+
+  if (!yearMonth && !dateParam) {
+    showAlert('error', '請選擇整月（年月）或單日');
+    return;
+  }
+
+  loadScheduleBtn.disabled = true;
+  loadScheduleBtn.textContent = '載入中...';
+  hideAlert();
+  scheduleResultSection.classList.remove('show');
+
+  const names = getSelectedPersonNames();
+  let url = `${CONFIG.GAS_URL}?action=loadSchedule`;
+  if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
+  if (dateParam) url += `&date=${encodeURIComponent(dateParam)}`;
+  if (names.length > 0) url += `&names=${encodeURIComponent(names.join(','))}`;
+
+  try {
+    const response = await fetch(url, { method: 'GET', mode: 'cors' });
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '載入失敗');
+    }
+
+    renderScheduleResults(result);
+  } catch (error) {
+    showAlert('error', '載入國安班表失敗：' + error.message);
+  } finally {
+    loadScheduleBtn.disabled = false;
+    loadScheduleBtn.textContent = '載入';
+  }
+}
+
+/**
+ * 顯示國安班表查詢結果
+ */
+function renderScheduleResults(result) {
+  const details = result.details || {};
+  const records = Array.isArray(result.records) ? result.records : [];
+  const names = Array.isArray(details.names) ? details.names : [];
+
+  scheduleSummary.innerHTML = `
+    <div class="summary-item">
+      <div class="summary-label">日期範圍</div>
+      <div class="summary-value">${details.date ? details.date.replace(/-/g, '/') : (details.yearMonth ? details.yearMonth.substring(0,4) + '/' + details.yearMonth.substring(4,6) : '—')}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">筆數</div>
+      <div class="summary-value">${details.rowCount ?? records.length ?? 0}</div>
+    </div>
+  `;
+
+  if (personCheckboxGroup) {
+    personCheckboxGroup.innerHTML = '';
+    if (names.length > 0) {
+      names.forEach(n => {
+        const label = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = n;
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(n));
+        personCheckboxGroup.appendChild(label);
+      });
+      if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = false;
+      if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = false;
+    } else {
+      personCheckboxGroup.innerHTML = '<span class="person-placeholder">此範圍無人員資料</span>';
+      if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
+      if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
+    }
+  }
+
+  scheduleList.innerHTML = records.map(row => {
+    const [name, date, start, end, hours, shift] = row;
+    return `
+      <div class="result-card">
+        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
+        <div class="result-row"><span class="result-label">日期</span><span class="result-value">${date || '—'}</span></div>
+        <div class="result-row"><span class="result-label">班別</span><span class="result-value">${shift || '—'}</span></div>
+        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
+        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
+        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${hours || '—'}</span></div>
+      </div>
+    `;
+  }).join('');
+
+  scheduleResultSection.classList.add('show');
 }

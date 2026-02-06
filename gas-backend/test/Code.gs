@@ -18,6 +18,24 @@ function doGet(e) {
         const jobId = e.parameter.jobId;
         return getJobStatus(jobId);
       
+      case 'loadSchedule': {
+        const config = getConfig();
+        const sheetName = config.SHEET_NAMES.SCHEDULE || '國安班表';
+        const yearMonth = e.parameter.yearMonth || '';
+        const dateParam = e.parameter.date || '';
+        const namesParam = e.parameter.names || '';
+        const names = namesParam ? namesParam.split(',').map(function(n) { return n.trim(); }).filter(Boolean) : [];
+        const result = readScheduleByYearMonth(sheetName, yearMonth, dateParam, names);
+        if (!result.success) {
+          return createJsonResponse({ success: false, error: result.error });
+        }
+        return createJsonResponse({
+          success: true,
+          records: result.records,
+          details: result.details || {}
+        });
+      }
+      
       default:
         return createJsonResponse({ success: false, error: '未知的 action' });
     }

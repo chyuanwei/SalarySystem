@@ -45,6 +45,157 @@
             font-size: 14px;
         }
 
+        .schedule-query-section {
+            background: #f8f9fa;
+            border: 1px solid #e6e9ee;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .schedule-query-title {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 12px;
+        }
+
+        .schedule-filter-row {
+            margin-bottom: 12px;
+        }
+
+        .schedule-filter-group {
+            display: flex;
+            align-items: flex-start;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .schedule-filter-label {
+            font-size: 14px;
+            color: #666;
+            flex: 0 0 auto;
+            line-height: 34px;
+        }
+
+        .schedule-radio {
+            font-size: 14px;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .schedule-radio-second {
+            margin-left: 12px;
+        }
+
+        .schedule-date-input {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .schedule-yearmonth-input {
+            width: 90px;
+            padding: 8px 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .schedule-date-input:disabled {
+            background: #eee;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .person-checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            max-height: 120px;
+            overflow-y: auto;
+            padding: 6px 0;
+            border: 1px solid #e6e9ee;
+            border-radius: 6px;
+            padding: 8px;
+            min-width: 200px;
+        }
+
+        .person-placeholder {
+            color: #999;
+            font-size: 13px;
+        }
+
+        .person-checkbox-group label {
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .person-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .person-btn:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .person-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .schedule-query-row {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .schedule-query-row label {
+            font-size: 14px;
+            color: #666;
+        }
+
+        .schedule-label-month {
+            margin-left: 12px;
+        }
+
+        .schedule-select {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 70px;
+        }
+
+        .load-schedule-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .load-schedule-btn:hover {
+            background: #218838;
+        }
+
+        .load-schedule-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
         .upload-section {
             background: #f8f9fa;
             border: 2px dashed #dee2e6;
@@ -567,6 +718,19 @@
                 padding: 12px;
                 font-size: 14px;
             }
+
+            .schedule-query-section {
+                padding: 12px;
+            }
+
+            .schedule-filter-group {
+                flex-direction: column;
+                align-items: stretch;
+            }
+
+            .person-checkbox-group {
+                max-height: 80px;
+            }
         }
 
         /* 橫屏優化 */
@@ -608,9 +772,42 @@
 <body>
     <div class="container">
         <h1>💰 薪資計算系統</h1>
-        <p class="subtitle">班表資料上傳</p>
+        <p class="subtitle">國安班表查詢與上傳</p>
 
         <div id="alert" class="alert"></div>
+
+        <div class="schedule-query-section">
+            <h3 class="schedule-query-title">📅 查詢國安班表</h3>
+            <div class="schedule-filter-row">
+                <div class="schedule-filter-group">
+                    <span class="schedule-filter-label">日期篩選：</span>
+                    <label class="schedule-radio"><input type="radio" name="dateFilterMode" value="month" checked> 整月</label>
+                    <select id="yearSelect" class="schedule-select"></select>
+                    <select id="monthSelect" class="schedule-select"></select>
+                    <input type="text" id="yearMonthInput" class="schedule-yearmonth-input" placeholder="或輸入 202601" maxlength="6">
+                    <label class="schedule-radio schedule-radio-second"><input type="radio" name="dateFilterMode" value="day"> 單日</label>
+                    <input type="date" id="datePicker" class="schedule-date-input" disabled>
+                </div>
+            </div>
+            <div class="schedule-filter-row">
+                <div class="schedule-filter-group">
+                    <span class="schedule-filter-label">人員篩選：</span>
+                    <div id="personCheckboxGroup" class="person-checkbox-group">
+                        <span class="person-placeholder">請先載入取得名單</span>
+                    </div>
+                    <button type="button" id="selectAllPersonsBtn" class="person-btn" disabled>全選</button>
+                    <button type="button" id="clearAllPersonsBtn" class="person-btn" disabled>清除</button>
+                </div>
+            </div>
+            <div class="schedule-query-row">
+                <button type="button" id="loadScheduleBtn" class="load-schedule-btn">載入</button>
+            </div>
+            <div id="scheduleResultSection" class="result-section">
+                <h2 class="result-title">國安班表資料</h2>
+                <div id="scheduleSummary" class="result-summary"></div>
+                <div id="scheduleList" class="result-list"></div>
+            </div>
+        </div>
 
         <div class="upload-section" id="uploadSection">
             <div class="upload-icon">📄</div>
@@ -656,10 +853,10 @@
         <div class="info-section">
             <h3>📌 說明</h3>
             <ul>
-                <li>支援格式：.xlsx, .xls</li>
-                <li>檔案大小限制：10MB</li>
+                <li><strong>查詢：</strong>選擇年月（或輸入 202601）或單日，可多選人員篩選</li>
+                <li><strong>上傳：</strong>支援格式 .xlsx、.xls，檔案大小限制 10MB</li>
                 <li>系統會自動解析 Excel 中的工作表</li>
-                <li>資料將儲存至 Google Sheets</li>
+                <li>資料將儲存至 Google Sheets「國安班表」</li>
                 <li><strong>⚠️ 上傳後請手動檢查 Google Sheets 確認是否成功</strong></li>
                 <li>🔧 <a href="test-connection.html" style="color: #667eea; text-decoration: none; font-weight: bold;">測試 GAS 連線</a></li>
             </ul>
