@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GAS 連線測試 - 薪資計算系統</title>
+    <title>GAS 連線測試 - 薪資計算系統（正式環境）</title>
     <style>
         * {
             margin: 0;
@@ -163,6 +163,18 @@
             text-decoration: underline;
         }
 
+        .back-link {
+            display: block;
+            margin-bottom: 15px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
         pre {
             background: #f8f9fa;
             padding: 15px;
@@ -175,8 +187,10 @@
 </head>
 <body>
     <div class="container">
+        <a href="../index.html" class="back-link">← 返回入口</a>
+        <a href="index.html" class="back-link">← 返回上傳頁面</a>
         <h1>🔧 GAS 連線測試</h1>
-        <p class="subtitle">測試 Google Apps Script 後端連線與設定</p>
+        <p class="subtitle">正式環境 - Google Apps Script 後端連線與設定</p>
 
         <!-- 當前設定 -->
         <div class="test-section">
@@ -216,15 +230,15 @@
                 <li>Script Properties 是否已設定 <code>SHEET_ID</code>？</li>
                 <li>Script Properties 是否已設定 <code>Log_Level</code>？</li>
                 <li>Drive API 是否已啟用？</li>
-                <li><code>frontend/config.js</code> 中的 GAS_URL 是否正確？</li>
+                <li><code>frontend/prod/config.js</code> 中的 GAS_URL 是否正確？</li>
             </ul>
         </div>
 
         <div class="checklist">
             <h3>📚 相關文件</h3>
             <ul>
-                <li><a href="../DEPLOY.md" class="link">部署指南</a></li>
-                <li><a href="../gas-backend/README.md" class="link">GAS 後端說明</a></li>
+                <li><a href="../../DEPLOY.md" class="link">部署指南</a></li>
+                <li><a href="../../gas-backend/README.md" class="link">GAS 後端說明</a></li>
                 <li><a href="index.html" class="link">返回上傳頁面</a></li>
             </ul>
         </div>
@@ -232,13 +246,11 @@
 
     <script src="config.js"></script>
     <script>
-        // 顯示當前設定
         document.getElementById('environment').textContent = CONFIG.ENVIRONMENT;
         document.getElementById('gasUrl').textContent = CONFIG.GAS_URL;
         document.getElementById('sheetName').textContent = CONFIG.TARGET_GOOGLE_SHEET_NAME;
         document.getElementById('tabName').textContent = CONFIG.TARGET_GOOGLE_SHEET_TAB;
 
-        // 測試按鈕
         const testBtn = document.getElementById('testBtn');
         const testResult = document.getElementById('testResult');
 
@@ -251,12 +263,11 @@
             testResult.textContent = '';
 
             try {
-                // 測試 1: 基本連線測試
                 testResult.className = 'result show warning';
                 testResult.textContent = '⏳ 正在測試連線...';
 
                 const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 秒逾時
+                const timeoutId = setTimeout(() => controller.abort(), 10000);
 
                 const response = await fetch(CONFIG.GAS_URL + '?action=test', {
                     method: 'GET',
@@ -266,18 +277,14 @@
 
                 clearTimeout(timeoutId);
 
-                // no-cors 模式下無法讀取實際回應
                 testResult.className = 'result show warning';
                 testResult.innerHTML = `
                     ⚠️ <strong>無法確定連線狀態</strong><br><br>
-                    
                     由於使用 no-cors 模式，無法讀取伺服器回應。<br><br>
-                    
                     請手動確認：<br>
                     1. 開啟 <a href="${CONFIG.GAS_URL}?action=test" target="_blank" class="link">GAS 測試連結</a><br>
                     2. 應該看到 JSON 回應：<code>{"success":true,"message":"測試連線成功"}</code><br>
                     3. 如果看到錯誤或無法開啟，請檢查部署設定<br><br>
-                    
                     <strong>建議的改善方式：</strong><br>
                     • 使用 CORS 模式以獲得準確的錯誤訊息<br>
                     • 或實作狀態輪詢 API
@@ -288,22 +295,17 @@
                 if (error.name === 'AbortError') {
                     testResult.innerHTML = `
                         ❌ <strong>連線逾時</strong><br><br>
-                        
                         無法在 10 秒內連線到 GAS。<br><br>
-                        
                         可能原因：<br>
                         • GAS URL 錯誤<br>
                         • GAS 未部署<br>
                         • 網路問題<br><br>
-                        
-                        請檢查 <code>frontend/config.js</code> 中的 GAS_URL 設定。
+                        請檢查 <code>frontend/prod/config.js</code> 中的 GAS_URL 設定。
                     `;
                 } else {
                     testResult.innerHTML = `
                         ❌ <strong>連線失敗</strong><br><br>
-                        
                         錯誤訊息：${error.message}<br><br>
-                        
                         請檢查：<br>
                         • GAS URL 是否正確<br>
                         • GAS 是否已部署<br>

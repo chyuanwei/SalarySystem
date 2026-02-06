@@ -91,7 +91,7 @@ npx clasp push
 
 #### Step 2: 開啟前端測試頁
 
-用瀏覽器開啟：`frontend/index.html`
+用瀏覽器開啟：`frontend/index.html`（入口）→ 選擇測試環境，或直接開啟 `frontend/test/index.html`
 
 #### Step 3: 測試 11501 工作表
 

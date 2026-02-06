@@ -1,0 +1,972 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>薪資計算系統 - 上傳檔案（測試環境）</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            padding: 15px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 30px;
+            max-width: 600px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 28px;
+            text-align: center;
+        }
+
+        .subtitle {
+            color: #666;
+            text-align: center;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .env-badge {
+            display: inline-block;
+            background: #ffc107;
+            color: #333;
+            font-size: 11px;
+            padding: 2px 8px;
+            border-radius: 4px;
+            margin-left: 6px;
+            font-weight: 600;
+        }
+
+        .schedule-query-section {
+            background: #f8f9fa;
+            border: 1px solid #e6e9ee;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .schedule-query-title {
+            font-size: 16px;
+            color: #333;
+            margin-bottom: 16px;
+        }
+
+        .schedule-block {
+            margin-bottom: 16px;
+        }
+
+        .schedule-block:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .schedule-block-label {
+            font-size: 13px;
+            font-weight: 600;
+            color: #555;
+            margin-bottom: 8px;
+        }
+
+        .schedule-hint-small {
+            font-weight: 400;
+            color: #999;
+            font-size: 12px;
+        }
+
+        .schedule-date-modes {
+            display: flex;
+            gap: 16px;
+            margin-bottom: 10px;
+        }
+
+        .schedule-radio {
+            font-size: 14px;
+            color: #333;
+            cursor: pointer;
+        }
+
+        .schedule-date-month-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .schedule-date-month-group.hidden {
+            display: none;
+        }
+
+        .schedule-date-day-group {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .schedule-date-day-group.hidden {
+            display: none;
+        }
+
+        .schedule-inline-label {
+            font-size: 13px;
+            color: #666;
+        }
+
+        .schedule-inline-sep {
+            font-size: 13px;
+            color: #999;
+            margin: 0 4px;
+        }
+
+        .schedule-select {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            min-width: 70px;
+        }
+
+        .schedule-yearmonth-input {
+            width: 80px;
+            padding: 8px 10px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+            text-align: center;
+        }
+
+        .schedule-date-input {
+            padding: 8px 12px;
+            border: 1px solid #dee2e6;
+            border-radius: 6px;
+            font-size: 14px;
+        }
+
+        .schedule-date-input:disabled {
+            background: #eee;
+            color: #999;
+            cursor: not-allowed;
+        }
+
+        .schedule-person-row {
+            display: flex;
+            gap: 12px;
+            align-items: flex-start;
+            flex-wrap: wrap;
+        }
+
+        .person-checkbox-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px 16px;
+            max-height: 100px;
+            overflow-y: auto;
+            border: 1px solid #e6e9ee;
+            border-radius: 6px;
+            padding: 8px;
+            min-width: 180px;
+            flex: 1;
+        }
+
+        .person-placeholder {
+            color: #999;
+            font-size: 13px;
+        }
+
+        .person-checkbox-group label {
+            font-size: 13px;
+            cursor: pointer;
+            white-space: nowrap;
+        }
+
+        .schedule-person-actions {
+            display: flex;
+            gap: 8px;
+            flex-shrink: 0;
+        }
+
+        .person-btn {
+            background: #6c757d;
+            color: white;
+            border: none;
+            padding: 6px 12px;
+            border-radius: 6px;
+            font-size: 13px;
+            cursor: pointer;
+        }
+
+        .person-btn:hover:not(:disabled) {
+            background: #5a6268;
+        }
+
+        .person-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .schedule-block-action {
+            padding-top: 4px;
+        }
+
+        .load-schedule-btn {
+            background: #28a745;
+            color: white;
+            border: none;
+            padding: 8px 20px;
+            border-radius: 6px;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .load-schedule-btn:hover {
+            background: #218838;
+        }
+
+        .load-schedule-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .upload-type-group label {
+            display: block;
+            margin-bottom: 6px;
+        }
+
+        .upload-type-radios {
+            display: flex;
+            gap: 16px;
+        }
+
+        .upload-type-radio {
+            font-size: 14px;
+            cursor: pointer;
+        }
+
+        .upload-section {
+            background: #f8f9fa;
+            border: 2px dashed #dee2e6;
+            border-radius: 12px;
+            padding: 30px;
+            margin-bottom: 20px;
+            text-align: center;
+            transition: all 0.3s ease;
+        }
+
+        .upload-section:hover {
+            border-color: #667eea;
+            background: #f0f0ff;
+        }
+
+        .upload-section.dragover {
+            border-color: #667eea;
+            background: #e8e8ff;
+            transform: scale(1.02);
+        }
+
+        .file-input-wrapper {
+            position: relative;
+            display: inline-block;
+            margin-top: 15px;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        .file-label {
+            background: #667eea;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 8px;
+            cursor: pointer;
+            display: inline-block;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        .file-label:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .file-info {
+            margin-top: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .file-info.show {
+            display: block;
+        }
+
+        .file-name {
+            color: #333;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .file-size {
+            color: #666;
+            font-size: 14px;
+        }
+
+        .upload-icon {
+            font-size: 48px;
+            margin-bottom: 15px;
+        }
+
+        .upload-text {
+            color: #666;
+            font-size: 16px;
+        }
+
+        .submit-btn {
+            width: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 16px;
+            border-radius: 8px;
+            font-size: 18px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            display: none;
+        }
+
+        .submit-btn.show {
+            display: block;
+        }
+
+        .submit-btn:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .submit-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+
+        .progress-container {
+            display: none;
+            margin-top: 20px;
+        }
+
+        .progress-container.show {
+            display: block;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 30px;
+            background: #e9ecef;
+            border-radius: 15px;
+            overflow: hidden;
+            margin-bottom: 10px;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            width: 0%;
+            transition: width 0.3s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+        }
+
+        .progress-text {
+            text-align: center;
+            color: #666;
+            font-size: 14px;
+        }
+
+        .result-section {
+            margin-top: 25px;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-title {
+            font-size: 18px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .result-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .summary-item {
+            background: #f8f9fa;
+            border: 1px solid #e6e9ee;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .summary-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .result-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .result-card {
+            position: relative;
+            border: 1px solid #e6e9ee;
+            border-radius: 12px;
+            padding: 12px;
+            background: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .result-card--duplicate {
+            border-color: #f0c674;
+            background: #fefcf5;
+        }
+
+        .result-card-duplicate {
+            position: absolute;
+            top: 8px;
+            left: 50%;
+            transform: translateX(-50%);
+            font-size: 11px;
+            font-weight: 600;
+            color: #b8860b;
+            background: #fcf4d9;
+            padding: 2px 6px;
+            border-radius: 4px;
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .result-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-label {
+            color: #666;
+            flex: 0 0 auto;
+        }
+
+        .result-value {
+            color: #333;
+            font-weight: 600;
+            text-align: right;
+            flex: 1 1 auto;
+            word-break: break-word;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+            display: none;
+        }
+
+        .alert.show {
+            display: block;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .alert-error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .info-section {
+            background: #e7f3ff;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .info-section h3 {
+            color: #0066cc;
+            margin-bottom: 10px;
+            font-size: 15px;
+        }
+
+        .info-section ul {
+            margin-left: 20px;
+            color: #333;
+        }
+
+        .info-section li {
+            margin-bottom: 5px;
+            font-size: 13px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-group .hint {
+            display: block;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        .back-link {
+            display: block;
+            text-align: center;
+            margin-bottom: 20px;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 14px;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        /* 平板適配 (768px - 1024px) */
+        @media (max-width: 1024px) and (min-width: 769px) {
+            .container {
+                padding: 35px;
+                max-width: 700px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+        }
+
+        /* 手機橫向 (576px - 768px) */
+        @media (max-width: 768px) and (min-width: 577px) {
+            .container {
+                padding: 25px 30px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            .upload-icon {
+                font-size: 40px;
+            }
+
+            .submit-btn {
+                font-size: 16px;
+                padding: 14px;
+            }
+        }
+
+        /* 手機直向 (≤576px) */
+        @media (max-width: 576px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px 15px;
+                border-radius: 12px;
+            }
+
+            h1 {
+                font-size: 22px;
+                margin-bottom: 8px;
+            }
+
+            .subtitle {
+                font-size: 13px;
+                margin-bottom: 20px;
+            }
+
+            .upload-section {
+                padding: 20px 15px;
+            }
+
+            .upload-icon {
+                font-size: 36px;
+                margin-bottom: 10px;
+            }
+
+            .upload-text {
+                font-size: 14px;
+            }
+
+            .upload-text p {
+                margin: 3px 0;
+            }
+
+            .file-label {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            .file-info {
+                padding: 12px;
+                font-size: 13px;
+            }
+
+            .file-name {
+                font-size: 14px;
+                word-break: break-all;
+            }
+
+            .file-size {
+                font-size: 12px;
+            }
+
+            .input-group label {
+                font-size: 14px;
+            }
+
+            .input-group input {
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+
+            .input-group .hint {
+                font-size: 11px;
+            }
+
+            .submit-btn {
+                font-size: 15px;
+                padding: 14px;
+            }
+
+            .progress-bar {
+                height: 25px;
+            }
+
+            .progress-fill {
+                font-size: 12px;
+            }
+
+            .progress-text {
+                font-size: 12px;
+            }
+
+            .result-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .result-list {
+                grid-template-columns: 1fr;
+            }
+
+            .result-card {
+                padding: 10px;
+            }
+
+            .result-row {
+                font-size: 12px;
+            }
+
+            .info-section {
+                padding: 12px;
+            }
+
+            .info-section h3 {
+                font-size: 14px;
+                margin-bottom: 8px;
+            }
+
+            .info-section ul {
+                margin-left: 15px;
+            }
+
+            .info-section li {
+                font-size: 12px;
+                margin-bottom: 4px;
+            }
+
+            .alert {
+                padding: 12px;
+                font-size: 13px;
+            }
+        }
+
+        /* 超小手機 (≤375px) */
+        @media (max-width: 375px) {
+            .container {
+                padding: 15px 12px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .upload-section {
+                padding: 15px 10px;
+            }
+
+            .upload-icon {
+                font-size: 32px;
+            }
+
+            .file-label {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+
+            .input-group input {
+                padding: 9px 10px;
+                font-size: 13px;
+            }
+
+            .submit-btn {
+                padding: 12px;
+                font-size: 14px;
+            }
+
+            .schedule-query-section {
+                padding: 12px;
+            }
+
+            .schedule-date-month-group {
+                flex-direction: column;
+                align-items: flex-start;
+            }
+
+            .schedule-person-row {
+                flex-direction: column;
+            }
+
+            .person-checkbox-group {
+                max-height: 80px;
+            }
+        }
+
+        /* 橫屏優化 */
+        @media (max-height: 600px) and (orientation: landscape) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 15px;
+                max-height: 95vh;
+                overflow-y: auto;
+            }
+
+            h1 {
+                font-size: 20px;
+                margin-bottom: 5px;
+            }
+
+            .subtitle {
+                margin-bottom: 15px;
+            }
+
+            .upload-section {
+                padding: 15px;
+            }
+
+            .upload-icon {
+                font-size: 30px;
+                margin-bottom: 8px;
+            }
+
+            .info-section {
+                margin-top: 15px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <a href="../index.html" class="back-link">← 返回入口</a>
+        <h1>💰 薪資計算系統</h1>
+        <p class="subtitle">國安班表查詢與上傳 <span class="env-badge">測試環境</span></p>
+
+        <div id="alert" class="alert"></div>
+
+        <div class="schedule-query-section">
+            <h3 class="schedule-query-title">📅 查詢國安班表</h3>
+
+            <div class="schedule-block schedule-block-date">
+                <div class="schedule-block-label">日期篩選</div>
+                <div class="schedule-date-modes">
+                    <label class="schedule-radio"><input type="radio" name="dateFilterMode" value="month" checked> 整月</label>
+                    <label class="schedule-radio"><input type="radio" name="dateFilterMode" value="day"> 單日</label>
+                </div>
+                <div class="schedule-date-month-group" id="dateMonthGroup">
+                    <label class="schedule-inline-label">年份</label>
+                    <select id="yearSelect" class="schedule-select"></select>
+                    <label class="schedule-inline-label">月份</label>
+                    <select id="monthSelect" class="schedule-select"></select>
+                    <span class="schedule-inline-sep">或</span>
+                    <input type="text" id="yearMonthInput" class="schedule-yearmonth-input" placeholder="202601" maxlength="6">
+                </div>
+                <div class="schedule-date-day-group hidden" id="dateDayGroup">
+                    <label class="schedule-inline-label">選擇日期</label>
+                    <input type="date" id="datePicker" class="schedule-date-input" disabled>
+                </div>
+            </div>
+
+            <div class="schedule-block schedule-block-person">
+                <div class="schedule-block-label">人員篩選 <span class="schedule-hint-small">（載入後可多選）</span></div>
+                <div class="schedule-person-row">
+                    <div id="personCheckboxGroup" class="person-checkbox-group">
+                        <span class="person-placeholder">請先載入取得名單</span>
+                    </div>
+                    <div class="schedule-person-actions">
+                        <button type="button" id="selectAllPersonsBtn" class="person-btn" disabled>全選</button>
+                        <button type="button" id="clearAllPersonsBtn" class="person-btn" disabled>清除</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="schedule-block schedule-block-action">
+                <button type="button" id="loadScheduleBtn" class="load-schedule-btn">載入</button>
+            </div>
+
+            <div id="scheduleResultSection" class="result-section">
+                <h2 class="result-title">國安班表資料</h2>
+                <div id="scheduleSummary" class="result-summary"></div>
+                <div id="scheduleList" class="result-list"></div>
+            </div>
+        </div>
+
+        <div class="upload-section" id="uploadSection">
+            <div class="upload-icon">📄</div>
+            <div class="upload-text">
+                <p>拖曳 Excel 檔案到這裡</p>
+                <p style="font-size: 14px; color: #999; margin-top: 5px;">或</p>
+            </div>
+            <div class="file-input-wrapper">
+                <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls">
+                <label for="fileInput" class="file-label">選擇檔案</label>
+            </div>
+            <div id="fileInfo" class="file-info">
+                <div class="file-name" id="fileName"></div>
+                <div class="file-size" id="fileSize"></div>
+            </div>
+        </div>
+
+        <div class="input-group upload-type-group">
+            <label>上傳類型</label>
+            <div class="upload-type-radios">
+                <label class="upload-type-radio"><input type="radio" name="uploadType" value="schedule" checked> 班表</label>
+                <label class="upload-type-radio"><input type="radio" name="uploadType" value="attendance"> 打卡</label>
+            </div>
+        </div>
+        <div class="input-group">
+            <label for="sheetName">📋 Excel 工作表名稱</label>
+            <input 
+                type="text" 
+                id="sheetName" 
+                placeholder="例如：11501"
+            >
+            <span class="hint" id="sheetNameHint">請輸入要處理的 Excel 工作表名稱（例如：11501、11502）</span>
+        </div>
+
+        <button id="submitBtn" class="submit-btn">開始上傳並處理</button>
+
+        <div id="progressContainer" class="progress-container">
+            <div class="progress-bar">
+                <div id="progressFill" class="progress-fill">0%</div>
+            </div>
+            <div id="progressText" class="progress-text">準備上傳...</div>
+        </div>
+
+        <div id="resultSection" class="result-section">
+            <h2 class="result-title">✅ 處理結果</h2>
+            <div id="resultSummary" class="result-summary"></div>
+            <div id="resultList" class="result-list"></div>
+        </div>
+
+        <div class="info-section">
+            <h3>📌 說明</h3>
+            <ul>
+                <li><strong>查詢：</strong>選擇年月（或輸入 202601）或單日，可多選人員篩選</li>
+                <li><strong>上傳：</strong>支援格式 .xlsx、.xls，檔案大小限制 10MB</li>
+                <li>系統會自動解析 Excel 中的工作表</li>
+                <li>資料將儲存至 Google Sheets「國安班表」</li>
+                <li><strong>⚠️ 上傳後請手動檢查 Google Sheets 確認是否成功</strong></li>
+                <li>🔧 <a href="test-connection.html" style="color: #667eea; text-decoration: none; font-weight: bold;">測試 GAS 連線</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script src="scripts/upload.js"></script>
+</body>
+</html>

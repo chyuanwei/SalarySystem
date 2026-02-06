@@ -45,11 +45,17 @@ SalarySystem/
 ├── SETUP.md
 │
 ├── frontend/                   # 前端網頁
-│   ├── index.html              # 主頁：查詢國安班表 + 上傳
-│   ├── scripts/
-│   │   └── upload.js           # 查詢、上傳、結果渲染
-│   ├── config.js               # 環境設定（測試/正式 GAS URL）
-│   └── test-connection.html    # GAS 連線測試
+│   ├── index.html              # 入口：選擇測試/正式環境
+│   ├── test/                   # 測試環境前端（開發用）
+│   │   ├── index.html          # 查詢國安班表 + 上傳
+│   │   ├── config.js           # ENVIRONMENT: test, GAS_URL_TEST
+│   │   ├── test-connection.html
+│   │   └── scripts/upload.js
+│   └── prod/                   # 正式環境前端（deploy-prod 同步）
+│       ├── index.html
+│       ├── config.js           # ENVIRONMENT: production, GAS_URL_PROD
+│       ├── test-connection.html
+│       └── scripts/upload.js
 │
 ├── gas-backend/                # Google Apps Script 後端
 │   ├── test/                   # 測試環境 GAS
@@ -245,7 +251,7 @@ A30: "* O 10:00-20:30"   (全日班)
   - `SHEET_ID`: 測試用 Google Sheets ID
   - `ENVIRONMENT`: `test`
   - `Log_Level`: `2`（建議，Debug 等級）
-- **前端設定**：`config.js` 中 `GAS_URL_TEST`
+- **前端設定**：`frontend/test/config.js` 中 `GAS_URL_TEST`
 
 ### 8.2 正式環境
 - **GAS 專案**：SalarySystem - Production
@@ -254,7 +260,7 @@ A30: "* O 10:00-20:30"   (全日班)
   - `SHEET_ID`: 正式用 Google Sheets ID
   - `ENVIRONMENT`: `production`
   - `Log_Level`: `1`（建議，營運等級，只記錄重要操作與錯誤）
-- **前端設定**：`config.js` 中 `GAS_URL_PROD`
+- **前端設定**：`frontend/prod/config.js` 中 `GAS_URL_PROD`
 
 ### 8.3 開發流程
 
@@ -264,12 +270,13 @@ A30: "* O 10:00-20:30"   (全日班)
    - 自動 commit & push GitHub
    - 自動 `clasp push` 到測試環境
    - 自動更新 CONTEXT.md
-3. 使用前端測試頁驗證功能
+3. 使用 `frontend/test/index.html` 驗證功能
 
 #### 部署到正式環境（需明確指令）
 1. 測試環境驗證完成後，**明確告知 AI** 要部署到正式環境
 2. AI 執行 `deploy-prod`：
    - 複製 `gas-backend/test/*.gs` 到 `gas-backend/prod/`（排除 `.clasp.json`）
+   - 複製 `frontend/test/*` 到 `frontend/prod/`（config.js 保留 prod 專用設定）
    - `cd gas-backend/prod && clasp push`
    - Commit 並 push 到 GitHub
    - 更新部署記錄
@@ -303,7 +310,7 @@ A30: "* O 10:00-20:30"   (全日班)
 |------|------|
 | **go** | 等同 **執行 + 更新（僅測試環境）**：執行當下需求（改 code、測試等）→ commit/push GitHub **（需附 commit message）** → **clasp push 測試環境 GAS** → 更新 `.cursor/CONTEXT.md` → 提供 **Comment for GAS deploy**（精簡版）。**重要**：(1) `go` 指令只推送測試環境，正式環境需另外指令。(2) **僅使用者可下 `go` 指令，AI 不可主動執行**。 |
 | **go（限制）** | **僅能操作測試環境（test）**，**不得更改正式環境（prod）程式碼**；正式環境任何變更需使用者明確指示（如 `deploy-prod`）。 |
-| **deploy-prod** | 部署到正式環境：複製 `gas-backend/test/*.gs` 到 `gas-backend/prod/` → `cd gas-backend/prod && clasp push` → commit/push GitHub **（需附 commit message）** → 更新部署記錄 → 提供 **Comment for GAS deploy**。**僅在使用者明確指示時執行**。 |
+| **deploy-prod** | 部署到正式環境：複製 `gas-backend/test/*.gs` 到 `gas-backend/prod/` → 複製 `frontend/test/*` 到 `frontend/prod/`（保留 prod config.js）→ `cd gas-backend/prod && clasp push` → commit/push GitHub **（需附 commit message）** → 更新部署記錄 → 提供 **Comment for GAS deploy**。**僅在使用者明確指示時執行**。 |
 | **Git commit** | 所有 `git commit` 必須附上有意義的 commit message，說明變更內容。不可使用過於簡略或無意義的訊息。 |
 | **GAS 更新** | 凡修改 `gas-backend/**/*.gs`，回覆結尾須附 **Comment for GAS deploy**（精簡版，1-3 行，供 GAS 部署版本說明使用）。 |
 | **分析後先問再改** | 分析完問題或提出解法後，**須先詢問使用者意見**，經同意後才執行修改；不得直接進行程式修改。 |
@@ -479,7 +486,7 @@ A30: "* O 10:00-20:30"   (全日班)
 **若出現 CORS 錯誤**：
 1. 確認 GAS 已重新部署為 Web App
 2. 確認回應有 `Access-Control-Allow-Origin`（由 `createJsonResponse` 設定）
-3. 若仍失敗，暫時用 `frontend/test-connection.html` 驗證 GAS 連線
+3. 若仍失敗，暫時用 `frontend/test/test-connection.html` 驗證 GAS 連線
 
 **備註**：若 CORS 被瀏覽器阻擋，前端將無法顯示結果，但後端仍可能已完成寫入。
 
@@ -489,6 +496,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-06 | v0.6.18 | 測試 | 前端 test/prod 分離：入口 index.html、frontend/test/、frontend/prod/；開發僅改 test，deploy-prod 同步至 prod。 | AI |
 | 2026-02-06 | v0.6.17 | 正式 | 從 test 同步至 prod：loadSchedule、uploadType、allRecordsWithFlag；Code/Config 設為正式環境。 | AI |
 | 2026-02-06 | v0.6.17 | 測試 | 修正工作表名稱為空時未捲動至錯誤；查詢國安班表區塊 UX 重新排版。 | User |
 | 2026-02-06 | v0.6.16 | 測試 | 錯誤/警告時捲動至訊息處；成功時捲動至結果區。 | User |
@@ -650,7 +658,7 @@ npx clasp open
 ```
 
 **實際上傳測試：**
-1. 開啟 `frontend/index.html`
+1. 開啟 `frontend/index.html`（入口）→ 選擇測試環境 → `frontend/test/index.html`
 2. 上傳 `2026泉威國安班表.xlsx`
 3. 選擇工作表 `11501` 或 `11502`
 4. 檢查「國安班表」和「Log」工作表
@@ -678,4 +686,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-06（v0.6.17 正式）*
+*最後更新：2026-02-06（v0.6.18 前端 test/prod 分離）*

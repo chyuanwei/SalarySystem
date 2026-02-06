@@ -65,7 +65,7 @@ npm install
 
 **重要**：在使用系統前，請先測試 GAS 連線是否正常。
 
-開啟 `frontend/test-connection.html` 進行連線測試，確保：
+開啟 `frontend/test/test-connection.html` 進行連線測試，確保：
 - ✅ GAS 已部署
 - ✅ GAS URL 設定正確
 - ✅ Script Properties 已設定
@@ -125,7 +125,7 @@ npm run test:coverage
 ## 🌐 部署
 
 ### 前端部署
-GitHub Pages 會自動部署 `frontend/` 目錄的內容。
+GitHub Pages 會自動部署 `frontend/` 目錄的內容。入口為 `frontend/index.html`，可選擇測試環境（`/test/`）或正式環境（`/prod/`）。
 
 ### 後端部署
 ```bash
