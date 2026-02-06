@@ -243,6 +243,7 @@ GAS 寫入「最終確認結果」
 
 ### 8.1 測試環境
 - **GAS 專案**：SalarySystem - Test
+- **Script ID**：`1b_UcoqPQ8Vm6lekQli79JRePKDB-5qbbkLPh5lsfOdZOVtAD-Z61X8ZH`
 - **Script Properties**：
   - `SHEET_ID`: 測試用 Google Sheets ID
   - `ENVIRONMENT`: `test`
@@ -250,6 +251,7 @@ GAS 寫入「最終確認結果」
 
 ### 8.2 正式環境
 - **GAS 專案**：SalarySystem - Production
+- **Script ID**：`185v2ySyq9ncyzBwbnnogQTXHuw3S78pfmXcaATxWRs5K5W3ZYsSRG4F7`
 - **Script Properties**：
   - `SHEET_ID`: 正式用 Google Sheets ID
   - `ENVIRONMENT`: `production`
