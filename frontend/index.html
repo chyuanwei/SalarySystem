@@ -190,6 +190,86 @@
             font-size: 14px;
         }
 
+        .result-section {
+            margin-top: 25px;
+            display: none;
+        }
+
+        .result-section.show {
+            display: block;
+        }
+
+        .result-title {
+            font-size: 18px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+
+        .result-summary {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 10px;
+            margin-bottom: 16px;
+        }
+
+        .summary-item {
+            background: #f8f9fa;
+            border: 1px solid #e6e9ee;
+            border-radius: 10px;
+            padding: 10px 12px;
+        }
+
+        .summary-label {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 4px;
+        }
+
+        .summary-value {
+            font-size: 16px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .result-list {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
+        }
+
+        .result-card {
+            border: 1px solid #e6e9ee;
+            border-radius: 12px;
+            padding: 12px;
+            background: #ffffff;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+        }
+
+        .result-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 8px;
+            font-size: 13px;
+            margin-bottom: 6px;
+        }
+
+        .result-row:last-child {
+            margin-bottom: 0;
+        }
+
+        .result-label {
+            color: #666;
+            flex: 0 0 auto;
+        }
+
+        .result-value {
+            color: #333;
+            font-weight: 600;
+            text-align: right;
+            flex: 1 1 auto;
+            word-break: break-word;
+        }
+
         .alert {
             padding: 15px;
             border-radius: 8px;
@@ -396,6 +476,22 @@
                 font-size: 12px;
             }
 
+            .result-summary {
+                grid-template-columns: 1fr;
+            }
+
+            .result-list {
+                grid-template-columns: 1fr;
+            }
+
+            .result-card {
+                padding: 10px;
+            }
+
+            .result-row {
+                font-size: 12px;
+            }
+
             .info-section {
                 padding: 12px;
             }
@@ -530,6 +626,12 @@
                 <div id="progressFill" class="progress-fill">0%</div>
             </div>
             <div id="progressText" class="progress-text">準備上傳...</div>
+        </div>
+
+        <div id="resultSection" class="result-section">
+            <h2 class="result-title">✅ 處理結果</h2>
+            <div id="resultSummary" class="result-summary"></div>
+            <div id="resultList" class="result-list"></div>
         </div>
 
         <div class="info-section">

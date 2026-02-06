@@ -16,6 +16,9 @@ const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
 const progressText = document.getElementById('progressText');
 const alertBox = document.getElementById('alert');
+const resultSection = document.getElementById('resultSection');
+const resultSummary = document.getElementById('resultSummary');
+const resultList = document.getElementById('resultList');
 
 // 檔案選擇事件
 fileInput.addEventListener('change', handleFileSelect);
@@ -102,6 +105,7 @@ function validateAndDisplayFile(file) {
   submitBtn.textContent = '開始上傳並處理';
   sheetNameInput.disabled = false;
   progressContainer.classList.remove('show');
+  clearResults();
   
   // 清除錯誤訊息
   hideAlert();
@@ -125,12 +129,11 @@ async function testGASConnection() {
   try {
     const response = await fetch(CONFIG.GAS_URL + '?action=test', {
       method: 'GET',
-      mode: 'no-cors',
+      mode: 'cors',
       signal: AbortSignal.timeout(5000) // 5 秒逾時
     });
-    
-    // no-cors 模式下無法確定是否真的成功，但至少請求有發出
-    return true;
+    const result = await response.json();
+    return response.ok && result && result.success;
   } catch (error) {
     return false;
   }
@@ -161,6 +164,7 @@ async function handleSubmit() {
   // 顯示進度條
   progressContainer.classList.add('show');
   updateProgress(0, '正在連線到伺服器...');
+  clearResults();
   
   // 測試連線（可選，但能提早發現明顯的問題）
   const isConnected = await testGASConnection();
@@ -188,25 +192,20 @@ async function handleSubmit() {
       targetGoogleSheetTab: CONFIG.TARGET_GOOGLE_SHEET_TAB
     };
     
-    // 發送到 GAS
+    // 發送到 GAS（改用可讀取回應）
     const response = await fetch(CONFIG.GAS_URL, {
       method: 'POST',
-      mode: 'no-cors', // GAS 需要使用 no-cors
-      headers: {
-        'Content-Type': 'application/json'
-      },
+      mode: 'cors',
       body: JSON.stringify(payload)
     });
     
     updateProgress(60, '伺服器處理中...');
+    const result = await response.json();
     
-    // 注意：no-cors 模式下無法讀取 response
-    // 我們需要額外的方式來確認是否真的成功
-    await new Promise(resolve => setTimeout(resolve, 3000)); // 等待處理
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '上傳處理失敗');
+    }
     
-    updateProgress(80, '檢查處理結果...');
-    
-    // 顯示重要提示
     updateProgress(100, '上傳完成');
     
     // 重新開放再次上傳與輸入工作表名稱
@@ -214,22 +213,8 @@ async function handleSubmit() {
     submitBtn.textContent = '開始上傳並處理';
     sheetNameInput.disabled = false;
     
-    showAlert('warning', `📤 檔案已上傳
-    
-⚠️ 重要提示：由於技術限制，無法自動確認處理結果。
-
-請手動檢查：
-1. 開啟 Google Sheets
-2. 確認「${CONFIG.TARGET_GOOGLE_SHEET_TAB}」工作表
-3. 確認「Log」工作表的處理記錄
-
-如果沒有看到資料，可能原因：
-• GAS URL 未正確設定
-• GAS 未部署或權限不足
-• Google Sheets ID 未設定
-• Excel 工作表名稱「${sheetName}」不存在`);
-    
-    // 不再詢問是否要重新上傳，讓使用者自行選檔開始下一次上傳
+    showAlert('success', '✅ 解析完成，結果如下');
+    renderResults(result);
     
   } catch (error) {
     console.error('上傳錯誤:', error);
@@ -296,4 +281,62 @@ function resetForm() {
   sheetNameInput.value = ''; // 不再帶預設值，改由使用者每次輸入
   progressContainer.classList.remove('show');
   updateProgress(0, '');
+  clearResults();
+}
+
+/**
+ * 顯示解析結果（摘要 + 卡片列表）
+ */
+function renderResults(result) {
+  const details = result.details || {};
+  const records = Array.isArray(result.records) ? result.records : [];
+  const shiftCodes = Array.isArray(details.shiftCodes) ? details.shiftCodes : [];
+
+  const summaryItems = [
+    { label: '總筆數', value: details.rowCount || records.length || 0 },
+    { label: '員工數', value: details.totalEmployees || 0 },
+    { label: '班別代碼', value: shiftCodes.length ? shiftCodes.join(', ') : '—' },
+    { label: '處理時間', value: details.processTime ? `${details.processTime}s` : '—' },
+    { label: '來源工作表', value: details.sourceSheet || '—' },
+    { label: '目標工作表', value: details.targetSheet || '—' }
+  ];
+
+  resultSummary.innerHTML = summaryItems.map(item => `
+    <div class="summary-item">
+      <div class="summary-label">${item.label}</div>
+      <div class="summary-value">${item.value}</div>
+    </div>
+  `).join('');
+
+  resultList.innerHTML = records.map(row => {
+    const [
+      name,
+      date,
+      start,
+      end,
+      hours,
+      shift
+    ] = row;
+    return `
+      <div class="result-card">
+        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
+        <div class="result-row"><span class="result-label">日期</span><span class="result-value">${date || '—'}</span></div>
+        <div class="result-row"><span class="result-label">班別</span><span class="result-value">${shift || '—'}</span></div>
+        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
+        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
+        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${hours || '—'}</span></div>
+      </div>
+    `;
+  }).join('');
+
+  resultSection.classList.add('show');
+}
+
+/**
+ * 清除結果區塊
+ */
+function clearResults() {
+  resultSummary.innerHTML = '';
+  resultList.innerHTML = '';
+  resultSection.classList.remove('show');
 }

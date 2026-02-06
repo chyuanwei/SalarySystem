@@ -153,6 +153,8 @@ function handleUpload(requestData) {
     return createJsonResponse({
       success: true,
       message: '檔案已成功上傳並處理',
+      columns: ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別'],
+      records: parseResult.data || [],
       details: {
         fileName: fileName,
         sourceSheet: targetSheetName,
@@ -216,6 +218,11 @@ function getJobStatus(jobId) {
 function createJsonResponse(data) {
   const output = ContentService.createTextOutput(JSON.stringify(data));
   output.setMimeType(ContentService.MimeType.JSON);
+  if (typeof output.setHeader === 'function') {
+    output.setHeader('Access-Control-Allow-Origin', '*');
+    output.setHeader('Access-Control-Allow-Methods', 'POST, GET, OPTIONS');
+    output.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+  }
   return output;
 }
 
