@@ -96,6 +96,12 @@ function validateAndDisplayFile(file) {
   fileSize.textContent = `大小: ${formatFileSize(file.size)}`;
   fileInfo.classList.add('show');
   submitBtn.classList.add('show');
+
+  // 只要重新選擇檔案，就解除處理中鎖定
+  submitBtn.disabled = false;
+  submitBtn.textContent = '開始上傳並處理';
+  sheetNameInput.disabled = false;
+  progressContainer.classList.remove('show');
   
   // 清除錯誤訊息
   hideAlert();
@@ -223,13 +229,7 @@ async function handleSubmit() {
 • Google Sheets ID 未設定
 • Excel 工作表名稱「${sheetName}」不存在`);
     
-    // 延長顯示時間，讓使用者看到提示
-    setTimeout(() => {
-      // 詢問使用者是否要重置表單
-      if (confirm('是否要上傳另一個檔案？')) {
-        resetForm();
-      }
-    }, 5000);
+    // 不再詢問是否要重新上傳，讓使用者自行選檔開始下一次上傳
     
   } catch (error) {
     console.error('上傳錯誤:', error);
