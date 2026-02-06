@@ -293,7 +293,9 @@ function renderResults(result) {
   const shiftCodes = Array.isArray(details.shiftCodes) ? details.shiftCodes : [];
 
   const summaryItems = [
-    { label: '總筆數', value: details.rowCount || records.length || 0 },
+    { label: '新增筆數', value: details.rowCount ?? '—' },
+    { label: '略過重複', value: details.skippedCount ?? 0 },
+    { label: '原始筆數', value: details.parsedRowCount ?? records.length ?? '—' },
     { label: '員工數', value: details.totalEmployees || 0 },
     { label: '班別代碼', value: shiftCodes.length ? shiftCodes.join(', ') : '—' },
     { label: '處理時間', value: details.processTime ? `${details.processTime}s` : '—' },
@@ -308,7 +310,16 @@ function renderResults(result) {
     </div>
   `).join('');
 
-  resultList.innerHTML = records.map(row => {
+  // 相容後端格式：records 為 { row, isDuplicate } 或舊版純陣列
+  const recordList = records.map(r => {
+    if (r && typeof r === 'object' && Array.isArray(r.row)) {
+      return { row: r.row, isDuplicate: !!r.isDuplicate };
+    }
+    const row = Array.isArray(r) ? r : [];
+    return { row, isDuplicate: false };
+  });
+
+  resultList.innerHTML = recordList.map(({ row, isDuplicate }) => {
     const [
       name,
       date,
@@ -317,8 +328,10 @@ function renderResults(result) {
       hours,
       shift
     ] = row;
+    const duplicateBadge = isDuplicate ? '<span class="result-card-duplicate" title="此筆為重複，已略過寫入">重複</span>' : '';
     return `
-      <div class="result-card">
+      <div class="result-card ${isDuplicate ? 'result-card--duplicate' : ''}">
+        ${duplicateBadge}
         <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
         <div class="result-row"><span class="result-label">日期</span><span class="result-value">${date || '—'}</span></div>
         <div class="result-row"><span class="result-label">班別</span><span class="result-value">${shift || '—'}</span></div>

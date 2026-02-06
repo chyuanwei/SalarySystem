@@ -150,12 +150,15 @@ function handleUpload(requestData) {
       skippedCount: writeResult.skippedCount || 0
     });
     
-    // 回傳成功訊息
+    // 回傳成功訊息（records 含每筆的 row + isDuplicate，供前端顯示重複記號）
+    const records = writeResult.allRecordsWithFlag || (writeResult.appendedRows || []).map(function(row) {
+      return { row: row, isDuplicate: false };
+    });
     return createJsonResponse({
       success: true,
       message: '檔案已成功上傳並處理',
       columns: ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別'],
-      records: writeResult.appendedRows || [],
+      records: records,
       details: {
         fileName: fileName,
         sourceSheet: targetSheetName,

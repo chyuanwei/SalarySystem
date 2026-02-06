@@ -168,13 +168,17 @@ function appendToSheet(data, targetSheetName) {
         }
       }
       
-      // 過濾重複資料（同批內也去重）
+      // 過濾重複資料（同批內也去重），並建立每筆的 isDuplicate 旗標供前端顯示
       const newRows = [];
+      const allRecordsWithFlag = [];
       dataRows.forEach(row => {
         const key = buildDedupKey(row);
         if (!existingKeys.has(key)) {
           existingKeys.add(key);
           newRows.push(row);
+          allRecordsWithFlag.push({ row: row, isDuplicate: false });
+        } else {
+          allRecordsWithFlag.push({ row: row, isDuplicate: true });
         }
       });
       
@@ -186,8 +190,9 @@ function appendToSheet(data, targetSheetName) {
           message: '沒有新資料需要追加',
           rowCount: 0,
           columnCount: 0,
-        skippedCount: dataRows.length,
-        appendedRows: []
+          skippedCount: dataRows.length,
+          appendedRows: [],
+          allRecordsWithFlag: allRecordsWithFlag
         };
       }
       
@@ -221,7 +226,8 @@ function appendToSheet(data, targetSheetName) {
         columnCount: colCount,
         sheetName: targetSheetName,
         skippedCount: skippedCount,
-        appendedRows: newRows
+        appendedRows: newRows,
+        allRecordsWithFlag: allRecordsWithFlag
       };
       
     } else {
