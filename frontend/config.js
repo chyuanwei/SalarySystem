@@ -4,7 +4,7 @@
 
 const CONFIG = {
   // GAS Web App URL
-  GAS_URL_TEST: 'https://script.google.com/macros/s/1b_UcoqPQ8Vm6lekQli79JRePKDB-5qbbkLPh5lsfOdZOVtAD-Z61X8ZH/exec',
+  GAS_URL_TEST: 'https://script.google.com/macros/s/AKfycbxpExUCOrTLcbUSHcaBmtluODqb2pNopEuh7QOUJXJXXVZcKMP_EJiUKRLsTTZ3sANS5Q/exec',
   GAS_URL_PROD: 'https://script.google.com/macros/s/185v2ySyq9ncyzBwbnnogQTXHuw3S78pfmXcaATxWRs5K5W3ZYsSRG4F7/exec',
   
   // 當前環境 ('test' 或 'production')

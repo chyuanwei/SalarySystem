@@ -244,6 +244,7 @@ GAS 寫入「最終確認結果」
 ### 8.1 測試環境
 - **GAS 專案**：SalarySystem - Test
 - **Script ID**：`1b_UcoqPQ8Vm6lekQli79JRePKDB-5qbbkLPh5lsfOdZOVtAD-Z61X8ZH`
+- **部署 URL**：`https://script.google.com/macros/s/AKfycbxpExUCOrTLcbUSHcaBmtluODqb2pNopEuh7QOUJXJXXVZcKMP_EJiUKRLsTTZ3sANS5Q/exec`
 - **Script Properties**：
   - `SHEET_ID`: 測試用 Google Sheets ID
   - `ENVIRONMENT`: `test`
@@ -434,10 +435,31 @@ GAS 寫入「最終確認結果」
 
 ---
 
-## 15. 部署記錄
+## 15. 重要注意事項
+
+### 15.1 No-CORS 模式限制
+
+前端使用 `no-cors` 模式發送請求到 GAS，有以下限制：
+
+**⚠️ 無法自動偵測錯誤**：
+- 即使 GAS URL 錯誤，不會報錯
+- 即使 GAS 未部署，不會報錯
+- 即使處理失敗，不會報錯
+
+**解決方式**：
+1. 使用 `frontend/test-connection.html` 測試連線
+2. 上傳後手動檢查 Google Sheets
+3. 查看「Log」工作表確認處理記錄
+
+**詳細說明**：見 `docs/NO_CORS_ISSUE.md`
+
+---
+
+## 16. 部署記錄
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2024-02-06 | v0.3 | 測試 | 更新 GAS 部署 URL、改善錯誤處理、新增連線測試頁面、No-CORS 問題說明 | User |
 | 2024-02-06 | v0.2 | 測試+正式 | 新增完整 Log 系統，支援 Log_Level 控制（0/1/2），五種 Log 等級，記錄到 'Log' sheet | AI |
 | 2024-02-06 | v0.1 | 測試+正式 | 初始版本：Excel 上傳、解析指定工作表、寫入 Google Sheets、基本 Log 功能 | AI |
 

@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GAS 連線測試 - 薪資計算系統</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .container {
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            padding: 40px;
+            max-width: 700px;
+            width: 100%;
+        }
+
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+            font-size: 26px;
+        }
+
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+            font-size: 14px;
+        }
+
+        .test-section {
+            background: #f8f9fa;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .test-section h2 {
+            color: #333;
+            font-size: 18px;
+            margin-bottom: 15px;
+        }
+
+        .config-item {
+            margin-bottom: 15px;
+            padding: 15px;
+            background: white;
+            border-radius: 8px;
+        }
+
+        .config-label {
+            font-weight: bold;
+            color: #555;
+            margin-bottom: 5px;
+        }
+
+        .config-value {
+            font-family: 'Courier New', monospace;
+            color: #333;
+            word-break: break-all;
+            background: #e9ecef;
+            padding: 8px;
+            border-radius: 4px;
+            margin-top: 5px;
+        }
+
+        .btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            width: 100%;
+            margin-top: 10px;
+        }
+
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .result {
+            margin-top: 15px;
+            padding: 15px;
+            border-radius: 8px;
+            display: none;
+        }
+
+        .result.show {
+            display: block;
+        }
+
+        .result.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .result.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .result.warning {
+            background: #fff3cd;
+            color: #856404;
+            border: 1px solid #ffeaa7;
+        }
+
+        .checklist {
+            background: #e7f3ff;
+            padding: 20px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+
+        .checklist h3 {
+            color: #0066cc;
+            margin-bottom: 10px;
+        }
+
+        .checklist ul {
+            margin-left: 20px;
+        }
+
+        .checklist li {
+            margin-bottom: 8px;
+            color: #333;
+        }
+
+        .link {
+            color: #667eea;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .link:hover {
+            text-decoration: underline;
+        }
+
+        pre {
+            background: #f8f9fa;
+            padding: 15px;
+            border-radius: 8px;
+            overflow-x: auto;
+            font-size: 13px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🔧 GAS 連線測試</h1>
+        <p class="subtitle">測試 Google Apps Script 後端連線與設定</p>
+
+        <!-- 當前設定 -->
+        <div class="test-section">
+            <h2>📋 當前設定</h2>
+            <div class="config-item">
+                <div class="config-label">環境：</div>
+                <div class="config-value" id="environment"></div>
+            </div>
+            <div class="config-item">
+                <div class="config-label">GAS URL：</div>
+                <div class="config-value" id="gasUrl"></div>
+            </div>
+            <div class="config-item">
+                <div class="config-label">目標 Google Sheets：</div>
+                <div class="config-value" id="sheetName"></div>
+            </div>
+            <div class="config-item">
+                <div class="config-label">目標工作表：</div>
+                <div class="config-value" id="tabName"></div>
+            </div>
+        </div>
+
+        <!-- 連線測試 -->
+        <div class="test-section">
+            <h2>🔌 連線測試</h2>
+            <button id="testBtn" class="btn">測試 GAS 連線</button>
+            <div id="testResult" class="result"></div>
+        </div>
+
+        <!-- 檢查清單 -->
+        <div class="checklist">
+            <h3>✅ 部署檢查清單</h3>
+            <ul>
+                <li>GAS 程式碼是否已推送？（<code>clasp push</code>）</li>
+                <li>GAS 是否已部署為 Web App？</li>
+                <li>部署設定：執行身分 = 我，存取權限 = 所有人</li>
+                <li>Script Properties 是否已設定 <code>SHEET_ID</code>？</li>
+                <li>Script Properties 是否已設定 <code>Log_Level</code>？</li>
+                <li>Drive API 是否已啟用？</li>
+                <li><code>frontend/config.js</code> 中的 GAS_URL 是否正確？</li>
+            </ul>
+        </div>
+
+        <div class="checklist">
+            <h3>📚 相關文件</h3>
+            <ul>
+                <li><a href="../DEPLOY.md" class="link">部署指南</a></li>
+                <li><a href="../gas-backend/README.md" class="link">GAS 後端說明</a></li>
+                <li><a href="index.html" class="link">返回上傳頁面</a></li>
+            </ul>
+        </div>
+    </div>
+
+    <script src="config.js"></script>
+    <script>
+        // 顯示當前設定
+        document.getElementById('environment').textContent = CONFIG.ENVIRONMENT;
+        document.getElementById('gasUrl').textContent = CONFIG.GAS_URL;
+        document.getElementById('sheetName').textContent = CONFIG.TARGET_GOOGLE_SHEET_NAME;
+        document.getElementById('tabName').textContent = CONFIG.TARGET_GOOGLE_SHEET_TAB;
+
+        // 測試按鈕
+        const testBtn = document.getElementById('testBtn');
+        const testResult = document.getElementById('testResult');
+
+        testBtn.addEventListener('click', testConnection);
+
+        async function testConnection() {
+            testBtn.disabled = true;
+            testBtn.textContent = '測試中...';
+            testResult.className = 'result';
+            testResult.textContent = '';
+
+            try {
+                // 測試 1: 基本連線測試
+                testResult.className = 'result show warning';
+                testResult.textContent = '⏳ 正在測試連線...';
+
+                const controller = new AbortController();
+                const timeoutId = setTimeout(() => controller.abort(), 10000); // 10 秒逾時
+
+                const response = await fetch(CONFIG.GAS_URL + '?action=test', {
+                    method: 'GET',
+                    mode: 'no-cors',
+                    signal: controller.signal
+                });
+
+                clearTimeout(timeoutId);
+
+                // no-cors 模式下無法讀取實際回應
+                testResult.className = 'result show warning';
+                testResult.innerHTML = `
+                    ⚠️ <strong>無法確定連線狀態</strong><br><br>
+                    
+                    由於使用 no-cors 模式，無法讀取伺服器回應。<br><br>
+                    
+                    請手動確認：<br>
+                    1. 開啟 <a href="${CONFIG.GAS_URL}?action=test" target="_blank" class="link">GAS 測試連結</a><br>
+                    2. 應該看到 JSON 回應：<code>{"success":true,"message":"測試連線成功"}</code><br>
+                    3. 如果看到錯誤或無法開啟，請檢查部署設定<br><br>
+                    
+                    <strong>建議的改善方式：</strong><br>
+                    • 使用 CORS 模式以獲得準確的錯誤訊息<br>
+                    • 或實作狀態輪詢 API
+                `;
+
+            } catch (error) {
+                testResult.className = 'result show error';
+                if (error.name === 'AbortError') {
+                    testResult.innerHTML = `
+                        ❌ <strong>連線逾時</strong><br><br>
+                        
+                        無法在 10 秒內連線到 GAS。<br><br>
+                        
+                        可能原因：<br>
+                        • GAS URL 錯誤<br>
+                        • GAS 未部署<br>
+                        • 網路問題<br><br>
+                        
+                        請檢查 <code>frontend/config.js</code> 中的 GAS_URL 設定。
+                    `;
+                } else {
+                    testResult.innerHTML = `
+                        ❌ <strong>連線失敗</strong><br><br>
+                        
+                        錯誤訊息：${error.message}<br><br>
+                        
+                        請檢查：<br>
+                        • GAS URL 是否正確<br>
+                        • GAS 是否已部署<br>
+                        • 網路連線是否正常
+                    `;
+                }
+            } finally {
+                testBtn.disabled = false;
+                testBtn.textContent = '重新測試';
+            }
+        }
+    </script>
+</body>
+</html>

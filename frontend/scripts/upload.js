@@ -113,6 +113,24 @@ function formatFileSize(bytes) {
 }
 
 /**
+ * 測試 GAS 連線
+ */
+async function testGASConnection() {
+  try {
+    const response = await fetch(CONFIG.GAS_URL + '?action=test', {
+      method: 'GET',
+      mode: 'no-cors',
+      signal: AbortSignal.timeout(5000) // 5 秒逾時
+    });
+    
+    // no-cors 模式下無法確定是否真的成功，但至少請求有發出
+    return true;
+  } catch (error) {
+    return false;
+  }
+}
+
+/**
  * 處理提交
  */
 async function handleSubmit() {
@@ -136,7 +154,17 @@ async function handleSubmit() {
   
   // 顯示進度條
   progressContainer.classList.add('show');
-  updateProgress(0, '正在讀取檔案...');
+  updateProgress(0, '正在連線到伺服器...');
+  
+  // 測試連線（可選，但能提早發現明顯的問題）
+  const isConnected = await testGASConnection();
+  if (!isConnected) {
+    showAlert('warning', '⚠️ 警告：無法連線到伺服器，但仍會嘗試上傳。請確認 GAS URL 是否正確設定。');
+    // 給使用者 3 秒時間看到警告
+    await new Promise(resolve => setTimeout(resolve, 3000));
+  }
+  
+  updateProgress(10, '正在讀取檔案...');
   
   try {
     // 讀取檔案為 Base64
@@ -166,17 +194,37 @@ async function handleSubmit() {
     
     updateProgress(60, '伺服器處理中...');
     
-    // 注意：no-cors 模式下無法讀取 response，所以我們假設成功
-    // 實際應用中可以改用輪詢狀態的方式
-    await new Promise(resolve => setTimeout(resolve, 2000)); // 模擬處理時間
+    // 注意：no-cors 模式下無法讀取 response
+    // 我們需要額外的方式來確認是否真的成功
+    await new Promise(resolve => setTimeout(resolve, 3000)); // 等待處理
     
-    updateProgress(100, '完成！');
-    showAlert('success', '✓ 檔案已成功上傳並處理！資料已寫入 Google Sheets。');
+    updateProgress(80, '檢查處理結果...');
     
-    // 重置表單
+    // 顯示重要提示
+    updateProgress(100, '上傳完成');
+    
+    showAlert('warning', `📤 檔案已上傳
+    
+⚠️ 重要提示：由於技術限制，無法自動確認處理結果。
+
+請手動檢查：
+1. 開啟 Google Sheets
+2. 確認「${CONFIG.TARGET_GOOGLE_SHEET_TAB}」工作表
+3. 確認「Log」工作表的處理記錄
+
+如果沒有看到資料，可能原因：
+• GAS URL 未正確設定
+• GAS 未部署或權限不足
+• Google Sheets ID 未設定
+• Excel 工作表名稱「${sheetName}」不存在`);
+    
+    // 延長顯示時間，讓使用者看到提示
     setTimeout(() => {
-      resetForm();
-    }, 3000);
+      // 詢問使用者是否要重置表單
+      if (confirm('是否要上傳另一個檔案？')) {
+        resetForm();
+      }
+    }, 5000);
     
   } catch (error) {
     console.error('上傳錯誤:', error);

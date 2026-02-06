@@ -61,7 +61,16 @@ npm install
 
 請參考 [SETUP.md](SETUP.md) 進行詳細設定。
 
-### 4. 執行測試
+### 4. 測試 GAS 連線
+
+**重要**：在使用系統前，請先測試 GAS 連線是否正常。
+
+開啟 `frontend/test-connection.html` 進行連線測試，確保：
+- ✅ GAS 已部署
+- ✅ GAS URL 設定正確
+- ✅ Script Properties 已設定
+
+### 5. 執行測試
 
 ```bash
 npm test
