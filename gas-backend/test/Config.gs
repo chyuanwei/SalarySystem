@@ -9,7 +9,7 @@ function getConfig() {
   
   return {
     // Google Sheets ID（從 Script Properties 讀取）
-    SHEET_ID: props.getProperty('SHEET_ID') || 'YOUR_TEST_SHEET_ID',
+    SHEET_ID: props.getProperty('SHEET_ID') || '1YiwEZdZGGt6XISbKUexnQK-uaEMwy1TN1frsbyvc0f8',
     
     // 環境標識
     ENVIRONMENT: 'test',
