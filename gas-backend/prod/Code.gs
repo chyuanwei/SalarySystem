@@ -1,6 +1,6 @@
 /**
  * 薪資計算系統 - 主程式
- * 測試環境
+ * 正式環境
  */
 
 /**
@@ -11,12 +11,32 @@ function doGet(e) {
   
   try {
     switch (action) {
-      case 'test':
-        return createJsonResponse({ success: true, message: '測試連線成功', environment: 'test' });
+      case 'test': {
+        const config = getConfig();
+        return createJsonResponse({ success: true, message: '測試連線成功', environment: config.ENVIRONMENT || 'production' });
+      }
       
       case 'status':
         const jobId = e.parameter.jobId;
         return getJobStatus(jobId);
+      
+      case 'loadSchedule': {
+        const config = getConfig();
+        const sheetName = config.SHEET_NAMES.SCHEDULE || '國安班表';
+        const yearMonth = e.parameter.yearMonth || '';
+        const dateParam = e.parameter.date || '';
+        const namesParam = e.parameter.names || '';
+        const names = namesParam ? namesParam.split(',').map(function(n) { return n.trim(); }).filter(Boolean) : [];
+        const result = readScheduleByYearMonth(sheetName, yearMonth, dateParam, names);
+        if (!result.success) {
+          return createJsonResponse({ success: false, error: result.error });
+        }
+        return createJsonResponse({
+          success: true,
+          records: result.records,
+          details: result.details || {}
+        });
+      }
       
       default:
         return createJsonResponse({ success: false, error: '未知的 action' });
@@ -69,14 +89,19 @@ function doPost(e) {
  */
 function handleUpload(requestData) {
   const startTime = new Date();
-  
+  const uploadType = requestData.uploadType || 'schedule';
+
   try {
+    if (uploadType === 'attendance') {
+      return createJsonResponse({ success: false, error: '打卡上傳功能尚未實作' });
+    }
+
     const fileName = requestData.fileName;
     const fileData = requestData.fileData;
     const targetSheetName = requestData.targetSheetName || '11501';
     const targetGoogleSheetTab = requestData.targetGoogleSheetTab || '國安班表';
-    
-    logOperation(`開始處理上傳: ${fileName}`, {
+
+    logOperation('開始處理上傳: ' + fileName, {
       fileName: fileName,
       targetSheetName: targetSheetName,
       targetGoogleSheetTab: targetGoogleSheetTab
@@ -150,12 +175,15 @@ function handleUpload(requestData) {
       skippedCount: writeResult.skippedCount || 0
     });
     
-    // 回傳成功訊息
+    // 回傳成功訊息（records 含每筆的 row + isDuplicate，供前端顯示重複記號）
+    const records = writeResult.allRecordsWithFlag || (writeResult.appendedRows || []).map(function(row) {
+      return { row: row, isDuplicate: false };
+    });
     return createJsonResponse({
       success: true,
       message: '檔案已成功上傳並處理',
       columns: ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別'],
-      records: writeResult.appendedRows || [],
+      records: records,
       details: {
         fileName: fileName,
         sourceSheet: targetSheetName,

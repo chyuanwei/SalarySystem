@@ -29,8 +29,43 @@ function parseExcel(base64Data, fileName, targetSheetName) {
       // 使用 Drive API 或 Sheets API 轉換 Excel
       const convertedSheet = convertExcelToSheets(fileId);
       
+      // ===== 診斷：檢查轉換後的 Google Sheets =====
+      const allSheets = convertedSheet.getSheets();
+      const sheetNames = allSheets.map(s => `${s.getName()}(${s.getLastRow()}列)`).join(', ');
+      logOperation(`🔍 轉換後的 Google Sheets 工作表`, {
+        totalSheets: allSheets.length,
+        sheets: sheetNames,
+        spreadsheetId: convertedSheet.getId()
+      });
+      
+      const targetSheet = convertedSheet.getSheetByName(targetSheetName);
+      if (targetSheet) {
+        logOperation(`🔍 目標工作表 "${targetSheetName}" 資訊`, {
+          lastRow: targetSheet.getLastRow(),
+          lastCol: targetSheet.getLastColumn(),
+          maxRows: targetSheet.getMaxRows(),
+          maxCols: targetSheet.getMaxColumns()
+        });
+      }
+      // ===== 診斷結束 =====
+      
       // 讀取指定工作表的資料
       const data = readSheetData(convertedSheet, targetSheetName);
+      
+      // ===== 診斷：檢查讀取到的資料量 =====
+      logOperation(`🔍 診斷：讀取到的資料列數`, { 
+        totalRows: data.length,
+        firstRowLength: data[0] ? data[0].length : 0
+      });
+      
+      // 輸出前 30 列的第一欄（尋找班別代碼定義）
+      const diagRows = [];
+      for (let i = 0; i < Math.min(30, data.length); i++) {
+        const firstCell = data[i] && data[i][0] ? data[i][0].toString() : '';
+        diagRows.push(`[${i + 1}] "${firstCell}"`);
+      }
+      logOperation(`🔍 前 30 列第一欄內容`, { rows: diagRows.join(' | ') });
+      // ===== 診斷結束 =====
       
       // 刪除暫存檔案
       DriveApp.getFileById(fileId).setTrashed(true);

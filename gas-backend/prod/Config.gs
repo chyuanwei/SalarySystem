@@ -1,6 +1,6 @@
 /**
  * 薪資計算系統 - 環境設定
- * 測試環境
+ * 正式環境
  */
 
 // 從 Script Properties 讀取設定
@@ -9,10 +9,10 @@ function getConfig() {
   
   return {
     // Google Sheets ID（從 Script Properties 讀取）
-    SHEET_ID: props.getProperty('SHEET_ID') || 'YOUR_TEST_SHEET_ID',
+    SHEET_ID: props.getProperty('SHEET_ID') || '',
     
-    // 環境標識
-    ENVIRONMENT: 'test',
+    // 環境標識（從 Script Properties 讀取，預設 production）
+    ENVIRONMENT: props.getProperty('ENVIRONMENT') || 'production',
     
     // 工作表名稱對應
     SHEET_NAMES: {

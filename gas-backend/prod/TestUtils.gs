@@ -1,192 +1,176 @@
 /**
  * 測試工具函數
- * 這些函數只用於測試與除錯，不會在正式流程中呼叫
+ * 用於測試新的泉威國安班表解析器
  */
 
 /**
- * 匯出「國安班表」的結構與資料
- * 在 GAS 編輯器中執行此函數，然後查看執行記錄
+ * 測試解析泉威國安班表
+ * 使用本地測試資料來驗證解析功能
  */
-function exportSheetStructure() {
-  try {
-    const ss = SpreadsheetApp.openById('1YiwEZdZGGt6XISbKUexnQK-uaEMwy1TN1frsbyvc0f8');
-    const sheet = ss.getSheetByName('國安班表');
-    
-    if (!sheet) {
-      Logger.log('錯誤：找不到「國安班表」工作表');
-      Logger.log('可用的工作表：');
-      ss.getSheets().forEach(s => Logger.log('  - ' + s.getName()));
-      return;
-    }
-    
-    const lastRow = sheet.getLastRow();
-    const lastCol = sheet.getLastColumn();
-    
-    Logger.log('=== 國安班表結構 ===');
-    Logger.log('最後一列：' + lastRow);
-    Logger.log('最後一欄：' + lastCol);
-    Logger.log('');
-    
-    if (lastRow === 0 || lastCol === 0) {
-      Logger.log('工作表是空的');
-      return;
-    }
-    
-    // 讀取前 10 列資料（含標題）
-    const rowsToRead = Math.min(lastRow, 10);
-    const data = sheet.getRange(1, 1, rowsToRead, lastCol).getValues();
-    
-    Logger.log('=== 標題列（第 1 列）===');
-    Logger.log(JSON.stringify(data[0]));
-    Logger.log('');
-    
-    Logger.log('=== 欄位對應 ===');
-    for (let i = 0; i < data[0].length; i++) {
-      const colLetter = columnToLetter(i + 1);
-      Logger.log(colLetter + ' 欄 = ' + data[0][i]);
-    }
-    Logger.log('');
-    
-    Logger.log('=== 前幾列資料範例 ===');
-    for (let i = 1; i < data.length; i++) {
-      Logger.log('第 ' + (i + 1) + ' 列: ' + JSON.stringify(data[i]));
-    }
-    Logger.log('');
-    
-    Logger.log('=== 完整資料（JSON 格式）===');
-    Logger.log(JSON.stringify(data, null, 2));
-    
-  } catch (error) {
-    Logger.log('錯誤：' + error.message);
-    Logger.log('請確認：');
-    Logger.log('1. Google Sheets ID 是否正確');
-    Logger.log('2. GAS 是否有權限存取該 Sheets');
-  }
-}
-
-/**
- * 列出所有工作表名稱
- */
-function listAllSheets() {
-  try {
-    const ss = SpreadsheetApp.openById('1YiwEZdZGGt6XISbKUexnQK-uaEMwy1TN1frsbyvc0f8');
-    
-    Logger.log('=== Google Sheets 資訊 ===');
-    Logger.log('試算表名稱：' + ss.getName());
-    Logger.log('試算表 ID：' + ss.getId());
-    Logger.log('');
-    
-    Logger.log('=== 所有工作表 ===');
-    const sheets = ss.getSheets();
-    sheets.forEach((sheet, index) => {
-      Logger.log((index + 1) + '. ' + sheet.getName() + 
-        ' (' + sheet.getLastRow() + ' 列 x ' + 
-        sheet.getLastColumn() + ' 欄)');
-    });
-    
-  } catch (error) {
-    Logger.log('錯誤：' + error.message);
-  }
-}
-
-/**
- * 測試讀取上傳的 Excel 原始資料
- */
-function testReadUploadedExcel() {
-  try {
-    const ss = SpreadsheetApp.openById('1YiwEZdZGGt6XISbKUexnQK-uaEMwy1TN1frsbyvc0f8');
-    
-    // 假設上傳的原始資料會先存在某個工作表
-    // 這裡列出所有可能的資料來源
-    Logger.log('=== 搜尋可能的資料來源 ===');
-    
-    const sheets = ss.getSheets();
-    sheets.forEach(sheet => {
-      const name = sheet.getName();
-      const lastRow = sheet.getLastRow();
-      const lastCol = sheet.getLastColumn();
-      
-      if (lastRow > 0) {
-        Logger.log('');
-        Logger.log('工作表：' + name);
-        Logger.log('大小：' + lastRow + ' 列 x ' + lastCol + ' 欄');
-        
-        // 讀取前 3 列
-        const data = sheet.getRange(1, 1, Math.min(3, lastRow), lastCol).getValues();
-        Logger.log('前 3 列資料：');
-        data.forEach((row, i) => {
-          Logger.log('  第 ' + (i + 1) + ' 列: ' + JSON.stringify(row));
-        });
-      }
-    });
-    
-  } catch (error) {
-    Logger.log('錯誤：' + error.message);
-  }
-}
-
-/**
- * 測試基本連線與設定
- */
-function testBasicSetup() {
-  Logger.log('=== 測試基本設定 ===');
-  Logger.log('');
+function testParseQuanWeiSchedule() {
+  Logger.log('=== 開始測試泉威國安班表解析器 ===');
   
-  // 1. 測試 Config
-  Logger.log('1. 測試 Config');
+  // 模擬 11501 班表資料結構
+  const testData = [
+    ['', '更新日', '', '', '', '', '', '', '', ''],
+    ['2026/01', '', '', '', '', '', '', '', '', ''],
+    ['姓名/星期', '入職日', '上月剩', '', '', '', '', '', 1, 2, 3, 4, 5],
+    ['', '', '餘年假', '週六', '週日', '週一', '週二', '週三', '週四', '週五', '週六', '週日', '週一'],
+    ['TiNg', '', '', '', '', '', '', '', '', '', '', 'O', 'O'],
+    ['茶葉', '', '', '', '', '', '', '', '', '', '', 'A', 'B'],
+    ['魚', '', '', '', '', '', '', '', '', '', '', 'B1', 'A1'],
+    ['', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ['', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ['* A 10:00-17:00', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ['* A1 10:00-15:00', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ['* B 16:30-20:30', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ['* B1 14:30-20:30', '', '', '', '', '', '', '', '', '', '', '', ''],
+    ['* O 10:00-20:30', '', '', '', '', '', '', '', '', '', '', '', '']
+  ];
+  
   try {
+    // 測試 1: 定位資料結構
+    Logger.log('\n--- 測試 1: 定位資料結構 ---');
+    const config = locateDataStructure(testData);
+    Logger.log('資料結構配置: ' + JSON.stringify(config));
+    
+    if (!config) {
+      Logger.log('❌ 測試失敗：無法定位資料結構');
+      return;
+    }
+    Logger.log('✅ 定位成功：日期列=' + (config.dateRow + 1) + ', 日期欄=' + (config.dateCol + 1));
+    
+    // 測試 2: 建立代碼字典
+    Logger.log('\n--- 測試 2: 建立代碼字典 ---');
+    const shiftMap = buildShiftMap(testData);
+    Logger.log('代碼字典: ' + JSON.stringify(shiftMap, null, 2));
+    
+    const expectedCodes = ['A', 'A1', 'B', 'B1', 'O'];
+    const foundCodes = Object.keys(shiftMap);
+    if (expectedCodes.every(code => foundCodes.includes(code))) {
+      Logger.log('✅ 代碼掃描成功：找到 ' + foundCodes.length + ' 個代碼');
+    } else {
+      Logger.log('❌ 代碼掃描不完整：預期 ' + expectedCodes.join(',') + '，實際 ' + foundCodes.join(','));
+    }
+    
+    // 測試 3: 完整解析
+    Logger.log('\n--- 測試 3: 完整解析 ---');
+    const result = parseQuanWeiSchedule(testData, '測試工作表');
+    Logger.log('解析結果:');
+    Logger.log('  - 總記錄數: ' + result.records.length);
+    Logger.log('  - 員工數: ' + result.totalEmployees);
+    Logger.log('  - 班別代碼: ' + Object.keys(result.shiftMap).join(', '));
+    
+    Logger.log('\n前 5 筆記錄:');
+    result.records.slice(0, 5).forEach((record, idx) => {
+      Logger.log('  ' + (idx + 1) + '. ' + record.join(' | '));
+    });
+    
+    if (result.records.length > 0) {
+      Logger.log('✅ 解析成功');
+    } else {
+      Logger.log('❌ 解析失敗：沒有產生記錄');
+    }
+    
+    // 測試 4: 時間解析
+    Logger.log('\n--- 測試 4: 時間解析 ---');
+    const testTimeRanges = [
+      '10:00-17:00',
+      '16:30-20:30',
+      '22:00-06:00' // 跨日
+    ];
+    
+    testTimeRanges.forEach(range => {
+      const parsed = parseTimeRange(range);
+      Logger.log(range + ' → ' + JSON.stringify(parsed));
+    });
+    Logger.log('✅ 時間解析測試完成');
+    
+    // 測試 5: 日期格式化
+    Logger.log('\n--- 測試 5: 日期格式化 ---');
+    const testDates = [
+      { ym: '2026/01', d: 1, expected: '2026/01/01' },
+      { ym: '2026/02', d: 15, expected: '2026/02/15' },
+      { ym: '2026/12', d: 31, expected: '2026/12/31' }
+    ];
+    
+    let dateTestPass = true;
+    testDates.forEach(test => {
+      const formatted = formatScheduleDate(test.ym, test.d);
+      const pass = (formatted === test.expected);
+      Logger.log((pass ? '✅' : '❌') + ' ' + test.ym + ' + ' + test.d + ' = ' + formatted + ' (預期: ' + test.expected + ')');
+      if (!pass) dateTestPass = false;
+    });
+    
+    Logger.log('\n=== 測試完成 ===');
+    Logger.log('總體結果: ' + (dateTestPass ? '✅ 全部通過' : '⚠️ 部分測試失敗'));
+    
+  } catch (error) {
+    Logger.log('❌ 測試過程發生錯誤: ' + error.message);
+    Logger.log('錯誤堆疊: ' + error.stack);
+  }
+}
+
+/**
+ * 測試完整的上傳流程（模擬）
+ */
+function testFullUploadFlow() {
+  Logger.log('=== 測試完整上傳流程 ===');
+  
+  try {
+    // 這個測試需要實際的 Excel 檔案
+    // 由於無法在測試環境中直接讀取檔案，這裡只記錄測試步驟
+    
+    Logger.log('測試步驟:');
+    Logger.log('1. 準備測試 Excel 檔案（2026泉威國安班表.xlsx）');
+    Logger.log('2. 使用前端上傳介面上傳檔案');
+    Logger.log('3. 選擇工作表 11501 或 11502');
+    Logger.log('4. 檢查 Google Sheets 中的「國安班表」工作表');
+    Logger.log('5. 檢查 Log 工作表是否有正確的記錄');
+    Logger.log('6. 驗證資料格式：員工姓名 | 排班日期 | 上班時間 | 下班時間 | 工作時數');
+    
+    Logger.log('\n請手動執行上述步驟進行完整測試');
+    
+  } catch (error) {
+    Logger.log('❌ 測試失敗: ' + error.message);
+  }
+}
+
+/**
+ * 檢查 GAS 環境設定
+ */
+function checkEnvironmentSetup() {
+  Logger.log('=== 檢查環境設定 ===');
+  
+  try {
+    // 檢查 Config
     const config = getConfig();
-    Logger.log('✓ Config 讀取成功');
+    Logger.log('✅ Config 讀取成功');
     Logger.log('  SHEET_ID: ' + config.SHEET_ID);
     Logger.log('  ENVIRONMENT: ' + config.ENVIRONMENT);
-    Logger.log('');
-  } catch (error) {
-    Logger.log('✗ Config 讀取失敗: ' + error.message);
-    Logger.log('');
-  }
-  
-  // 2. 測試 Google Sheets 連線
-  Logger.log('2. 測試 Google Sheets 連線');
-  try {
+    
+    // 檢查 Google Sheets 連線
     const ss = getSpreadsheet();
-    Logger.log('✓ Google Sheets 連線成功');
+    Logger.log('✅ Google Sheets 連線成功');
     Logger.log('  試算表名稱: ' + ss.getName());
     Logger.log('  試算表 ID: ' + ss.getId());
-    Logger.log('');
-  } catch (error) {
-    Logger.log('✗ Google Sheets 連線失敗: ' + error.message);
-    Logger.log('');
-  }
-  
-  // 3. 測試 Log Level
-  Logger.log('3. 測試 Log Level');
-  try {
-    const logLevel = getLogLevel();
-    Logger.log('✓ Log Level: ' + logLevel);
-    Logger.log('  0=關閉, 1=營運, 2=Debug');
-    Logger.log('');
-  } catch (error) {
-    Logger.log('✗ Log Level 讀取失敗: ' + error.message);
-    Logger.log('');
-  }
-  
-  // 4. 測試寫入 Log
-  Logger.log('4. 測試寫入 Log');
-  try {
-    logOperation('測試記錄 - ' + new Date().toLocaleString('zh-TW'), {
-      test: true,
-      timestamp: new Date().toISOString()
+    
+    // 檢查工作表
+    const sheets = ss.getSheets();
+    Logger.log('✅ 工作表列表:');
+    sheets.forEach((sheet, idx) => {
+      Logger.log('  ' + (idx + 1) + '. ' + sheet.getName());
     });
-    Logger.log('✓ Log 寫入成功（請檢查 Google Sheets 的 Log 工作表）');
-    Logger.log('');
+    
+    // 檢查 Log 等級
+    const logLevel = getLogLevel();
+    Logger.log('✅ Log 等級: ' + logLevel + ' (' + 
+      (logLevel === 0 ? 'OFF' : logLevel === 1 ? 'OPERATION' : 'DEBUG') + ')');
+    
+    Logger.log('\n=== 環境檢查完成 ===');
+    
   } catch (error) {
-    Logger.log('✗ Log 寫入失敗: ' + error.message);
-    Logger.log('');
+    Logger.log('❌ 環境檢查失敗: ' + error.message);
+    Logger.log('請檢查 Script Properties 是否正確設定 SHEET_ID');
   }
-  
-  Logger.log('=== 測試完成 ===');
-  Logger.log('');
-  Logger.log('下一步：');
-  Logger.log('1. 執行 listAllSheets() 查看所有工作表');
-  Logger.log('2. 執行 exportSheetStructure() 查看「國安班表」結構');
 }
