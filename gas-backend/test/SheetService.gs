@@ -294,13 +294,24 @@ function normalizeDateValue(value) {
 
 /**
  * 將時間欄位統一為 HH:mm
- * @param {*} value
+ * @param {*} value - Date 物件、數字（日的小數，0.41667=10:00）、或字串
  * @return {string}
  */
 function normalizeTimeValue(value) {
-  if (!value) return '';
+  if (value === null || value === undefined || value === '') return '';
   if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) {
     return Utilities.formatDate(value, Session.getScriptTimeZone(), 'HH:mm');
+  }
+  if (typeof value === 'number') {
+    var fraction = value >= 1 ? value - Math.floor(value) : value;
+    if (fraction >= 0 && fraction < 1) {
+      var totalMins = Math.round(fraction * 24 * 60);
+      var h = Math.floor(totalMins / 60) % 24;
+      var m = totalMins % 60;
+      var hStr = h < 10 ? '0' + h : '' + h;
+      var mStr = m < 10 ? '0' + m : '' + m;
+      return hStr + ':' + mStr;
+    }
   }
   const text = value.toString().trim();
   if (!text) return '';
@@ -371,6 +382,8 @@ function readScheduleByYearMonth(sheetName, yearMonth, date, names) {
       if (dateVal instanceof Date) {
         normalizedRow[dateColIndex] = dateStr;
       }
+      normalizedRow[2] = normalizeTimeValue(row[2]);
+      normalizedRow[3] = normalizeTimeValue(row[3]);
       filteredByDate.push(normalizedRow);
     });
 
