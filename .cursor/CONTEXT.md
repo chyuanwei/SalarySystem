@@ -260,12 +260,22 @@ GAS 寫入「最終確認結果」
 - **前端設定**：`config.js` 中 `GAS_URL_PROD`
 
 ### 8.3 開發流程
+
+#### 日常開發（使用 `go` 指令）
 1. 在 `gas-backend/test/` 開發並測試
-2. `cd gas-backend/test && clasp push`
-3. 使用前端測試頁驗證
-4. 測試通過 → 複製到 `gas-backend/prod/`（排除 `.clasp.json`）
-5. `cd gas-backend/prod && clasp push`
-6. Commit 並 push 到 GitHub
+2. 執行 `go` 指令：
+   - 自動 commit & push GitHub
+   - 自動 `clasp push` 到測試環境
+   - 自動更新 CONTEXT.md
+3. 使用前端測試頁驗證功能
+
+#### 部署到正式環境（需明確指令）
+1. 測試環境驗證完成後，**明確告知 AI** 要部署到正式環境
+2. AI 執行 `deploy-prod`：
+   - 複製 `gas-backend/test/*.gs` 到 `gas-backend/prod/`（排除 `.clasp.json`）
+   - `cd gas-backend/prod && clasp push`
+   - Commit 並 push 到 GitHub
+   - 更新部署記錄
 
 ---
 
@@ -297,7 +307,8 @@ GAS 寫入「最終確認結果」
 
 | 項目 | 說明 |
 |------|------|
-| **go** | 等同 **執行 + 更新**：執行當下需求（改 code、測試等）→ commit/push GitHub → clasp push GAS（測試 → 正式）→ 更新 `.cursor/CONTEXT.md` → 提供 **Comment for deploy**。 |
+| **go** | 等同 **執行 + 更新（僅測試環境）**：執行當下需求（改 code、測試等）→ commit/push GitHub → **clasp push 測試環境 GAS** → 更新 `.cursor/CONTEXT.md` → 提供 **Comment for deploy**。**重要**：`go` 指令只推送測試環境，正式環境需另外指令。 |
+| **deploy-prod** | 部署到正式環境：複製 `gas-backend/test/*.gs` 到 `gas-backend/prod/` → `cd gas-backend/prod && clasp push` → commit/push GitHub → 更新部署記錄。**僅在使用者明確指示時執行**。 |
 | **GAS 更新** | 凡修改 `gas-backend/**/*.gs`，回覆結尾須附 **Comment for deploy**（見 `.cursor/rules/gas-deploy-comment.mdc`）。 |
 | **分析後先問再改** | 分析完問題或提出解法後，**須先詢問使用者意見**，經同意後才執行修改；不得直接進行程式修改。 |
 | **.clasp.json** | 已列入 .gitignore，勿提交；測試與正式環境各有各自的腳本 ID。 |
