@@ -10,6 +10,7 @@ const uploadSection = document.getElementById('uploadSection');
 const fileInfo = document.getElementById('fileInfo');
 const fileName = document.getElementById('fileName');
 const fileSize = document.getElementById('fileSize');
+const sheetNameInput = document.getElementById('sheetName');
 const submitBtn = document.getElementById('submitBtn');
 const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
@@ -120,9 +121,18 @@ async function handleSubmit() {
     return;
   }
   
-  // 禁用提交按鈕
+  // 取得並驗證工作表名稱
+  const sheetName = sheetNameInput.value.trim();
+  if (!sheetName) {
+    showAlert('error', '請輸入 Excel 工作表名稱');
+    sheetNameInput.focus();
+    return;
+  }
+  
+  // 禁用提交按鈕和輸入欄位
   submitBtn.disabled = true;
   submitBtn.textContent = '處理中...';
+  sheetNameInput.disabled = true;
   
   // 顯示進度條
   progressContainer.classList.add('show');
@@ -139,7 +149,7 @@ async function handleSubmit() {
       action: 'upload',
       fileName: selectedFile.name,
       fileData: base64Data,
-      targetSheetName: CONFIG.TARGET_SHEET_NAME,
+      targetSheetName: sheetName, // 使用使用者輸入的工作表名稱
       targetGoogleSheetName: CONFIG.TARGET_GOOGLE_SHEET_NAME,
       targetGoogleSheetTab: CONFIG.TARGET_GOOGLE_SHEET_TAB
     };
@@ -173,6 +183,7 @@ async function handleSubmit() {
     showAlert('error', `上傳失敗: ${error.message}`);
     submitBtn.disabled = false;
     submitBtn.textContent = '開始上傳並處理';
+    sheetNameInput.disabled = false;
     progressContainer.classList.remove('show');
   }
 }
@@ -228,6 +239,8 @@ function resetForm() {
   submitBtn.classList.remove('show');
   submitBtn.disabled = false;
   submitBtn.textContent = '開始上傳並處理';
+  sheetNameInput.disabled = false;
+  sheetNameInput.value = CONFIG.TARGET_SHEET_NAME; // 重置為預設值
   progressContainer.classList.remove('show');
   updateProgress(0, '');
 }

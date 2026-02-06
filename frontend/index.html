@@ -19,14 +19,14 @@
             flex-direction: column;
             align-items: center;
             justify-content: center;
-            padding: 20px;
+            padding: 15px;
         }
 
         .container {
             background: white;
             border-radius: 16px;
             box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
-            padding: 40px;
+            padding: 30px;
             max-width: 600px;
             width: 100%;
         }
@@ -221,7 +221,7 @@
 
         .info-section {
             background: #e7f3ff;
-            padding: 20px;
+            padding: 15px;
             border-radius: 8px;
             margin-top: 20px;
         }
@@ -229,7 +229,7 @@
         .info-section h3 {
             color: #0066cc;
             margin-bottom: 10px;
-            font-size: 16px;
+            font-size: 15px;
         }
 
         .info-section ul {
@@ -239,20 +239,253 @@
 
         .info-section li {
             margin-bottom: 5px;
-            font-size: 14px;
+            font-size: 13px;
         }
 
-        @media (max-width: 768px) {
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #333;
+            font-weight: bold;
+            font-size: 15px;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #dee2e6;
+            border-radius: 8px;
+            font-size: 15px;
+            transition: all 0.3s ease;
+            font-family: 'Microsoft JhengHei', 'Segoe UI', Arial, sans-serif;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .input-group .hint {
+            display: block;
+            margin-top: 5px;
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* 平板適配 (768px - 1024px) */
+        @media (max-width: 1024px) and (min-width: 769px) {
             .container {
-                padding: 25px;
+                padding: 35px;
+                max-width: 700px;
+            }
+
+            h1 {
+                font-size: 26px;
+            }
+        }
+
+        /* 手機橫向 (576px - 768px) */
+        @media (max-width: 768px) and (min-width: 577px) {
+            .container {
+                padding: 25px 30px;
             }
 
             h1 {
                 font-size: 24px;
             }
 
+            .upload-icon {
+                font-size: 40px;
+            }
+
             .submit-btn {
                 font-size: 16px;
+                padding: 14px;
+            }
+        }
+
+        /* 手機直向 (≤576px) */
+        @media (max-width: 576px) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 20px 15px;
+                border-radius: 12px;
+            }
+
+            h1 {
+                font-size: 22px;
+                margin-bottom: 8px;
+            }
+
+            .subtitle {
+                font-size: 13px;
+                margin-bottom: 20px;
+            }
+
+            .upload-section {
+                padding: 20px 15px;
+            }
+
+            .upload-icon {
+                font-size: 36px;
+                margin-bottom: 10px;
+            }
+
+            .upload-text {
+                font-size: 14px;
+            }
+
+            .upload-text p {
+                margin: 3px 0;
+            }
+
+            .file-label {
+                padding: 10px 20px;
+                font-size: 14px;
+            }
+
+            .file-info {
+                padding: 12px;
+                font-size: 13px;
+            }
+
+            .file-name {
+                font-size: 14px;
+                word-break: break-all;
+            }
+
+            .file-size {
+                font-size: 12px;
+            }
+
+            .input-group label {
+                font-size: 14px;
+            }
+
+            .input-group input {
+                padding: 10px 12px;
+                font-size: 14px;
+            }
+
+            .input-group .hint {
+                font-size: 11px;
+            }
+
+            .submit-btn {
+                font-size: 15px;
+                padding: 14px;
+            }
+
+            .progress-bar {
+                height: 25px;
+            }
+
+            .progress-fill {
+                font-size: 12px;
+            }
+
+            .progress-text {
+                font-size: 12px;
+            }
+
+            .info-section {
+                padding: 12px;
+            }
+
+            .info-section h3 {
+                font-size: 14px;
+                margin-bottom: 8px;
+            }
+
+            .info-section ul {
+                margin-left: 15px;
+            }
+
+            .info-section li {
+                font-size: 12px;
+                margin-bottom: 4px;
+            }
+
+            .alert {
+                padding: 12px;
+                font-size: 13px;
+            }
+        }
+
+        /* 超小手機 (≤375px) */
+        @media (max-width: 375px) {
+            .container {
+                padding: 15px 12px;
+            }
+
+            h1 {
+                font-size: 20px;
+            }
+
+            .upload-section {
+                padding: 15px 10px;
+            }
+
+            .upload-icon {
+                font-size: 32px;
+            }
+
+            .file-label {
+                padding: 8px 16px;
+                font-size: 13px;
+            }
+
+            .input-group input {
+                padding: 9px 10px;
+                font-size: 13px;
+            }
+
+            .submit-btn {
+                padding: 12px;
+                font-size: 14px;
+            }
+        }
+
+        /* 橫屏優化 */
+        @media (max-height: 600px) and (orientation: landscape) {
+            body {
+                padding: 10px;
+            }
+
+            .container {
+                padding: 15px;
+                max-height: 95vh;
+                overflow-y: auto;
+            }
+
+            h1 {
+                font-size: 20px;
+                margin-bottom: 5px;
+            }
+
+            .subtitle {
+                margin-bottom: 15px;
+            }
+
+            .upload-section {
+                padding: 15px;
+            }
+
+            .upload-icon {
+                font-size: 30px;
+                margin-bottom: 8px;
+            }
+
+            .info-section {
+                margin-top: 15px;
             }
         }
     </style>
@@ -278,6 +511,17 @@
                 <div class="file-name" id="fileName"></div>
                 <div class="file-size" id="fileSize"></div>
             </div>
+        </div>
+
+        <div class="input-group">
+            <label for="sheetName">📋 Excel 工作表名稱</label>
+            <input 
+                type="text" 
+                id="sheetName" 
+                placeholder="例如：11501"
+                value="11501"
+            >
+            <span class="hint">請輸入要處理的 Excel 工作表名稱（預設：11501）</span>
         </div>
 
         <button id="submitBtn" class="submit-btn">開始上傳並處理</button>
