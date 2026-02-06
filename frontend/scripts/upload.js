@@ -11,6 +11,7 @@ const fileInfo = document.getElementById('fileInfo');
 const fileName = document.getElementById('fileName');
 const fileSize = document.getElementById('fileSize');
 const sheetNameInput = document.getElementById('sheetName');
+const sheetNameHint = document.getElementById('sheetNameHint');
 const submitBtn = document.getElementById('submitBtn');
 const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
@@ -61,6 +62,20 @@ uploadSection.addEventListener('drop', handleDrop);
 
 // 提交按鈕事件
 submitBtn.addEventListener('click', handleSubmit);
+
+// 上傳類型切換（更新工作表名稱說明）
+document.querySelectorAll('input[name="uploadType"]').forEach(function(radio) {
+  radio.addEventListener('change', function() {
+    if (sheetNameHint) {
+      sheetNameHint.textContent = this.value === 'schedule'
+        ? '請輸入要處理的 Excel 工作表名稱（例如：11501、11502）'
+        : '請輸入要處理的 Excel 工作表名稱（例如：打卡紀錄、Sheet1）';
+    }
+    if (sheetNameInput && !sheetNameInput.value) {
+      sheetNameInput.placeholder = this.value === 'schedule' ? '例如：11501' : '例如：打卡紀錄';
+    }
+  });
+});
 
 // 載入國安班表按鈕
 if (loadScheduleBtn) loadScheduleBtn.addEventListener('click', handleLoadSchedule);
@@ -233,13 +248,15 @@ async function handleSubmit() {
     
     // 準備上傳資料
     updateProgress(40, '正在上傳到伺服器...');
+    const uploadType = document.querySelector('input[name="uploadType"]:checked');
     const payload = {
       action: 'upload',
+      uploadType: uploadType ? uploadType.value : 'schedule',
       fileName: selectedFile.name,
       fileData: base64Data,
-      targetSheetName: sheetName, // 使用使用者輸入的工作表名稱
+      targetSheetName: sheetName,
       targetGoogleSheetName: CONFIG.TARGET_GOOGLE_SHEET_NAME,
-      targetGoogleSheetTab: CONFIG.TARGET_GOOGLE_SHEET_TAB
+      targetGoogleSheetTab: uploadType && uploadType.value === 'attendance' ? '打卡紀錄' : CONFIG.TARGET_GOOGLE_SHEET_TAB
     };
     
     // 發送到 GAS（改用可讀取回應）

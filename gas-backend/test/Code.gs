@@ -87,14 +87,19 @@ function doPost(e) {
  */
 function handleUpload(requestData) {
   const startTime = new Date();
-  
+  const uploadType = requestData.uploadType || 'schedule';
+
   try {
+    if (uploadType === 'attendance') {
+      return createJsonResponse({ success: false, error: '打卡上傳功能尚未實作' });
+    }
+
     const fileName = requestData.fileName;
     const fileData = requestData.fileData;
     const targetSheetName = requestData.targetSheetName || '11501';
     const targetGoogleSheetTab = requestData.targetGoogleSheetTab || '國安班表';
-    
-    logOperation(`開始處理上傳: ${fileName}`, {
+
+    logOperation('開始處理上傳: ' + fileName, {
       fileName: fileName,
       targetSheetName: targetSheetName,
       targetGoogleSheetTab: targetGoogleSheetTab
