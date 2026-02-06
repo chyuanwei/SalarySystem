@@ -11,7 +11,10 @@
  */
 function writeToSheet(data, targetSheetName) {
   try {
-    logToSheet(`開始寫入資料到工作表: ${targetSheetName}`, 'INFO');
+    logDebug(`開始寫入資料到工作表: ${targetSheetName}`, {
+      targetSheetName: targetSheetName,
+      rowCount: data ? data.length : 0
+    });
     
     if (!data || data.length === 0) {
       throw new Error('沒有資料可寫入');
@@ -36,8 +39,12 @@ function writeToSheet(data, targetSheetName) {
     autoResizeColumns(sheet, colCount);
     
     // 記錄寫入資訊
-    const message = `成功寫入 ${rowCount} 列 x ${colCount} 欄資料到 "${targetSheetName}"`;
-    logToSheet(message, 'INFO');
+    const message = `成功寫入資料到 "${targetSheetName}"`;
+    logInfo(message, {
+      sheetName: targetSheetName,
+      rowCount: rowCount,
+      columnCount: colCount
+    });
     
     return {
       success: true,
@@ -49,7 +56,10 @@ function writeToSheet(data, targetSheetName) {
     
   } catch (error) {
     const errorMsg = `寫入 Google Sheets 失敗: ${error.message}`;
-    logToSheet(errorMsg, 'ERROR');
+    logError(errorMsg, {
+      targetSheetName: targetSheetName,
+      error: error.toString()
+    });
     return {
       success: false,
       error: errorMsg
@@ -136,7 +146,10 @@ function appendToSheet(rowData, targetSheetName) {
     
   } catch (error) {
     const errorMsg = `追加資料失敗: ${error.message}`;
-    logToSheet(errorMsg, 'ERROR');
+    logError(errorMsg, {
+      targetSheetName: targetSheetName,
+      error: error.toString()
+    });
     return {
       success: false,
       error: errorMsg
@@ -162,7 +175,10 @@ function readFromSheet(sheetName) {
     return sheet.getRange(1, 1, lastRow, lastCol).getValues();
     
   } catch (error) {
-    logToSheet(`讀取工作表失敗: ${error.message}`, 'ERROR');
+    logError(`讀取工作表失敗: ${error.message}`, {
+      sheetName: sheetName,
+      error: error.toString()
+    });
     return [];
   }
 }

@@ -35,7 +35,10 @@ function doPost(e) {
     const requestData = JSON.parse(e.postData.contents);
     const action = requestData.action;
     
-    logToSheet(`收到 POST 請求: ${action}`, 'INFO');
+    logDebug(`收到 POST 請求: ${action}`, { 
+      action: action,
+      timestamp: new Date().toISOString()
+    });
     
     switch (action) {
       case 'upload':
@@ -45,6 +48,7 @@ function doPost(e) {
         return handleCalculate(requestData);
       
       default:
+        logWarning(`收到未知的 action: ${action}`);
         return createJsonResponse({ 
           success: false, 
           error: `未知的 action: ${action}` 
@@ -52,7 +56,10 @@ function doPost(e) {
     }
     
   } catch (error) {
-    logToSheet(`POST 請求處理失敗: ${error.message}`, 'ERROR');
+    logError(`POST 請求處理失敗: ${error.message}`, {
+      error: error.toString(),
+      stack: error.stack
+    });
     return createErrorResponse(error);
   }
 }
@@ -61,18 +68,26 @@ function doPost(e) {
  * 處理檔案上傳
  */
 function handleUpload(requestData) {
+  const startTime = new Date();
+  
   try {
     const fileName = requestData.fileName;
     const fileData = requestData.fileData;
     const targetSheetName = requestData.targetSheetName || '11501';
     const targetGoogleSheetTab = requestData.targetGoogleSheetTab || '國安班表';
     
-    logToSheet(`開始處理上傳: ${fileName}, 目標工作表: ${targetSheetName}`, 'INFO');
+    logOperation(`開始處理上傳: ${fileName}`, {
+      fileName: fileName,
+      targetSheetName: targetSheetName,
+      targetGoogleSheetTab: targetGoogleSheetTab
+    });
     
     // 驗證必要參數
     if (!fileName || !fileData) {
       throw new Error('缺少必要參數: fileName 或 fileData');
     }
+    
+    logDebug(`檔案大小: ${fileData.length} bytes (Base64)`);
     
     // 解析 Excel 檔案
     const parseResult = parseExcel(fileData, fileName, targetSheetName);
@@ -81,16 +96,19 @@ function handleUpload(requestData) {
       throw new Error(parseResult.error);
     }
     
+    logDebug(`Excel 解析成功，讀取 ${parseResult.rowCount} 列資料`);
+    
     // 驗證資料
     const validation = validateExcelData(parseResult.data);
     
     if (!validation.valid) {
+      logError('資料驗證失敗', { errors: validation.errors });
       throw new Error('資料驗證失敗: ' + validation.errors.join(', '));
     }
     
     // 記錄警告
     if (validation.warnings && validation.warnings.length > 0) {
-      logToSheet(`資料警告: ${validation.warnings.join('; ')}`, 'WARNING');
+      logWarning(`資料警告`, { warnings: validation.warnings });
     }
     
     // 寫入 Google Sheets
@@ -100,6 +118,10 @@ function handleUpload(requestData) {
       throw new Error(writeResult.error);
     }
     
+    // 計算處理時間
+    const endTime = new Date();
+    const processTime = (endTime - startTime) / 1000; // 秒
+    
     // 建立處理記錄
     createProcessRecord({
       fileName: fileName,
@@ -108,6 +130,13 @@ function handleUpload(requestData) {
       rowCount: parseResult.rowCount,
       status: 'SUCCESS',
       message: '檔案上傳並處理成功'
+    });
+    
+    logOperation(`檔案處理成功: ${fileName}`, {
+      fileName: fileName,
+      rowCount: parseResult.rowCount,
+      columnCount: writeResult.columnCount,
+      processTime: `${processTime.toFixed(2)} 秒`
     });
     
     // 回傳成功訊息
@@ -120,13 +149,18 @@ function handleUpload(requestData) {
         targetSheet: targetGoogleSheetTab,
         rowCount: parseResult.rowCount,
         columnCount: writeResult.columnCount,
+        processTime: processTime.toFixed(2),
         warnings: validation.warnings || []
       }
     });
     
   } catch (error) {
     const errorMsg = `檔案上傳處理失敗: ${error.message}`;
-    logToSheet(errorMsg, 'ERROR');
+    logError(errorMsg, {
+      fileName: requestData.fileName || 'unknown',
+      error: error.toString(),
+      stack: error.stack
+    });
     
     // 記錄失敗
     createProcessRecord({

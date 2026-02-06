@@ -60,29 +60,188 @@ function getOrCreateSheet(sheetName) {
 }
 
 /**
- * 記錄處理日誌
+ * Log 等級定義
  */
-function logToSheet(message, level = 'INFO') {
+const LOG_LEVEL = {
+  OFF: 0,      // 關閉 Log
+  OPERATION: 1, // 營運等級（重要操作、錯誤）
+  DEBUG: 2     // Debug 等級（所有操作、詳細資訊）
+};
+
+/**
+ * 取得當前 Log 等級設定
+ * @return {number} Log 等級（0=關閉, 1=營運, 2=Debug）
+ */
+function getLogLevel() {
+  const props = PropertiesService.getScriptProperties();
+  const logLevel = props.getProperty('Log_Level');
+  
+  if (logLevel === null || logLevel === undefined || logLevel === '') {
+    return LOG_LEVEL.DEBUG; // 預設為 DEBUG 等級
+  }
+  
+  return parseInt(logLevel, 10);
+}
+
+/**
+ * 記錄日誌到 Google Sheets
+ * @param {string} message - 日誌訊息
+ * @param {string} level - 日誌等級 ('DEBUG', 'INFO', 'WARNING', 'ERROR', 'OPERATION')
+ * @param {Object} details - 額外的詳細資訊（選填）
+ */
+function logToSheet(message, level = 'INFO', details = null) {
   try {
+    // 取得當前 Log 等級設定
+    const currentLogLevel = getLogLevel();
+    
+    // 如果 Log 關閉，直接返回
+    if (currentLogLevel === LOG_LEVEL.OFF) {
+      return;
+    }
+    
+    // 判斷是否應該記錄此等級的 Log
+    const shouldLog = checkShouldLog(level, currentLogLevel);
+    if (!shouldLog) {
+      return;
+    }
+    
     const config = getConfig();
-    const sheet = getOrCreateSheet(config.SHEET_NAMES.LOGS);
+    const sheet = getOrCreateSheet('Log'); // 固定使用 'Log' 作為 sheet 名稱
+    
+    // 如果是第一次寫入，建立標題列
+    if (sheet.getLastRow() === 0) {
+      initLogSheet(sheet);
+    }
     
     const timestamp = new Date();
     const logEntry = [
-      timestamp,
-      level,
-      message,
-      config.ENVIRONMENT
+      timestamp,                          // A: 時間
+      level,                              // B: 等級
+      message,                            // C: 訊息
+      config.ENVIRONMENT,                 // D: 環境
+      Session.getEffectiveUser().getEmail(), // E: 使用者
+      details ? JSON.stringify(details) : '' // F: 詳細資訊
     ];
     
     sheet.appendRow(logEntry);
     
-    // 如果是第一列，加入標題
-    if (sheet.getLastRow() === 1) {
-      sheet.getRange(1, 1, 1, 4).setValues([['時間', '等級', '訊息', '環境']]);
-      sheet.getRange(2, 1, 1, 4).setValues([logEntry]);
+    // 同時輸出到 Apps Script Logger（方便開發時查看）
+    Logger.log(`[${level}] ${message}`);
+    if (details) {
+      Logger.log('Details: ' + JSON.stringify(details));
     }
+    
   } catch (error) {
+    // 如果記錄日誌失敗，至少輸出到 Logger
     Logger.log('記錄日誌失敗: ' + error.message);
+    Logger.log('原始訊息: ' + message);
+  }
+}
+
+/**
+ * 判斷是否應該記錄此等級的 Log
+ * @param {string} level - 日誌等級
+ * @param {number} currentLogLevel - 當前設定的 Log 等級
+ * @return {boolean} 是否應該記錄
+ */
+function checkShouldLog(level, currentLogLevel) {
+  // 營運等級 (1)：只記錄 OPERATION 和 ERROR
+  if (currentLogLevel === LOG_LEVEL.OPERATION) {
+    return (level === 'OPERATION' || level === 'ERROR');
+  }
+  
+  // Debug 等級 (2)：記錄所有
+  if (currentLogLevel === LOG_LEVEL.DEBUG) {
+    return true;
+  }
+  
+  // 其他情況不記錄
+  return false;
+}
+
+/**
+ * 初始化 Log Sheet（建立標題列並格式化）
+ * @param {Sheet} sheet - Log 工作表
+ */
+function initLogSheet(sheet) {
+  // 設定標題列
+  const headers = ['時間', '等級', '訊息', '環境', '使用者', '詳細資訊'];
+  sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+  
+  // 格式化標題列
+  const headerRange = sheet.getRange(1, 1, 1, headers.length);
+  headerRange.setBackground('#434343');
+  headerRange.setFontColor('#ffffff');
+  headerRange.setFontWeight('bold');
+  headerRange.setHorizontalAlignment('center');
+  
+  // 凍結標題列
+  sheet.setFrozenRows(1);
+  
+  // 設定欄寬
+  sheet.setColumnWidth(1, 150); // 時間
+  sheet.setColumnWidth(2, 100); // 等級
+  sheet.setColumnWidth(3, 300); // 訊息
+  sheet.setColumnWidth(4, 80);  // 環境
+  sheet.setColumnWidth(5, 150); // 使用者
+  sheet.setColumnWidth(6, 400); // 詳細資訊
+  
+  Logger.log('Log Sheet 初始化完成');
+}
+
+/**
+ * 快速記錄各等級的 Log（便利函數）
+ */
+function logDebug(message, details = null) {
+  logToSheet(message, 'DEBUG', details);
+}
+
+function logInfo(message, details = null) {
+  logToSheet(message, 'INFO', details);
+}
+
+function logWarning(message, details = null) {
+  logToSheet(message, 'WARNING', details);
+}
+
+function logError(message, details = null) {
+  logToSheet(message, 'ERROR', details);
+}
+
+function logOperation(message, details = null) {
+  logToSheet(message, 'OPERATION', details);
+}
+
+/**
+ * 清理舊的 Log（保留最近 N 天）
+ * @param {number} daysToKeep - 保留天數（預設 30 天）
+ */
+function cleanOldLogs(daysToKeep = 30) {
+  try {
+    const sheet = getOrCreateSheet('Log');
+    const lastRow = sheet.getLastRow();
+    
+    if (lastRow <= 1) {
+      logInfo('沒有需要清理的 Log');
+      return;
+    }
+    
+    const data = sheet.getRange(2, 1, lastRow - 1, 1).getValues(); // 讀取時間欄
+    const cutoffDate = new Date();
+    cutoffDate.setDate(cutoffDate.getDate() - daysToKeep);
+    
+    let deleteCount = 0;
+    for (let i = data.length - 1; i >= 0; i--) {
+      const logDate = new Date(data[i][0]);
+      if (logDate < cutoffDate) {
+        sheet.deleteRow(i + 2); // +2 因為有標題列且陣列從 0 開始
+        deleteCount++;
+      }
+    }
+    
+    logOperation(`清理 Log 完成，刪除 ${deleteCount} 筆舊資料（${daysToKeep} 天前）`);
+    
+  } catch (error) {
+    logError('清理舊 Log 失敗: ' + error.message);
   }
 }

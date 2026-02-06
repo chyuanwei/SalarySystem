@@ -346,10 +346,14 @@ GAS 寫入「最終確認結果」
 - ✅ 自動調整欄寬
 - ✅ 凍結標題列
 
-### 12.4 日誌記錄
-- ✅ 完整的處理記錄（時間、檔案、狀態）
-- ✅ 錯誤日誌記錄
-- ✅ 警告訊息記錄
+### 12.4 Log 系統
+- ✅ 完整的 Log 架構（DEBUG / INFO / WARNING / ERROR / OPERATION）
+- ✅ 透過 Script Properties `Log_Level` 控制 Log 等級（0=關閉, 1=營運, 2=Debug）
+- ✅ 記錄到 Google Sheets 的 `Log` 工作表
+- ✅ 包含時間、等級、訊息、環境、使用者、詳細資訊
+- ✅ 便利函數：logDebug(), logInfo(), logWarning(), logError(), logOperation()
+- ✅ 自動清理舊 Log 功能（cleanOldLogs）
+- ✅ 詳細的 Log 說明文件（docs/LOG_SYSTEM.md）
 
 ### 12.5 測試與正式環境
 - ✅ 完整的環境分離

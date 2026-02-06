@@ -12,7 +12,10 @@
  */
 function parseExcel(base64Data, fileName, targetSheetName) {
   try {
-    logToSheet(`開始解析 Excel: ${fileName}, 目標工作表: ${targetSheetName}`, 'INFO');
+    logDebug(`開始解析 Excel: ${fileName}`, {
+      fileName: fileName,
+      targetSheetName: targetSheetName
+    });
     
     // 將 Base64 轉為 Blob
     const blob = Utilities.newBlob(
@@ -37,7 +40,11 @@ function parseExcel(base64Data, fileName, targetSheetName) {
       DriveApp.getFileById(fileId).setTrashed(true);
       DriveApp.getFileById(convertedSheet.getId()).setTrashed(true);
       
-      logToSheet(`Excel 解析成功，共 ${data.length} 列資料`, 'INFO');
+      logInfo(`Excel 解析成功`, {
+        fileName: fileName,
+        sheetName: targetSheetName,
+        rowCount: data.length
+      });
       
       return {
         success: true,
@@ -58,7 +65,11 @@ function parseExcel(base64Data, fileName, targetSheetName) {
     
   } catch (error) {
     const errorMsg = `Excel 解析失敗: ${error.message}`;
-    logToSheet(errorMsg, 'ERROR');
+    logError(errorMsg, {
+      fileName: fileName,
+      targetSheetName: targetSheetName,
+      error: error.toString()
+    });
     return {
       success: false,
       error: errorMsg
@@ -174,7 +185,10 @@ function listExcelSheets(base64Data, fileName) {
     }
     
   } catch (error) {
-    logToSheet(`列出工作表失敗: ${error.message}`, 'ERROR');
+    logError(`列出工作表失敗: ${error.message}`, {
+      fileName: fileName,
+      error: error.toString()
+    });
     return [];
   }
 }
