@@ -203,6 +203,11 @@ async function handleSubmit() {
     // 顯示重要提示
     updateProgress(100, '上傳完成');
     
+    // 重新開放再次上傳與輸入工作表名稱
+    submitBtn.disabled = false;
+    submitBtn.textContent = '開始上傳並處理';
+    sheetNameInput.disabled = false;
+    
     showAlert('warning', `📤 檔案已上傳
     
 ⚠️ 重要提示：由於技術限制，無法自動確認處理結果。
@@ -288,7 +293,7 @@ function resetForm() {
   submitBtn.disabled = false;
   submitBtn.textContent = '開始上傳並處理';
   sheetNameInput.disabled = false;
-  sheetNameInput.value = CONFIG.TARGET_SHEET_NAME; // 重置為預設值
+  sheetNameInput.value = ''; // 不再帶預設值，改由使用者每次輸入
   progressContainer.classList.remove('show');
   updateProgress(0, '');
 }
