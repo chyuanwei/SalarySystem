@@ -119,7 +119,7 @@ function logToSheet(message, level = 'INFO', details = null) {
       level,                              // B: 等級
       message,                            // C: 訊息
       config.ENVIRONMENT,                 // D: 環境
-      Session.getEffectiveUser().getEmail(), // E: 使用者
+      'system',                           // E: 使用者（改為固定值，避免權限問題）
       details ? JSON.stringify(details) : '' // F: 詳細資訊
     ];
     

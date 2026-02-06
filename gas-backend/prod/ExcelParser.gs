@@ -18,11 +18,8 @@ function parseExcel(base64Data, fileName, targetSheetName) {
     });
     
     // 將 Base64 轉為 Blob
-    const blob = Utilities.newBlob(
-      Utilities.base64Decode(base64Data),
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      fileName
-    );
+    const decodedData = Utilities.base64Decode(base64Data);
+    const blob = Utilities.newBlob(decodedData, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', fileName);
     
     // 將 Blob 暫存到 Drive（GAS 需要透過 Drive 來讀取 Excel）
     const tempFile = DriveApp.createFile(blob);
@@ -173,11 +170,8 @@ function readSheetData(spreadsheet, sheetName) {
  */
 function listExcelSheets(base64Data, fileName) {
   try {
-    const blob = Utilities.newBlob(
-      Utilities.base64Decode(base64Data),
-      'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-      fileName
-    );
+    const decodedData = Utilities.base64Decode(base64Data);
+    const blob = Utilities.newBlob(decodedData, 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', fileName);
     
     const tempFile = DriveApp.createFile(blob);
     const fileId = tempFile.getId();
@@ -249,8 +243,12 @@ function parseQuanWeiSchedule(data, sheetName) {
     for (let i = config.startRow; i < data.length; i++) {
       const empName = data[i] && data[i][0] ? data[i][0].toString().trim() : '';
       
-      // 終止條件：遇到空列或統計標籤
-      if (!empName || ['上班人數', '合計', '備註', 'P.T', '閉店評論'].some(k => empName.includes(k))) {
+      // 空列：跳過，不終止（讓 A 欄所有人員都能被處理）
+      if (!empName) {
+        continue;
+      }
+      // 終止條件：僅遇到統計標籤時才 break
+      if (['上班人數', '合計', '備註', 'P.T', '閉店評論'].some(function(k) { return empName.includes(k); })) {
         if (i > config.startRow) break;
         continue;
       }
@@ -289,7 +287,8 @@ function parseQuanWeiSchedule(data, sheetName) {
             formatScheduleDate(yearMonth, dayNum),
             shiftInfo.start,
             shiftInfo.end,
-            shiftInfo.hours
+            shiftInfo.hours,
+            cellValue  // 班別（代碼如 A,B,O 或手寫時間字串）
           ]);
           shiftCount++;
         }
@@ -350,19 +349,27 @@ function locateDataStructure(data) {
 function buildShiftMap(data) {
   const map = {};
   data.forEach((row, rowIdx) => {
-    // 檢查第一個儲存格是否以 * 開頭
-    const firstCell = row[0] ? row[0].toString().trim() : '';
-    if (firstCell.indexOf('*') === 0) {
-      // 從第一個儲存格提取代碼和時間範圍
-      // 格式：* A 10:00-17:00 或 * A1 10:00-15:00
-      const parts = firstCell.split(/\s+/);
-      if (parts.length >= 3) {
-        const code = parts[1]; // A, A1, B, etc.
-        const range = parts[2]; // 10:00-17:00
-        if (code && range && range.indexOf('-') > 0) {
-          map[code] = parseTimeRange(range);
-          logDebug(`代碼定義: ${code} → ${range}`, { row: rowIdx + 1 });
+    // 動態掃描整列，找到 * 符號的位置
+    const starIdx = row.indexOf('*');
+    if (starIdx !== -1) {
+      let code = '';
+      let range = '';
+      // 從 * 之後的儲存格依序找代碼和時間範圍
+      for (let i = starIdx + 1; i < row.length; i++) {
+        let val = row[i] ? row[i].toString().trim() : '';
+        // 找代碼（長度 <= 3 的文字）
+        if (val && val.length <= 3 && !code) {
+          code = val;
         }
+        // 找時間範圍（包含 - 且有數字）
+        if (val.includes('-') && /\d/.test(val)) {
+          range = val;
+        }
+      }
+      // 如果找到代碼和時間範圍，加入字典
+      if (code && range) {
+        map[code] = parseTimeRange(range);
+        logDebug(`代碼定義: ${code} → ${range}`, { row: rowIdx + 1 });
       }
     }
   });

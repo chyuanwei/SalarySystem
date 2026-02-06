@@ -114,7 +114,7 @@ function handleUpload(requestData) {
     // 準備轉換後的資料（parseResult.data 已經是解析好的格式）
     logDebug('準備寫入資料');
     const transformedData = [
-      ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數'],
+      ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別'],
       ...parseResult.data
     ];
     logDebug(`共 ${parseResult.data.length} 列資料`);
