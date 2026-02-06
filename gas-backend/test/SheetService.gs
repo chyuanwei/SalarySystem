@@ -127,22 +127,84 @@ function autoResizeColumns(sheet, colCount) {
 
 /**
  * 追加資料到工作表末尾
- * @param {Array} rowData - 單列資料（一維陣列）
+ * @param {Array} data - 資料（可以是一維陣列或二維陣列）
  * @param {string} targetSheetName - 目標工作表名稱
- * @return {Object} 追加結果 {success, message}
+ * @return {Object} 追加結果 {success, message, rowCount, columnCount}
  */
-function appendToSheet(rowData, targetSheetName) {
+function appendToSheet(data, targetSheetName) {
   try {
+    logDebug(`開始追加資料到工作表: ${targetSheetName}`, {
+      targetSheetName: targetSheetName,
+      dataType: Array.isArray(data[0]) ? '二維陣列' : '一維陣列'
+    });
+    
+    if (!data || data.length === 0) {
+      throw new Error('沒有資料可追加');
+    }
+    
     const sheet = getOrCreateSheet(targetSheetName);
-    sheet.appendRow(rowData);
+    const isFirstWrite = (sheet.getLastRow() === 0);
     
-    const message = `成功追加 1 列資料到 "${targetSheetName}"`;
-    Logger.log(message);
+    // 判斷是單列資料還是多列資料
+    const is2DArray = Array.isArray(data[0]);
     
-    return {
-      success: true,
-      message: message
-    };
+    if (is2DArray) {
+      // 二維陣列（多列資料）
+      const dataToAppend = data.slice(isFirstWrite ? 0 : 1); // 如果不是第一次寫入，跳過標題列
+      
+      if (dataToAppend.length === 0) {
+        logWarning('跳過標題列後沒有資料可追加');
+        return {
+          success: true,
+          message: '沒有新資料需要追加',
+          rowCount: 0,
+          columnCount: 0
+        };
+      }
+      
+      const startRow = sheet.getLastRow() + 1;
+      const rowCount = dataToAppend.length;
+      const colCount = dataToAppend[0].length;
+      
+      sheet.getRange(startRow, 1, rowCount, colCount).setValues(dataToAppend);
+      
+      // 如果是第一次寫入，格式化標題列
+      if (isFirstWrite && data.length > 0) {
+        formatHeaderRow(sheet, colCount);
+        autoResizeColumns(sheet, colCount);
+      }
+      
+      const message = `成功追加 ${rowCount} 列資料到 "${targetSheetName}"`;
+      logInfo(message, {
+        sheetName: targetSheetName,
+        rowCount: rowCount,
+        columnCount: colCount,
+        startRow: startRow
+      });
+      
+      return {
+        success: true,
+        message: message,
+        rowCount: rowCount,
+        columnCount: colCount,
+        sheetName: targetSheetName
+      };
+      
+    } else {
+      // 一維陣列（單列資料）
+      sheet.appendRow(data);
+      
+      const message = `成功追加 1 列資料到 "${targetSheetName}"`;
+      logInfo(message, { sheetName: targetSheetName });
+      
+      return {
+        success: true,
+        message: message,
+        rowCount: 1,
+        columnCount: data.length,
+        sheetName: targetSheetName
+      };
+    }
     
   } catch (error) {
     const errorMsg = `追加資料失敗: ${error.message}`;

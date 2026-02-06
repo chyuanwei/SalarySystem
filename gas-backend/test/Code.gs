@@ -111,8 +111,13 @@ function handleUpload(requestData) {
       logWarning(`資料警告`, { warnings: validation.warnings });
     }
     
-    // 寫入 Google Sheets
-    const writeResult = writeToSheet(parseResult.data, targetGoogleSheetTab);
+    // 轉換資料為目標格式
+    logDebug('開始轉換資料格式');
+    const transformedData = transformToTargetFormat(parseResult.data);
+    logDebug(`轉換完成，共 ${transformedData.length - 1} 列資料`);
+    
+    // 寫入 Google Sheets（附加模式）
+    const writeResult = appendToSheet(transformedData, targetGoogleSheetTab);
     
     if (!writeResult.success) {
       throw new Error(writeResult.error);
