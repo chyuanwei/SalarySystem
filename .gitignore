@@ -1,0 +1,37 @@
+# Node.js
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+package-lock.json
+
+# Google Apps Script (clasp)
+.clasp.json
+.claspignore
+
+# 測試覆蓋率報告
+coverage/
+
+# 作業系統
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 暫存檔
+*.tmp
+*.temp
+*.log
+
+# 環境設定（可能含敏感資訊）
+.env
+.env.local
+
+# 測試資料（若含真實資料）
+test-data/real-*.xlsx
+test-data/real-*.xls

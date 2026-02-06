@@ -1,0 +1,27 @@
+{
+  "name": "salary-system",
+  "version": "1.0.0",
+  "description": "自動化薪資計算系統",
+  "main": "index.js",
+  "scripts": {
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:integration": "jest --testPathPattern=integration"
+  },
+  "keywords": [
+    "salary",
+    "calculation",
+    "google-apps-script"
+  ],
+  "author": "",
+  "license": "UNLICENSED",
+  "private": true,
+  "devDependencies": {
+    "@google/clasp": "^2.4.2",
+    "@types/google-apps-script": "^1.0.83",
+    "@types/jest": "^29.5.12",
+    "jest": "^29.7.0"
+  },
+  "dependencies": {}
+}

@@ -1,0 +1,39 @@
+---
+description: 提供 GAS 部署時的 Comment for deploy
+globs: ["**/*.gs", "gas-backend/**/*.gs"]
+alwaysRun: false
+---
+
+# GAS 部署 Comment 規則
+
+凡修改 `gas-backend/**/*.gs` 檔案後，在回覆**結尾**需提供 **Comment for deploy**，格式如下：
+
+---
+
+## Comment for deploy
+
+（簡短摘要或 1～3 點 bullet，說明此次更新內容，供 GAS 部署版本說明使用）
+
+**範例 1（單項更新）：**
+```
+## Comment for deploy
+新增薪資調整功能，支援使用者檢視與修改計算結果。
+```
+
+**範例 2（多項更新）：**
+```
+## Comment for deploy
+- 新增 Excel 解析功能，支援班表與打卡紀錄解析
+- 新增資料驗證邏輯，檢查必要欄位與格式
+- 修正日期格式解析錯誤
+```
+
+**範例 3（修復 Bug）：**
+```
+## Comment for deploy
+修復加班時數計算錯誤，現已正確套用 1.34x 與 1.67x 費率。
+```
+
+---
+
+此 comment 將用於 GAS 專案的「管理版本」→「說明」欄位，供日後追蹤與回溯。
