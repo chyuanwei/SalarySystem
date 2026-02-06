@@ -135,18 +135,19 @@ function handleUpload(requestData) {
       fileName: fileName,
       sourceSheet: targetSheetName,
       targetSheet: targetGoogleSheetTab,
-      rowCount: parseResult.rowCount,
+      rowCount: writeResult.rowCount,
       status: 'SUCCESS',
       message: '檔案上傳並處理成功'
     });
     
     logOperation(`檔案處理成功: ${fileName}`, {
       fileName: fileName,
-      rowCount: parseResult.rowCount,
+      rowCount: writeResult.rowCount,
       totalEmployees: parseResult.totalEmployees,
       columnCount: writeResult.columnCount,
       processTime: `${processTime.toFixed(2)} 秒`,
-      shiftCodes: Object.keys(parseResult.shiftMap || {}).join(', ')
+      shiftCodes: Object.keys(parseResult.shiftMap || {}).join(', '),
+      skippedCount: writeResult.skippedCount || 0
     });
     
     // 回傳成功訊息
@@ -154,17 +155,19 @@ function handleUpload(requestData) {
       success: true,
       message: '檔案已成功上傳並處理',
       columns: ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別'],
-      records: parseResult.data || [],
+      records: writeResult.appendedRows || [],
       details: {
         fileName: fileName,
         sourceSheet: targetSheetName,
         targetSheet: targetGoogleSheetTab,
-        rowCount: parseResult.rowCount,
+        rowCount: writeResult.rowCount,
+        parsedRowCount: parseResult.rowCount,
         totalEmployees: parseResult.totalEmployees,
         columnCount: writeResult.columnCount,
         processTime: processTime.toFixed(2),
         shiftCodes: Object.keys(parseResult.shiftMap || {}),
-        warnings: validation.warnings || []
+        warnings: validation.warnings || [],
+        skippedCount: writeResult.skippedCount || 0
       }
     });
     

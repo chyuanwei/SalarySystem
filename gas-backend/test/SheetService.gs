@@ -150,23 +150,52 @@ function appendToSheet(data, targetSheetName) {
     
     if (is2DArray) {
       // 二維陣列（多列資料）
-      const dataToAppend = data.slice(isFirstWrite ? 0 : 1); // 如果不是第一次寫入，跳過標題列
+      const headerRow = data[0] || [];
+      const dataRows = data.slice(1); // 去除標題列
       
-      if (dataToAppend.length === 0) {
-        logWarning('跳過標題列後沒有資料可追加');
+      // 建立現有資料的去重 key（忽略標題列）
+      const existingKeys = new Set();
+      if (!isFirstWrite) {
+        const lastRow = sheet.getLastRow();
+        const lastCol = sheet.getLastColumn();
+        if (lastRow >= 2 && lastCol > 0) {
+          const colCountForKey = Math.min(6, lastCol);
+          const existingData = sheet.getRange(2, 1, lastRow - 1, colCountForKey).getValues();
+          existingData.forEach(row => {
+            const key = buildDedupKey(row);
+            existingKeys.add(key);
+          });
+        }
+      }
+      
+      // 過濾重複資料（同批內也去重）
+      const newRows = [];
+      dataRows.forEach(row => {
+        const key = buildDedupKey(row);
+        if (!existingKeys.has(key)) {
+          existingKeys.add(key);
+          newRows.push(row);
+        }
+      });
+      
+      const rowsToWrite = isFirstWrite ? [headerRow].concat(newRows) : newRows;
+      if (rowsToWrite.length === 0) {
+        logWarning('沒有新資料需要追加');
         return {
           success: true,
           message: '沒有新資料需要追加',
           rowCount: 0,
-          columnCount: 0
+          columnCount: 0,
+        skippedCount: dataRows.length,
+        appendedRows: []
         };
       }
       
       const startRow = sheet.getLastRow() + 1;
-      const rowCount = dataToAppend.length;
-      const colCount = dataToAppend[0].length;
+      const rowCount = rowsToWrite.length;
+      const colCount = rowsToWrite[0].length;
       
-      sheet.getRange(startRow, 1, rowCount, colCount).setValues(dataToAppend);
+      sheet.getRange(startRow, 1, rowCount, colCount).setValues(rowsToWrite);
       
       // 如果是第一次寫入，格式化標題列
       if (isFirstWrite && data.length > 0) {
@@ -174,20 +203,25 @@ function appendToSheet(data, targetSheetName) {
         autoResizeColumns(sheet, colCount);
       }
       
-      const message = `成功追加 ${rowCount} 列資料到 "${targetSheetName}"`;
+      const appendedCount = newRows.length;
+      const skippedCount = dataRows.length - newRows.length;
+      const message = `成功追加 ${appendedCount} 列資料到 "${targetSheetName}"`;
       logInfo(message, {
         sheetName: targetSheetName,
-        rowCount: rowCount,
+        rowCount: appendedCount,
         columnCount: colCount,
-        startRow: startRow
+        startRow: startRow,
+        skippedCount: skippedCount
       });
       
       return {
         success: true,
         message: message,
-        rowCount: rowCount,
+        rowCount: appendedCount,
         columnCount: colCount,
-        sheetName: targetSheetName
+        sheetName: targetSheetName,
+        skippedCount: skippedCount,
+        appendedRows: newRows
       };
       
     } else {
@@ -217,6 +251,20 @@ function appendToSheet(data, targetSheetName) {
       error: errorMsg
     };
   }
+}
+
+/**
+ * 生成去重 Key：員工姓名 + 排班日期 + 上班時間 + 下班時間 + 班別
+ * @param {Array} row - 單列資料
+ * @return {string} 去重 Key
+ */
+function buildDedupKey(row) {
+  const name = row[0] ? row[0].toString().trim() : '';
+  const date = row[1] ? row[1].toString().trim() : '';
+  const start = row[2] ? row[2].toString().trim() : '';
+  const end = row[3] ? row[3].toString().trim() : '';
+  const shift = row[5] ? row[5].toString().trim() : '';
+  return [name, date, start, end, shift].join('|');
 }
 
 /**
