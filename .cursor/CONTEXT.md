@@ -247,6 +247,7 @@ GAS 寫入「最終確認結果」
 - **Script Properties**：
   - `SHEET_ID`: 測試用 Google Sheets ID
   - `ENVIRONMENT`: `test`
+  - `Log_Level`: `2`（建議，Debug 等級）
 - **前端設定**：`config.js` 中 `GAS_URL_TEST`
 
 ### 8.2 正式環境
@@ -255,6 +256,7 @@ GAS 寫入「最終確認結果」
 - **Script Properties**：
   - `SHEET_ID`: 正式用 Google Sheets ID
   - `ENVIRONMENT`: `production`
+  - `Log_Level`: `1`（建議，營運等級，只記錄重要操作與錯誤）
 - **前端設定**：`config.js` 中 `GAS_URL_PROD`
 
 ### 8.3 開發流程
