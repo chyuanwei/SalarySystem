@@ -280,8 +280,8 @@ async function handleSubmit() {
     submitBtn.textContent = '開始上傳並處理';
     sheetNameInput.disabled = false;
     
-    showAlert('success', '✅ 解析完成，結果如下');
     renderResults(result);
+    showAlert('success', '✅ 解析完成，結果如下', { scrollTo: resultSection });
     
   } catch (error) {
     console.error('上傳錯誤:', error);
@@ -320,10 +320,18 @@ function updateProgress(percent, text) {
 
 /**
  * 顯示提示訊息
+ * @param {string} type - success | error | warning
+ * @param {string} message - 訊息內容
+ * @param {Object} options - { scrollTo: Element } 成功時要捲動到的區塊
  */
-function showAlert(type, message) {
+function showAlert(type, message, options) {
   alertBox.className = `alert alert-${type} show`;
   alertBox.textContent = message;
+  if (type === 'error' || type === 'warning') {
+    alertBox.scrollIntoView({ behavior: 'auto', block: 'start' });
+  } else if (type === 'success' && options && options.scrollTo) {
+    options.scrollTo.scrollIntoView({ behavior: 'auto', block: 'start' });
+  }
 }
 
 /**
@@ -492,6 +500,7 @@ async function handleLoadSchedule() {
     }
 
     renderScheduleResults(result);
+    scheduleResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
   } catch (error) {
     showAlert('error', '載入國安班表失敗：' + error.message);
   } finally {
