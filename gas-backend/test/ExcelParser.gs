@@ -1,6 +1,6 @@
 /**
- * 薪資計算系統 - Excel 解析器
- * 功能：解析 Excel 檔案並提取指定工作表的資料
+ * 薪資計算系統 - Excel 解析器（泉威國安班表專用）
+ * 功能：解析泉威國安班表格式（代碼式班別、橫向日期）
  */
 
 /**
@@ -8,7 +8,7 @@
  * @param {string} base64Data - Base64 編碼的 Excel 檔案內容
  * @param {string} fileName - 檔案名稱
  * @param {string} targetSheetName - 目標工作表名稱（例如：'11501'）
- * @return {Object} 解析結果 {success, data, error}
+ * @return {Object} 解析結果 {success, data, shiftMap, error}
  */
 function parseExcel(base64Data, fileName, targetSheetName) {
   try {
@@ -30,7 +30,6 @@ function parseExcel(base64Data, fileName, targetSheetName) {
     
     try {
       // 使用 Drive API 或 Sheets API 轉換 Excel
-      // 注意：GAS 無法直接讀取 Excel 的特定 sheet，需要先轉換為 Google Sheets
       const convertedSheet = convertExcelToSheets(fileId);
       
       // 讀取指定工作表的資料
@@ -40,17 +39,24 @@ function parseExcel(base64Data, fileName, targetSheetName) {
       DriveApp.getFileById(fileId).setTrashed(true);
       DriveApp.getFileById(convertedSheet.getId()).setTrashed(true);
       
+      // 使用泉威國安班表解析器
+      const parsedResult = parseQuanWeiSchedule(data, targetSheetName);
+      
       logInfo(`Excel 解析成功`, {
         fileName: fileName,
         sheetName: targetSheetName,
-        rowCount: data.length
+        totalRecords: parsedResult.records.length,
+        totalEmployees: parsedResult.totalEmployees,
+        shiftCodes: Object.keys(parsedResult.shiftMap)
       });
       
       return {
         success: true,
-        data: data,
-        sheetName: targetSheetName,
-        rowCount: data.length
+        data: parsedResult.records,
+        shiftMap: parsedResult.shiftMap,
+        config: parsedResult.config,
+        totalEmployees: parsedResult.totalEmployees,
+        rowCount: parsedResult.records.length
       };
       
     } catch (error) {
@@ -205,6 +211,208 @@ function listExcelSheets(base64Data, fileName) {
 }
 
 /**
+ * 泉威國安班表解析器 - 主函數
+ * 功能：解析代碼式班表（橫向日期、代碼定義）
+ * @param {Array} data - 二維陣列資料
+ * @param {string} sheetName - 工作表名稱
+ * @return {Object} 解析結果 {records, shiftMap, config, totalEmployees}
+ */
+function parseQuanWeiSchedule(data, sheetName) {
+  try {
+    logOperation(`開始解析泉威國安班表: ${sheetName}`);
+    
+    // 1. 動態建立代碼字典
+    const shiftMap = buildShiftMap(data);
+    logDebug('找到的班別代碼', { shiftMap: shiftMap });
+    
+    // 2. 定位資料區塊
+    const config = locateDataStructure(data);
+    if (!config) {
+      throw new Error('找不到日期列（1, 2, 3...），請確認工作表格式是否正確');
+    }
+    logDebug('資料結構配置', { config: config });
+    
+    // 3. 取得年月份（從 A2 取得，例如 2026/01）
+    let yearMonth = data[1] && data[1][0] ? data[1][0].toString().trim() : '';
+    if (!yearMonth.includes('/')) {
+      yearMonth = '2026/01'; // 預設值
+      logWarning('無法取得年月份，使用預設值', { yearMonth: yearMonth });
+    }
+    logDebug('年月份', { yearMonth: yearMonth });
+    
+    const finalResults = [];
+    let processedEmployees = 0;
+    
+    // 4. 主解析迴圈
+    logDebug(`開始從第 ${config.startRow + 1} 列解析員工排班`);
+    
+    for (let i = config.startRow; i < data.length; i++) {
+      const empName = data[i] && data[i][0] ? data[i][0].toString().trim() : '';
+      
+      // 終止條件：遇到空列或統計標籤
+      if (!empName || ['上班人數', '合計', '備註', 'P.T', '閉店評論'].some(k => empName.includes(k))) {
+        if (i > config.startRow) break;
+        continue;
+      }
+      
+      processedEmployees++;
+      let shiftCount = 0;
+      
+      // 遍歷所有日期欄位
+      for (let j = config.dateCol; j < config.maxCol && j < (data[i] ? data[i].length : 0); j++) {
+        const dayNum = data[config.dateRow] ? data[config.dateRow][j] : '';
+        const cellValue = data[i][j] ? data[i][j].toString().trim() : '';
+        
+        // 跳過無效資料
+        if (!dayNum || isNaN(parseInt(dayNum)) || !cellValue || cellValue.toLowerCase() === 'nan') {
+          continue;
+        }
+        
+        let shiftInfo = { start: '', end: '', hours: '' };
+        
+        // A. 先查代碼字典
+        if (shiftMap[cellValue]) {
+          shiftInfo = shiftMap[cellValue];
+        }
+        // B. 若字典查不到，檢查是否為手寫時間（如 18:00-20:30）
+        else if (cellValue.includes('-')) {
+          shiftInfo = parseTimeRange(cellValue);
+        }
+        // C. 其他情況跳過
+        else {
+          continue;
+        }
+        
+        if (shiftInfo.start) {
+          finalResults.push([
+            empName,
+            formatScheduleDate(yearMonth, dayNum),
+            shiftInfo.start,
+            shiftInfo.end,
+            shiftInfo.hours
+          ]);
+          shiftCount++;
+        }
+      }
+      
+      logDebug(`處理員工: ${empName}`, { shiftCount: shiftCount });
+    }
+    
+    logOperation(`泉威國安班表解析完成`, {
+      sheetName: sheetName,
+      totalRecords: finalResults.length,
+      totalEmployees: processedEmployees,
+      shiftCodes: Object.keys(shiftMap).join(', ')
+    });
+    
+    return {
+      records: finalResults,
+      shiftMap: shiftMap,
+      config: config,
+      totalEmployees: processedEmployees
+    };
+    
+  } catch (error) {
+    logError('泉威國安班表解析失敗', {
+      sheetName: sheetName,
+      error: error.toString()
+    });
+    throw error;
+  }
+}
+
+/**
+ * 定位資料結構：自動搜尋日期 1 所在的座標
+ * @param {Array} data - 二維陣列資料
+ * @return {Object} 資料結構配置 {dateRow, dateCol, startRow, maxCol}
+ */
+function locateDataStructure(data) {
+  for (let r = 0; r < 10 && r < data.length; r++) {
+    for (let c = 1; c < 15 && c < (data[r] ? data[r].length : 0); c++) {
+      if (data[r][c] == 1) {
+        return {
+          dateRow: r,
+          dateCol: c,
+          startRow: r + 2, // 員工姓名通常在日期列下方 2 列
+          maxCol: data[r].length
+        };
+      }
+    }
+  }
+  return null;
+}
+
+/**
+ * 動態掃描代碼定義區（* A 10:00-17:00）
+ * @param {Array} data - 二維陣列資料
+ * @return {Object} 代碼字典 {A: {start, end, hours}, ...}
+ */
+function buildShiftMap(data) {
+  const map = {};
+  data.forEach((row, rowIdx) => {
+    // 檢查第一個儲存格是否以 * 開頭
+    const firstCell = row[0] ? row[0].toString().trim() : '';
+    if (firstCell.indexOf('*') === 0) {
+      // 從第一個儲存格提取代碼和時間範圍
+      // 格式：* A 10:00-17:00 或 * A1 10:00-15:00
+      const parts = firstCell.split(/\s+/);
+      if (parts.length >= 3) {
+        const code = parts[1]; // A, A1, B, etc.
+        const range = parts[2]; // 10:00-17:00
+        if (code && range && range.indexOf('-') > 0) {
+          map[code] = parseTimeRange(range);
+          logDebug(`代碼定義: ${code} → ${range}`, { row: rowIdx + 1 });
+        }
+      }
+    }
+  });
+  return map;
+}
+
+/**
+ * 解析時間範圍並計算時數
+ * @param {string} str - 時間範圍字串（例如：10:00-17:00）
+ * @return {Object} {start, end, hours}
+ */
+function parseTimeRange(str) {
+  try {
+    const parts = str.split('-');
+    const s = formatTimeString(parts[0]);
+    const e = formatTimeString(parts[1]);
+    const sParts = s.split(':');
+    const eParts = e.split(':');
+    const startDate = new Date(0, 0, 0, parseInt(sParts[0]), parseInt(sParts[1]));
+    const endDate = new Date(0, 0, 0, parseInt(eParts[0]), parseInt(eParts[1]));
+    let diff = (endDate - startDate) / 1000 / 60 / 60;
+    if (diff < 0) diff += 24; // 跨日處理
+    return { start: s, end: e, hours: diff.toFixed(1) };
+  } catch (err) {
+    return { start: '', end: '', hours: '' };
+  }
+}
+
+/**
+ * 格式化時間字串為 HH:MM
+ * @param {string} t - 時間字串
+ * @return {string} 格式化後的時間
+ */
+function formatTimeString(t) {
+  t = t.toString().replace(':', '').trim();
+  return (t.length === 4) ? t.substring(0, 2) + ':' + t.substring(2, 4) : t;
+}
+
+/**
+ * 格式化日期為 YYYY/MM/DD
+ * @param {string} ym - 年月（例如：2026/01）
+ * @param {number} d - 日期數字
+ * @return {string} 格式化後的日期
+ */
+function formatScheduleDate(ym, d) {
+  const dStr = (d < 10) ? '0' + d : d.toString();
+  return ym + '/' + dStr;
+}
+
+/**
  * 驗證 Excel 資料格式
  * @param {Array} data - 二維陣列資料
  * @return {Object} 驗證結果 {valid, errors, warnings}
@@ -219,25 +427,19 @@ function validateExcelData(data) {
     return { valid: false, errors, warnings };
   }
   
-  // 檢查是否有標題列
-  if (data.length < 2) {
-    warnings.push('只有一列資料，可能缺少標題列或資料列');
-  }
-  
-  // 檢查每列的欄位數量是否一致
-  const firstRowLength = data[0].length;
-  for (let i = 1; i < data.length; i++) {
-    if (data[i].length !== firstRowLength) {
-      warnings.push(`第 ${i + 1} 列的欄位數量 (${data[i].length}) 與第 1 列 (${firstRowLength}) 不一致`);
-    }
+  // 檢查最小列數
+  if (data.length < 5) {
+    warnings.push('資料列數過少，可能不是正確的班表格式');
   }
   
   // 檢查是否有完全空白的列
+  let emptyRowCount = 0;
   for (let i = 0; i < data.length; i++) {
     const isEmpty = data[i].every(cell => cell === '' || cell === null || cell === undefined);
-    if (isEmpty) {
-      warnings.push(`第 ${i + 1} 列是空白列`);
-    }
+    if (isEmpty) emptyRowCount++;
+  }
+  if (emptyRowCount > data.length / 2) {
+    warnings.push(`發現過多空白列 (${emptyRowCount} 列)`);
   }
   
   return {
@@ -245,277 +447,6 @@ function validateExcelData(data) {
     errors,
     warnings,
     rowCount: data.length,
-    columnCount: firstRowLength
+    columnCount: data[0] ? data[0].length : 0
   };
-}
-
-/**
- * 將上傳的 Excel 資料轉換為目標格式
- * 目標格式：員工姓名 | 排班日期 | 上班時間 | 下班時間 | 工作時數 | 備註
- * @param {Array} sourceData - 原始 Excel 資料（二維陣列）
- * @return {Array} 轉換後的資料
- */
-function transformToTargetFormat(sourceData) {
-  try {
-    if (!sourceData || sourceData.length === 0) {
-      throw new Error('來源資料為空');
-    }
-    
-    // 第一列是標題列
-    const headers = sourceData[0];
-    logDebug('原始欄位標題', { headers: headers });
-    
-    // 自動偵測欄位映射
-    const mapping = detectColumnMapping(headers);
-    logOperation('欄位映射結果', { mapping: mapping });
-    
-    // 建立目標資料（包含標題列）
-    const targetData = [];
-    targetData.push(['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '備註']);
-    
-    // 轉換每一列資料（跳過標題列）
-    for (let i = 1; i < sourceData.length; i++) {
-      const sourceRow = sourceData[i];
-      
-      // 跳過空白列
-      const isEmpty = sourceRow.every(cell => cell === '' || cell === null || cell === undefined);
-      if (isEmpty) continue;
-      
-      // 提取欄位值
-      const employeeName = getColumnValue(sourceRow, mapping.employeeName);
-      const scheduleDate = getColumnValue(sourceRow, mapping.scheduleDate);
-      const startTime = getColumnValue(sourceRow, mapping.startTime);
-      const endTime = getColumnValue(sourceRow, mapping.endTime);
-      const note = getColumnValue(sourceRow, mapping.note);
-      
-      // 計算工作時數
-      const workHours = calculateWorkHours(startTime, endTime);
-      
-      // 格式化日期（確保為 YYYY-MM-DD 格式）
-      const formattedDate = formatDate(scheduleDate);
-      
-      // 建立目標列
-      const targetRow = [
-        employeeName,
-        formattedDate,
-        formatTime(startTime),
-        formatTime(endTime),
-        workHours,
-        note || ''
-      ];
-      
-      targetData.push(targetRow);
-    }
-    
-    logInfo('資料轉換完成', {
-      sourceRows: sourceData.length - 1,
-      targetRows: targetData.length - 1
-    });
-    
-    return targetData;
-    
-  } catch (error) {
-    logError('資料轉換失敗', { error: error.toString() });
-    throw error;
-  }
-}
-
-/**
- * 自動偵測欄位映射
- * @param {Array} headers - 標題列
- * @return {Object} 欄位索引映射
- */
-function detectColumnMapping(headers) {
-  const mapping = {
-    employeeName: -1,
-    scheduleDate: -1,
-    startTime: -1,
-    endTime: -1,
-    note: -1
-  };
-  
-  // 定義可能的欄位名稱（支援多種變體）
-  const patterns = {
-    employeeName: ['員工姓名', '姓名', '員工', '人員', 'name', 'employee'],
-    scheduleDate: ['排班日期', '日期', '工作日期', 'date', 'schedule'],
-    startTime: ['上班時間', '開始時間', '起始時間', 'start', 'begin'],
-    endTime: ['下班時間', '結束時間', '完成時間', 'end', 'finish'],
-    note: ['備註', '說明', '註記', 'note', 'remark', 'comment']
-  };
-  
-  // 遍歷標題列，尋找匹配的欄位
-  for (let i = 0; i < headers.length; i++) {
-    const header = String(headers[i]).trim().toLowerCase();
-    
-    for (const [field, keywords] of Object.entries(patterns)) {
-      for (const keyword of keywords) {
-        if (header.includes(keyword.toLowerCase())) {
-          mapping[field] = i;
-          break;
-        }
-      }
-    }
-  }
-  
-  // 檢查必要欄位是否都找到
-  const missingFields = [];
-  if (mapping.employeeName === -1) missingFields.push('員工姓名');
-  if (mapping.scheduleDate === -1) missingFields.push('排班日期');
-  if (mapping.startTime === -1) missingFields.push('上班時間');
-  if (mapping.endTime === -1) missingFields.push('下班時間');
-  
-  if (missingFields.length > 0) {
-    logWarning('部分必要欄位無法自動偵測', {
-      missingFields: missingFields,
-      headers: headers
-    });
-  }
-  
-  return mapping;
-}
-
-/**
- * 取得欄位值
- * @param {Array} row - 資料列
- * @param {number} columnIndex - 欄位索引
- * @return {*} 欄位值
- */
-function getColumnValue(row, columnIndex) {
-  if (columnIndex === -1 || columnIndex >= row.length) {
-    return '';
-  }
-  return row[columnIndex];
-}
-
-/**
- * 計算工作時數
- * @param {*} startTime - 上班時間
- * @param {*} endTime - 下班時間
- * @return {number} 工作時數
- */
-function calculateWorkHours(startTime, endTime) {
-  try {
-    // 處理各種時間格式
-    const start = parseTime(startTime);
-    const end = parseTime(endTime);
-    
-    if (!start || !end) {
-      return 0;
-    }
-    
-    // 計算時數差（單位：小時）
-    let hours = (end - start) / (1000 * 60 * 60);
-    
-    // 如果結束時間小於開始時間，表示跨日
-    if (hours < 0) {
-      hours += 24;
-    }
-    
-    // 四捨五入到小數點後 2 位
-    return Math.round(hours * 100) / 100;
-    
-  } catch (error) {
-    logWarning('計算工作時數失敗', {
-      startTime: startTime,
-      endTime: endTime,
-      error: error.toString()
-    });
-    return 0;
-  }
-}
-
-/**
- * 解析時間字串或日期物件
- * @param {*} timeValue - 時間值
- * @return {Date} 日期物件
- */
-function parseTime(timeValue) {
-  if (!timeValue) return null;
-  
-  // 如果已經是 Date 物件
-  if (timeValue instanceof Date) {
-    return timeValue;
-  }
-  
-  // 如果是字串，嘗試解析
-  const timeStr = String(timeValue).trim();
-  
-  // 格式：HH:MM 或 HH:MM:SS
-  const timePattern = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
-  const match = timeStr.match(timePattern);
-  
-  if (match) {
-    const hours = parseInt(match[1]);
-    const minutes = parseInt(match[2]);
-    const seconds = match[3] ? parseInt(match[3]) : 0;
-    
-    const date = new Date();
-    date.setHours(hours, minutes, seconds, 0);
-    return date;
-  }
-  
-  // 嘗試直接解析
-  const parsed = new Date(timeValue);
-  if (!isNaN(parsed.getTime())) {
-    return parsed;
-  }
-  
-  return null;
-}
-
-/**
- * 格式化日期為 YYYY-MM-DD
- * @param {*} dateValue - 日期值
- * @return {string} 格式化後的日期字串
- */
-function formatDate(dateValue) {
-  if (!dateValue) return '';
-  
-  try {
-    let date;
-    
-    // 如果已經是 Date 物件
-    if (dateValue instanceof Date) {
-      date = dateValue;
-    } else {
-      // 嘗試解析字串
-      date = new Date(dateValue);
-    }
-    
-    if (isNaN(date.getTime())) {
-      return String(dateValue);
-    }
-    
-    const year = date.getFullYear();
-    const month = String(date.getMonth() + 1).padStart(2, '0');
-    const day = String(date.getDate()).padStart(2, '0');
-    
-    return `${year}-${month}-${day}`;
-    
-  } catch (error) {
-    logWarning('日期格式化失敗', { dateValue: dateValue, error: error.toString() });
-    return String(dateValue);
-  }
-}
-
-/**
- * 格式化時間為 HH:MM
- * @param {*} timeValue - 時間值
- * @return {string} 格式化後的時間字串
- */
-function formatTime(timeValue) {
-  if (!timeValue) return '';
-  
-  try {
-    const date = parseTime(timeValue);
-    if (!date) return String(timeValue);
-    
-    const hours = String(date.getHours()).padStart(2, '0');
-    const minutes = String(date.getMinutes()).padStart(2, '0');
-    
-    return `${hours}:${minutes}`;
-    
-  } catch (error) {
-    return String(timeValue);
-  }
 }

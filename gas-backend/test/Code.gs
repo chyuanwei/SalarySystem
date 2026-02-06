@@ -98,7 +98,7 @@ function handleUpload(requestData) {
     
     logDebug(`Excel 解析成功，讀取 ${parseResult.rowCount} 列資料`);
     
-    // 驗證資料
+    // 驗證資料（基本檢查）
     const validation = validateExcelData(parseResult.data);
     
     if (!validation.valid) {
@@ -111,10 +111,13 @@ function handleUpload(requestData) {
       logWarning(`資料警告`, { warnings: validation.warnings });
     }
     
-    // 轉換資料為目標格式
-    logDebug('開始轉換資料格式');
-    const transformedData = transformToTargetFormat(parseResult.data);
-    logDebug(`轉換完成，共 ${transformedData.length - 1} 列資料`);
+    // 準備轉換後的資料（parseResult.data 已經是解析好的格式）
+    logDebug('準備寫入資料');
+    const transformedData = [
+      ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數'],
+      ...parseResult.data
+    ];
+    logDebug(`共 ${parseResult.data.length} 列資料`);
     
     // 寫入 Google Sheets（附加模式）
     const writeResult = appendToSheet(transformedData, targetGoogleSheetTab);
@@ -140,8 +143,10 @@ function handleUpload(requestData) {
     logOperation(`檔案處理成功: ${fileName}`, {
       fileName: fileName,
       rowCount: parseResult.rowCount,
+      totalEmployees: parseResult.totalEmployees,
       columnCount: writeResult.columnCount,
-      processTime: `${processTime.toFixed(2)} 秒`
+      processTime: `${processTime.toFixed(2)} 秒`,
+      shiftCodes: Object.keys(parseResult.shiftMap || {}).join(', ')
     });
     
     // 回傳成功訊息
@@ -153,8 +158,10 @@ function handleUpload(requestData) {
         sourceSheet: targetSheetName,
         targetSheet: targetGoogleSheetTab,
         rowCount: parseResult.rowCount,
+        totalEmployees: parseResult.totalEmployees,
         columnCount: writeResult.columnCount,
         processTime: processTime.toFixed(2),
+        shiftCodes: Object.keys(parseResult.shiftMap || {}),
         warnings: validation.warnings || []
       }
     });
