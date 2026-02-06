@@ -130,7 +130,7 @@ async function testGASConnection() {
     const response = await fetch(CONFIG.GAS_URL + '?action=test', {
       method: 'GET',
       mode: 'cors',
-      signal: AbortSignal.timeout(5000) // 5 秒逾時
+      signal: AbortSignal.timeout(15000) // 15 秒逾時，避免 GAS 冷啟動被誤判
     });
     const result = await response.json();
     return response.ok && result && result.success;
