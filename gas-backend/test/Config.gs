@@ -20,6 +20,7 @@ function getConfig() {
       BRANCH: '分店',            // 分店清單（代碼、名稱、啟用狀態、排序、打卡地點）
       ATTENDANCE: '打卡',        // 打卡紀錄
       PERSONNEL: '人員',         // 人員（員工帳號、班表名稱、打卡名稱、分店）
+      CORRECTION: '校正',        // 班表與打卡校正紀錄
       CALCULATION: '計算結果',   // 計算結果
       ADJUSTMENTS: '調整記錄',   // 調整記錄
       LOGS: '處理記錄'          // 處理記錄

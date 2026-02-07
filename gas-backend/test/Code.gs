@@ -61,6 +61,23 @@ function doGet(e) {
         });
       }
       
+      case 'loadCompare': {
+        const yearMonth = (e.parameter.yearMonth || '').toString().trim() || null;
+        const startDate = (e.parameter.startDate || '').toString().trim() || null;
+        const endDate = (e.parameter.endDate || '').toString().trim() || null;
+        const namesParam = e.parameter.names || '';
+        const names = namesParam ? namesParam.split(',').map(function(n) { return n.trim(); }).filter(Boolean) : [];
+        const branchName = (e.parameter.branch || '').toString().trim() || null;
+        const result = compareScheduleAttendance(yearMonth, startDate, endDate, names, branchName);
+        if (!result.success) {
+          return createJsonResponse({ success: false, error: result.error });
+        }
+        return createJsonResponse({
+          success: true,
+          items: result.items || []
+        });
+      }
+      
       default:
         return createJsonResponse({ success: false, error: '未知的 action' });
     }
@@ -86,6 +103,9 @@ function doPost(e) {
     switch (action) {
       case 'upload':
         return handleUpload(requestData);
+      
+      case 'submitCorrection':
+        return handleSubmitCorrection(requestData);
       
       case 'calculate':
         return handleCalculate(requestData);
@@ -380,6 +400,53 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
       message: error.message
     });
     return createJsonResponse({ success: false, error: '打卡上傳處理失敗: ' + error.message });
+  }
+}
+
+/**
+ * 處理校正送出
+ */
+function handleSubmitCorrection(requestData) {
+  try {
+    var branch = (requestData.branch || '').toString().trim();
+    var empAccount = (requestData.empAccount || '').toString().trim();
+    var name = (requestData.name || '').toString().trim();
+    var date = (requestData.date || '').toString().trim();
+    var scheduleStart = (requestData.scheduleStart || '').toString().trim();
+    var scheduleEnd = (requestData.scheduleEnd || '').toString().trim();
+    var scheduleHours = (requestData.scheduleHours || '').toString().trim();
+    var attendanceStart = (requestData.attendanceStart || '').toString().trim();
+    var attendanceEnd = (requestData.attendanceEnd || '').toString().trim();
+    var attendanceHours = (requestData.attendanceHours || '').toString().trim();
+    var attendanceStatus = (requestData.attendanceStatus || '').toString().trim();
+    var correctedStart = (requestData.correctedStart || '').toString().trim();
+    var correctedEnd = (requestData.correctedEnd || '').toString().trim();
+    if (!branch || !date || !correctedStart || !correctedEnd) {
+      return createJsonResponse({ success: false, error: '分店、日期、校正上班時間、校正下班時間為必填' });
+    }
+    var data = {
+      branch: branch,
+      empAccount: empAccount,
+      name: name,
+      date: date,
+      scheduleStart: scheduleStart,
+      scheduleEnd: scheduleEnd,
+      scheduleHours: scheduleHours,
+      attendanceStart: attendanceStart,
+      attendanceEnd: attendanceEnd,
+      attendanceHours: attendanceHours,
+      attendanceStatus: attendanceStatus,
+      correctedStart: correctedStart,
+      correctedEnd: correctedEnd
+    };
+    var result = writeCorrection(data);
+    if (!result.success) {
+      return createJsonResponse({ success: false, error: result.error || '寫入校正紀錄失敗' });
+    }
+    return createJsonResponse({ success: true, message: '校正紀錄已送出' });
+  } catch (error) {
+    logError('校正送出失敗: ' + error.message, { error: error.toString() });
+    return createJsonResponse({ success: false, error: '校正送出失敗: ' + error.message });
   }
 }
 

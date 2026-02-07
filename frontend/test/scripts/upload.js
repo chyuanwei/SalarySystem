@@ -121,10 +121,20 @@ if (datePicker) datePicker.addEventListener('change', function() {});
 if (selectAllPersonsBtn) selectAllPersonsBtn.addEventListener('click', selectAllPersons);
 if (clearAllPersonsBtn) clearAllPersonsBtn.addEventListener('click', clearAllPersons);
 
+// 比對區塊日期模式切換
+document.querySelectorAll('input[name="compareDateMode"]').forEach(function(radio) {
+  if (radio) radio.addEventListener('change', toggleCompareDateMode);
+});
+
+// 載入比對按鈕
+const loadCompareBtn = document.getElementById('loadCompareBtn');
+if (loadCompareBtn) loadCompareBtn.addEventListener('click', handleLoadCompare);
+
 // 頁面載入時初始化
 document.addEventListener('DOMContentLoaded', function() {
   if (yearSelect && monthSelect) initScheduleSelectors();
   toggleDateFilterMode();
+  toggleCompareDateMode();
   loadBranches();
   // 初始顯示分店區塊（班表為預設）
   if (branchGroup) {
@@ -134,12 +144,13 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
- * 載入分店清單（從 GAS getBranches API），供上傳與查詢區塊使用
+ * 載入分店清單（從 GAS getBranches API），供上傳、查詢、比對區塊使用
  */
 async function loadBranches() {
   const branchEl = document.getElementById('branchSelect');
   const queryBranchEl = document.getElementById('queryBranchSelect');
-  if (!branchEl && !queryBranchEl) return;
+  const compareBranchEl = document.getElementById('compareBranchSelect');
+  if (!branchEl && !queryBranchEl && !compareBranchEl) return;
   try {
     const response = await fetch(CONFIG.GAS_URL + '?action=getBranches', { method: 'GET', mode: 'cors' });
     const result = await response.json();
@@ -164,10 +175,20 @@ async function loadBranches() {
         queryBranchEl.appendChild(opt);
       });
     }
+    if (compareBranchEl) {
+      compareBranchEl.innerHTML = '<option value="">請選擇分店</option>';
+      options.forEach(function(name) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        compareBranchEl.appendChild(opt);
+      });
+    }
   } catch (error) {
     console.error('載入分店清單失敗:', error);
     if (branchEl) branchEl.innerHTML = '<option value="">載入失敗，請重整頁面</option>';
     if (queryBranchEl) queryBranchEl.innerHTML = '<option value="">載入失敗</option>';
+    if (compareBranchEl) compareBranchEl.innerHTML = '<option value="">載入失敗</option>';
   }
 }
 
@@ -566,6 +587,21 @@ function toggleDateFilterMode() {
   if (dateDayGroup) dateDayGroup.classList.toggle('hidden', isMonth);
 }
 
+function toggleCompareDateMode() {
+  const mode = document.querySelector('input[name="compareDateMode"]:checked');
+  const isMonth = mode && mode.value === 'month';
+  const compareMonthGroup = document.getElementById('compareMonthGroup');
+  const compareRangeGroup = document.getElementById('compareRangeGroup');
+  const compareYearMonthInput = document.getElementById('compareYearMonthInput');
+  const compareStartDate = document.getElementById('compareStartDate');
+  const compareEndDate = document.getElementById('compareEndDate');
+  if (compareMonthGroup) compareMonthGroup.classList.toggle('hidden', !isMonth);
+  if (compareRangeGroup) compareRangeGroup.classList.toggle('hidden', isMonth);
+  if (compareYearMonthInput) compareYearMonthInput.disabled = !isMonth;
+  if (compareStartDate) compareStartDate.disabled = isMonth;
+  if (compareEndDate) compareEndDate.disabled = isMonth;
+}
+
 function selectAllPersons() {
   if (!personCheckboxGroup) return;
   personCheckboxGroup.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = true; });
@@ -847,4 +883,285 @@ function renderAttendanceResults(result) {
   }).join('');
 
   scheduleResultSection.classList.add('show');
+}
+
+/**
+ * 載入班表與打卡比對
+ */
+async function handleLoadCompare() {
+  const mode = document.querySelector('input[name="compareDateMode"]:checked');
+  const isMonth = mode && mode.value === 'month';
+  let yearMonth = '';
+  let startDate = '';
+  let endDate = '';
+
+  if (isMonth) {
+    const compareYearMonthInput = document.getElementById('compareYearMonthInput');
+    yearMonth = compareYearMonthInput && compareYearMonthInput.value.trim().match(/^\d{6}$/)
+      ? compareYearMonthInput.value.trim()
+      : '';
+  } else {
+    const compareStartDate = document.getElementById('compareStartDate');
+    const compareEndDate = document.getElementById('compareEndDate');
+    startDate = compareStartDate && compareStartDate.value ? compareStartDate.value.trim() : '';
+    endDate = compareEndDate && compareEndDate.value ? compareEndDate.value.trim() : startDate;
+  }
+
+  if (!yearMonth && (!startDate || startDate.length !== 10)) {
+    showAlert('error', '請選擇月份（例如 202601）或日期區間');
+    return;
+  }
+
+  const compareBranchSelect = document.getElementById('compareBranchSelect');
+  const branchVal = compareBranchSelect && compareBranchSelect.value ? compareBranchSelect.value.trim() : '';
+  if (!branchVal) {
+    showAlert('error', '請選擇分店');
+    return;
+  }
+
+  const comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
+  const names = [];
+  if (comparePersonCheckboxGroup) {
+    comparePersonCheckboxGroup.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
+      if (cb.value) names.push(cb.value);
+    });
+  }
+
+  const loadCompareBtn = document.getElementById('loadCompareBtn');
+  const compareResultSection = document.getElementById('compareResultSection');
+  if (loadCompareBtn) loadCompareBtn.disabled = true;
+  loadCompareBtn.textContent = '載入中...';
+  hideAlert();
+  if (compareResultSection) compareResultSection.classList.remove('show');
+
+  let url = CONFIG.GAS_URL + '?action=loadCompare&branch=' + encodeURIComponent(branchVal);
+  if (yearMonth) url += '&yearMonth=' + encodeURIComponent(yearMonth);
+  if (startDate) url += '&startDate=' + encodeURIComponent(startDate);
+  if (endDate) url += '&endDate=' + encodeURIComponent(endDate);
+  if (names.length > 0) url += '&names=' + encodeURIComponent(names.join(','));
+
+  try {
+    const response = await fetch(url, { method: 'GET', mode: 'cors' });
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '載入失敗');
+    }
+
+    renderCompareResults(result.items || []);
+    populateComparePersonCheckboxes(result.items || []);
+    if (compareResultSection) {
+      compareResultSection.classList.add('show');
+      compareResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
+    }
+  } catch (error) {
+    showAlert('error', '載入比對失敗：' + error.message);
+  } finally {
+    if (loadCompareBtn) {
+      loadCompareBtn.disabled = false;
+      loadCompareBtn.textContent = '載入比對';
+    }
+  }
+}
+
+/**
+ * 從比對結果填入人員複選框
+ */
+function populateComparePersonCheckboxes(items) {
+  const comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
+  if (!comparePersonCheckboxGroup) return;
+  const nameSet = {};
+  items.forEach(function(item) {
+    if (item.schedule && item.schedule.name) nameSet[item.schedule.name] = true;
+    if (item.attendance && item.attendance.name) nameSet[item.attendance.name] = true;
+  });
+  const names = Object.keys(nameSet).sort();
+  comparePersonCheckboxGroup.innerHTML = '';
+  if (names.length > 0) {
+    names.forEach(function(n) {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = n;
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(n));
+      comparePersonCheckboxGroup.appendChild(label);
+    });
+  } else {
+    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">此範圍無人員資料</span>';
+  }
+}
+
+/**
+ * 渲染比對結果卡片
+ */
+function renderCompareResults(items) {
+  const compareList = document.getElementById('compareList');
+  if (!compareList) return;
+
+  if (!items || items.length === 0) {
+    compareList.innerHTML = '<p class="person-placeholder">無比對資料</p>';
+    return;
+  }
+
+  compareList.innerHTML = items.map(function(item, idx) {
+    const s = item.schedule || null;
+    const a = item.attendance || null;
+    const corr = item.correction || null;
+    const displayName = (s && s.name) || (a && a.name) || '—';
+    const empAccount = (s && s.empAccount) || (a && a.empAccount) || '';
+    const branch = (s && s.branch) || (a && a.branch) || '';
+    const date = (s && s.date) || (a && a.date) || '';
+    const scheduleStart = s ? (s.startTime || '—') : '—';
+    const scheduleEnd = s ? (s.endTime || '—') : '—';
+    const scheduleHours = s ? (s.hours || '—') : '—';
+    const attendanceStart = a ? (a.startTime || '—') : '—';
+    const attendanceEnd = a ? (a.endTime || '—') : '—';
+    const attendanceHours = a ? (a.hours || '—') : '—';
+    const attendanceStatus = a ? (a.status || '—') : '—';
+
+    const correctedStart = corr ? corr.correctedStart : '';
+    const correctedEnd = corr ? corr.correctedEnd : '';
+    const isCorrected = !!(corr && correctedStart && correctedEnd);
+
+    const payload = JSON.stringify({
+      branch: branch,
+      empAccount: empAccount,
+      name: displayName,
+      date: date,
+      scheduleStart: s ? s.startTime : '',
+      scheduleEnd: s ? s.endTime : '',
+      scheduleHours: s ? s.hours : '',
+      attendanceStart: a ? a.startTime : '',
+      attendanceEnd: a ? a.endTime : '',
+      attendanceHours: a ? a.hours : '',
+      attendanceStatus: a ? a.status : ''
+    });
+
+    const cardId = 'compare-card-' + idx;
+
+    return (
+      '<div class="compare-card' + (isCorrected ? ' corrected' : '') + '" id="' + cardId + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
+        '<div class="result-row"><span class="result-label">分店</span><span class="result-value">' + escapeHtml(branch) + '</span></div>' +
+        '<div class="result-row"><span class="result-label">員工帳號</span><span class="result-value">' + escapeHtml(empAccount) + '</span></div>' +
+        '<div class="result-row"><span class="result-label">姓名</span><span class="result-value">' + escapeHtml(displayName) + '</span></div>' +
+        '<div class="result-row"><span class="result-label">日期</span><span class="result-value">' + escapeHtml(date) + '</span></div>' +
+        '<div class="result-row"><span class="result-label">班表 上班/下班/時數</span><span class="result-value">' + escapeHtml(scheduleStart) + ' / ' + escapeHtml(scheduleEnd) + ' / ' + escapeHtml(scheduleHours) + '</span></div>' +
+        '<div class="result-row"><span class="result-label">打卡 上班/下班/時數/狀態</span><span class="result-value">' + escapeHtml(attendanceStart) + ' / ' + escapeHtml(attendanceEnd) + ' / ' + escapeHtml(attendanceHours) + ' / ' + escapeHtml(attendanceStatus) + '</span></div>' +
+        '<div class="compare-card-actions">' +
+          '<label><span class="result-label">校正上班</span><input type="text" class="corrected-start-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedStart) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
+          '<label><span class="result-label">校正下班</span><input type="text" class="corrected-end-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedEnd) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
+          (isCorrected
+            ? '<span class="compare-card-badge">已校正</span><button type="button" class="person-btn edit-correction-btn">編輯</button>'
+            : '<button type="button" class="load-schedule-btn submit-correction-btn">校正送出</button>') +
+        '</div>' +
+      '</div>'
+    );
+  }).join('');
+
+  compareList.querySelectorAll('.submit-correction-btn').forEach(function(btn) {
+    btn.addEventListener('click', handleSubmitCorrectionClick);
+  });
+  compareList.querySelectorAll('.edit-correction-btn').forEach(function(btn) {
+    btn.addEventListener('click', handleEditCorrectionClick);
+  });
+}
+
+function escapeHtml(s) {
+  if (s === undefined || s === null) return '';
+  const t = String(s);
+  return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function escapeHtmlAttr(s) {
+  if (s === undefined || s === null) return '';
+  return escapeHtml(s).replace(/'/g, '&#39;');
+}
+
+/**
+ * 處理校正送出按鈕點擊
+ */
+function handleSubmitCorrectionClick(e) {
+  const btn = e.target;
+  const card = btn.closest('.compare-card');
+  if (!card) return;
+  const payloadStr = card.getAttribute('data-payload');
+  if (!payloadStr) return;
+  let payload;
+  try {
+    payload = JSON.parse(payloadStr);
+  } catch (err) {
+    showAlert('error', '資料格式錯誤');
+    return;
+  }
+  const correctedStartInput = card.querySelector('.corrected-start-input');
+  const correctedEndInput = card.querySelector('.corrected-end-input');
+  const correctedStart = correctedStartInput ? correctedStartInput.value.trim() : '';
+  const correctedEnd = correctedEndInput ? correctedEndInput.value.trim() : '';
+  if (!correctedStart || !correctedEnd) {
+    showAlert('error', '請填寫校正上班時間與校正下班時間');
+    return;
+  }
+  payload.correctedStart = correctedStart;
+  payload.correctedEnd = correctedEnd;
+  doSubmitCorrection(payload);
+}
+
+/**
+ * 處理編輯按鈕點擊（已校正狀態下切換為可編輯）
+ */
+function handleEditCorrectionClick(e) {
+  const btn = e.target;
+  const card = btn.closest('.compare-card');
+  if (!card) return;
+  const correctedStartInput = card.querySelector('.corrected-start-input');
+  const correctedEndInput = card.querySelector('.corrected-end-input');
+  if (correctedStartInput) correctedStartInput.removeAttribute('readonly');
+  if (correctedEndInput) correctedEndInput.removeAttribute('readonly');
+  const badge = card.querySelector('.compare-card-badge');
+  if (badge) badge.remove();
+  const newBtn = document.createElement('button');
+  newBtn.type = 'button';
+  newBtn.className = 'load-schedule-btn submit-correction-btn';
+  newBtn.textContent = '校正送出';
+  newBtn.addEventListener('click', handleSubmitCorrectionClick);
+  btn.replaceWith(newBtn);
+}
+
+/**
+ * 送出校正到 API
+ */
+async function doSubmitCorrection(payload) {
+  try {
+    const response = await fetch(CONFIG.GAS_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        action: 'submitCorrection',
+        branch: payload.branch,
+        empAccount: payload.empAccount,
+        name: payload.name,
+        date: payload.date,
+        scheduleStart: payload.scheduleStart,
+        scheduleEnd: payload.scheduleEnd,
+        scheduleHours: payload.scheduleHours,
+        attendanceStart: payload.attendanceStart,
+        attendanceEnd: payload.attendanceEnd,
+        attendanceHours: payload.attendanceHours,
+        attendanceStatus: payload.attendanceStatus,
+        correctedStart: payload.correctedStart,
+        correctedEnd: payload.correctedEnd
+      })
+    });
+    const result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '校正送出失敗');
+    }
+    showAlert('success', '校正紀錄已送出');
+    const loadCompareBtn = document.getElementById('loadCompareBtn');
+    if (loadCompareBtn) loadCompareBtn.click();
+  } catch (error) {
+    showAlert('error', '校正送出失敗：' + error.message);
+  }
 }

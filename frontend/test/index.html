@@ -78,6 +78,53 @@
             margin-bottom: 0;
         }
 
+        .compare-section {
+            background: #f0f7ff;
+            border: 1px solid #c5d9f0;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 20px;
+        }
+
+        .compare-card {
+            background: white;
+            border: 1px solid #e6e9ee;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 12px;
+        }
+
+        .compare-card.corrected {
+            border-left: 4px solid #28a745;
+        }
+
+        .compare-card-actions {
+            margin-top: 12px;
+            display: flex;
+            gap: 8px;
+            align-items: center;
+        }
+
+        .compare-card-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 12px;
+        }
+
+        .compare-card-actions label {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .compare-card-actions .corrected-start-input,
+        .compare-card-actions .corrected-end-input {
+            width: 80px;
+        }
+
         .schedule-block-label {
             font-size: 13px;
             font-weight: 600;
@@ -916,6 +963,46 @@
                 <h2 class="result-title" id="queryResultTitle">班表資料</h2>
                 <div id="scheduleSummary" class="result-summary"></div>
                 <div id="scheduleList" class="result-list"></div>
+            </div>
+        </div>
+
+        <div class="compare-section" id="compareSection">
+            <h3 class="schedule-query-title">🔄 班表與打卡比對</h3>
+            <div class="schedule-block">
+                <div class="schedule-block-label">條件選擇 <span class="schedule-hint-small">（必選：月份或日期區間、分店）</span></div>
+                <div class="schedule-date-modes">
+                    <label class="schedule-radio"><input type="radio" name="compareDateMode" value="month" checked> 月份</label>
+                    <label class="schedule-radio"><input type="radio" name="compareDateMode" value="range"> 日期區間</label>
+                </div>
+                <div class="schedule-date-month-group" id="compareMonthGroup">
+                    <label class="schedule-inline-label">年月</label>
+                    <input type="text" id="compareYearMonthInput" class="schedule-yearmonth-input" placeholder="202601" maxlength="6">
+                </div>
+                <div class="schedule-date-day-group hidden" id="compareRangeGroup">
+                    <label class="schedule-inline-label">開始日期</label>
+                    <input type="date" id="compareStartDate" class="schedule-date-input">
+                    <label class="schedule-inline-label">結束日期</label>
+                    <input type="date" id="compareEndDate" class="schedule-date-input">
+                </div>
+            </div>
+            <div class="schedule-block">
+                <div class="schedule-block-label">分店 <span class="schedule-hint-small">（必選）</span></div>
+                <select id="compareBranchSelect" class="schedule-select">
+                    <option value="">請選擇分店</option>
+                </select>
+            </div>
+            <div class="schedule-block">
+                <div class="schedule-block-label">人員篩選 <span class="schedule-hint-small">（可選，可複選）</span></div>
+                <div id="comparePersonCheckboxGroup" class="person-checkbox-group">
+                    <span class="person-placeholder">請先載入班表或打卡取得名單</span>
+                </div>
+            </div>
+            <div class="schedule-block">
+                <button type="button" id="loadCompareBtn" class="load-schedule-btn">載入比對</button>
+            </div>
+            <div id="compareResultSection" class="result-section">
+                <h2 class="result-title">比對結果</h2>
+                <div id="compareList" class="result-list"></div>
             </div>
         </div>
 
