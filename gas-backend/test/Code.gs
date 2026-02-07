@@ -158,6 +158,12 @@ function doPost(e) {
       case 'submitCorrection':
         return handleSubmitCorrection(requestData);
       
+      case 'updateScheduleRemark':
+        return handleUpdateScheduleRemark(requestData);
+      
+      case 'updateAttendanceRemark':
+        return handleUpdateAttendanceRemark(requestData);
+      
       case 'calculate':
         return handleCalculate(requestData);
       
@@ -242,14 +248,14 @@ function handleUpload(requestData) {
     var mapping = readPersonnelMapping();
     var scheduleNameToAccount = mapping ? mapping.scheduleNameToAccount : {};
     var accountToAttendanceName = mapping ? mapping.accountToAttendanceName : {};
-    const headerRow = ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店'];
+    const headerRow = ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店', '備註'];
     const dataWithBranch = parseResult.data.map(function(row) {
       var r = row.slice();
       var scheduleName = r[0] ? String(r[0]).trim() : '';
       var acc = scheduleNameToAccount[scheduleName];
       var attendanceName = acc && accountToAttendanceName[acc] ? accountToAttendanceName[acc] : scheduleName;
       r[0] = attendanceName || scheduleName;
-      return r.concat([branchName]);
+      return r.concat([branchName, '']);
     });
     const transformedData = [headerRow].concat(dataWithBranch);
     logDebug(`共 ${parseResult.data.length} 列資料`);
@@ -306,7 +312,7 @@ function handleUpload(requestData) {
     return createJsonResponse({
       success: true,
       message: '檔案已成功上傳並處理',
-      columns: ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店'],
+      columns: ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店', '備註'],
       records: records,
       details: {
         fileName: fileName,
@@ -406,13 +412,14 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
         r.startTime || '',
         r.endTime || '',
         r.workHours || '',
-        r.status || ''
+        r.status || '',
+        r.remark || ''
       ]);
     }
     
     var config = getConfig();
     var targetSheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
-    var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態'];
+    var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態', '備註'];
     var dataToWrite = [headerRow].concat(dataRows);
     
     // 以「月份＋分店」覆蓋：先刪除既有該月份該分店資料
@@ -510,6 +517,7 @@ function handleSubmitCorrection(requestData) {
     var attendanceStatus = (requestData.attendanceStatus || '').toString().trim();
     var correctedStart = (requestData.correctedStart || '').toString().trim();
     var correctedEnd = (requestData.correctedEnd || '').toString().trim();
+    var remark = (requestData.remark || requestData.correctionRemark || '').toString().trim();
     if (!branch || !date || !correctedStart || !correctedEnd) {
       return createJsonResponse({ success: false, error: '分店、日期、校正上班時間、校正下班時間為必填' });
     }
@@ -526,7 +534,9 @@ function handleSubmitCorrection(requestData) {
       attendanceHours: attendanceHours,
       attendanceStatus: attendanceStatus,
       correctedStart: correctedStart,
-      correctedEnd: correctedEnd
+      correctedEnd: correctedEnd,
+      remark: remark,
+      correctionRemark: remark
     };
     var result = writeCorrection(data);
     if (!result.success) {
@@ -536,6 +546,48 @@ function handleSubmitCorrection(requestData) {
   } catch (error) {
     logError('校正送出失敗: ' + error.message, { error: error.toString() });
     return createJsonResponse({ success: false, error: '校正送出失敗: ' + error.message });
+  }
+}
+
+/**
+ * 更新班表備註
+ */
+function handleUpdateScheduleRemark(requestData) {
+  try {
+    var branch = (requestData.branch || '').toString().trim();
+    var name = (requestData.name || '').toString().trim();
+    var date = (requestData.date || '').toString().trim();
+    var start = (requestData.start || '').toString().trim();
+    var end = (requestData.end || '').toString().trim();
+    var remark = (requestData.remark || '').toString().trim();
+    if (!branch || !name || !date) {
+      return createJsonResponse({ success: false, error: '分店、姓名、日期為必填' });
+    }
+    var result = updateScheduleRemark(branch, name, date, start, end, remark);
+    return createJsonResponse(result.success ? { success: true, message: '備註已更新' } : { success: false, error: result.error });
+  } catch (err) {
+    return createJsonResponse({ success: false, error: '更新班表備註失敗: ' + err.message });
+  }
+}
+
+/**
+ * 更新打卡備註
+ */
+function handleUpdateAttendanceRemark(requestData) {
+  try {
+    var branch = (requestData.branch || '').toString().trim();
+    var empAccount = (requestData.empAccount || '').toString().trim();
+    var date = (requestData.date || '').toString().trim();
+    var start = (requestData.start || '').toString().trim();
+    var end = (requestData.end || '').toString().trim();
+    var remark = (requestData.remark || '').toString().trim();
+    if (!branch || !empAccount || !date) {
+      return createJsonResponse({ success: false, error: '分店、員工帳號、日期為必填' });
+    }
+    var result = updateAttendanceRemark(branch, empAccount, date, start, end, remark);
+    return createJsonResponse(result.success ? { success: true, message: '備註已更新' } : { success: false, error: result.error });
+  } catch (err) {
+    return createJsonResponse({ success: false, error: '更新打卡備註失敗: ' + err.message });
   }
 }
 

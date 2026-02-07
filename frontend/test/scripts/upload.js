@@ -549,7 +549,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
         <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatHoursWithMinutes(hours, start, end)}</span></div>
-        <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${status || '—'}</span></div>
+        ${status && String(status).trim() ? '<div class="result-row"><span class="result-label">狀態</span><span class="result-value">' + escapeHtml(status) + '</span></div>' : ''}
       </div>
     `;
     }
@@ -886,27 +886,32 @@ function renderScheduleResults(result) {
     </div>
   `;
 
-  scheduleList.innerHTML = records.map(row => {
-    const name = row[0];
-    const date = row[1];
-    const start = row[2];
-    const end = row[3];
-    const hours = row[4];
-    const shift = row[5];
-    const branch = row[6];
-    return `
-      <div class="result-card">
-        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${escapeHtml(name || '—')}</span></div>
-        <div class="result-row"><span class="result-label">日期</span><span class="result-value">${formatDateWithWeekday(date)}</span></div>
-        <div class="result-row"><span class="result-label">班別</span><span class="result-value">${escapeHtml(shift || '—')}</span></div>
-        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${escapeHtml(branch || '—')}</span></div>
-        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${escapeHtml(start || '—')}</span></div>
-        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${escapeHtml(end || '—')}</span></div>
-        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatHoursWithMinutes(hours, start, end)}</span></div>
-      </div>
-    `;
+  scheduleList.innerHTML = records.map(function(row, idx) {
+    var name = row[0];
+    var date = row[1];
+    var start = row[2];
+    var end = row[3];
+    var hours = row[4];
+    var shift = row[5];
+    var branch = row[6];
+    var remark = (row[7] !== undefined && row[7] !== null) ? String(row[7]).trim() : '';
+    return (
+      '<div class="result-card">' +
+        '<div class="result-row"><span class="result-label">姓名</span><span class="result-value">' + escapeHtml(name || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">日期</span><span class="result-value">' + formatDateWithWeekday(date) + '</span></div>' +
+        '<div class="result-row"><span class="result-label">班別</span><span class="result-value">' + escapeHtml(shift || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">分店</span><span class="result-value">' + escapeHtml(branch || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">上班</span><span class="result-value">' + escapeHtml(start || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">下班</span><span class="result-value">' + escapeHtml(end || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">時數</span><span class="result-value">' + formatHoursWithMinutes(hours, start, end) + '</span></div>' +
+        '<div class="result-row result-row-remark"><span class="result-label">備註</span><textarea class="remark-input" data-type="schedule" data-branch="' + escapeHtmlAttr(branch || '') + '" data-name="' + escapeHtmlAttr(name || '') + '" data-date="' + escapeHtmlAttr(date || '') + '" data-start="' + escapeHtmlAttr(start || '') + '" data-end="' + escapeHtmlAttr(end || '') + '" placeholder="可填寫備註">' + escapeHtml(remark) + '</textarea><button type="button" class="person-btn save-remark-btn">儲存</button></div>' +
+      '</div>'
+    );
   }).join('');
 
+  scheduleResultSection.querySelectorAll('.save-remark-btn').forEach(function(btn) {
+    btn.addEventListener('click', handleSaveRemarkClick);
+  });
   scheduleResultSection.classList.add('show');
 }
 
@@ -935,7 +940,7 @@ function renderAttendanceResults(result) {
     </div>
   `;
 
-  scheduleList.innerHTML = records.map(row => {
+  scheduleList.innerHTML = records.map((row, idx) => {
     const branch = row[0];
     const empNo = row[1];
     const empAccount = row[2];
@@ -945,21 +950,26 @@ function renderAttendanceResults(result) {
     const end = row[6];
     const hours = row[7];
     const status = row[8];
-    return `
-      <div class="result-card">
-        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${escapeHtml(branch || '—')}</span></div>
-        <div class="result-row"><span class="result-label">員工編號</span><span class="result-value">${escapeHtml(empNo || '—')}</span></div>
-        <div class="result-row"><span class="result-label">員工帳號</span><span class="result-value">${escapeHtml(empAccount || '—')}</span></div>
-        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${escapeHtml(name || '—')}</span></div>
-        <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${formatDateWithWeekday(date)}</span></div>
-        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${escapeHtml(start || '—')}</span></div>
-        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${escapeHtml(end || '—')}</span></div>
-        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatHoursWithMinutes(hours, start, end)}</span></div>
-        <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${escapeHtml(status || '—')}</span></div>
-      </div>
-    `;
+    const remark = (row[9] !== undefined && row[9] !== null) ? String(row[9]).trim() : '';
+    return (
+      '<div class="result-card">' +
+        '<div class="result-row"><span class="result-label">分店</span><span class="result-value">' + escapeHtml(branch || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">員工編號</span><span class="result-value">' + escapeHtml(empNo || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">員工帳號</span><span class="result-value">' + escapeHtml(empAccount || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">姓名</span><span class="result-value">' + escapeHtml(name || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">' + formatDateWithWeekday(date) + '</span></div>' +
+        '<div class="result-row"><span class="result-label">上班</span><span class="result-value">' + escapeHtml(start || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">下班</span><span class="result-value">' + escapeHtml(end || '—') + '</span></div>' +
+        '<div class="result-row"><span class="result-label">工作時數</span><span class="result-value">' + formatHoursWithMinutes(hours, start, end) + '</span></div>' +
+        (status && String(status).trim() ? '<div class="result-row"><span class="result-label">狀態</span><span class="result-value">' + escapeHtml(status) + '</span></div>' : '') +
+        '<div class="result-row result-row-remark"><span class="result-label">備註</span><textarea class="remark-input" data-type="attendance" data-branch="' + escapeHtmlAttr(branch || '') + '" data-emp-account="' + escapeHtmlAttr(empAccount || '') + '" data-date="' + escapeHtmlAttr(date || '') + '" data-start="' + escapeHtmlAttr(start || '') + '" data-end="' + escapeHtmlAttr(end || '') + '" placeholder="可填寫備註">' + escapeHtml(remark) + '</textarea><button type="button" class="person-btn save-remark-btn">儲存</button></div>' +
+      '</div>'
+    );
   }).join('');
 
+  scheduleResultSection.querySelectorAll('.save-remark-btn').forEach(function(btn) {
+    btn.addEventListener('click', handleSaveRemarkClick);
+  });
   scheduleResultSection.classList.add('show');
 }
 
@@ -1173,7 +1183,10 @@ function renderCompareResults(items) {
 
     var correctedStart = corr ? corr.correctedStart : '';
     var correctedEnd = corr ? corr.correctedEnd : '';
+    var correctionRemark = corr ? (corr.remark || '') : '';
     var isCorrected = !!(corr && correctedStart && correctedEnd);
+    var scheduleRemark = s ? (s.remark || '') : '';
+    var attendanceRemark = a ? (a.remark || '') : '';
 
     var scheduleText = scheduleStart + '–' + scheduleEnd + '  ' + formatHoursWithMinutes(scheduleHours, scheduleStart, scheduleEnd);
     var hoursPart = formatHoursWithMinutes(attendanceHours, attendanceStart, attendanceEnd);
@@ -1191,7 +1204,10 @@ function renderCompareResults(items) {
       attendanceStart: a ? a.startTime : '',
       attendanceEnd: a ? a.endTime : '',
       attendanceHours: a ? a.hours : '',
-      attendanceStatus: a ? a.status : ''
+      attendanceStatus: a ? a.status : '',
+      scheduleRemark: scheduleRemark,
+      attendanceRemark: attendanceRemark,
+      correctionRemark: correctionRemark
     });
 
     return (
@@ -1203,16 +1219,19 @@ function renderCompareResults(items) {
         '<div class="compare-card-block">' +
           '<div class="compare-card-block-title">班表</div>' +
           '<div class="compare-card-block-content">' + escapeHtml(scheduleText) + '</div>' +
+          (s ? '<div class="compare-card-remark-row"><span class="compare-card-row-label">備註</span><textarea class="schedule-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(scheduleRemark) + '</textarea><button type="button" class="person-btn save-remark-btn" data-type="schedule">儲存</button></div>' : '') +
         '</div>' +
         '<div class="compare-card-block">' +
           '<div class="compare-card-block-title">打卡</div>' +
           '<div class="compare-card-block-content">' + escapeHtml(attendanceText) + '</div>' +
+          (a ? '<div class="compare-card-remark-row"><span class="compare-card-row-label">備註</span><textarea class="attendance-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(attendanceRemark) + '</textarea><button type="button" class="person-btn save-remark-btn" data-type="attendance">儲存</button></div>' : '') +
         '</div>' +
         '<div class="compare-card-actions">' +
           '<div class="compare-card-actions-row">' +
             '<label><span class="compare-card-row-label">校正上班</span><input type="text" class="corrected-start-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedStart) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
             '<label><span class="compare-card-row-label">校正下班</span><input type="text" class="corrected-end-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedEnd) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
           '</div>' +
+          '<div class="compare-card-remark-row"><span class="compare-card-row-label">校正備註</span><textarea class="correction-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(correctionRemark) + '</textarea></div>' +
           (isCorrected
             ? '<div style="display:flex;gap:10px;align-items:center"><span class="compare-card-badge">已校正</span><button type="button" class="person-btn edit-correction-btn">編輯</button></div>'
             : '<button type="button" class="load-schedule-btn submit-correction-btn">校正送出</button>') +
@@ -1226,6 +1245,9 @@ function renderCompareResults(items) {
   });
   compareList.querySelectorAll('.edit-correction-btn').forEach(function(btn) {
     btn.addEventListener('click', handleEditCorrectionClick);
+  });
+  compareList.querySelectorAll('.save-remark-btn').forEach(function(btn) {
+    btn.addEventListener('click', handleSaveRemarkClick);
   });
 }
 
@@ -1329,6 +1351,60 @@ function escapeHtmlAttr(s) {
 }
 
 /**
+ * 處理備註儲存按鈕點擊
+ */
+function handleSaveRemarkClick(e) {
+  var btn = e.target;
+  var row = btn.closest('.result-row-remark') || btn.closest('.compare-card-remark-row');
+  var textarea = row ? row.querySelector('.remark-input') : null;
+  if (!textarea) return;
+  var type = textarea.getAttribute('data-type') || btn.getAttribute('data-type');
+  var remark = (textarea.value || '').trim();
+  var payload = { remark: remark };
+  if (type === 'schedule') {
+    if (textarea.getAttribute('data-branch') !== null) {
+      payload.branch = textarea.getAttribute('data-branch') || '';
+      payload.name = textarea.getAttribute('data-name') || '';
+      payload.date = textarea.getAttribute('data-date') || '';
+      payload.start = textarea.getAttribute('data-start') || '';
+      payload.end = textarea.getAttribute('data-end') || '';
+    } else {
+      var card = btn.closest('.compare-card');
+      if (!card || !card.getAttribute('data-payload')) return;
+      try {
+        var p = JSON.parse(card.getAttribute('data-payload'));
+        payload.branch = p.branch || '';
+        payload.name = p.displayName || p.name || '';
+        payload.date = p.date || '';
+        payload.start = p.scheduleStart || '';
+        payload.end = p.scheduleEnd || '';
+      } catch (err) { return; }
+    }
+    doUpdateScheduleRemark(payload);
+  } else if (type === 'attendance') {
+    if (textarea.getAttribute('data-branch') !== null) {
+      payload.branch = textarea.getAttribute('data-branch') || '';
+      payload.empAccount = textarea.getAttribute('data-emp-account') || '';
+      payload.date = textarea.getAttribute('data-date') || '';
+      payload.start = textarea.getAttribute('data-start') || '';
+      payload.end = textarea.getAttribute('data-end') || '';
+    } else {
+      var card = btn.closest('.compare-card');
+      if (!card || !card.getAttribute('data-payload')) return;
+      try {
+        var p = JSON.parse(card.getAttribute('data-payload'));
+        payload.branch = p.branch || '';
+        payload.empAccount = p.empAccount || '';
+        payload.date = p.date || '';
+        payload.start = p.attendanceStart || '';
+        payload.end = p.attendanceEnd || '';
+      } catch (err) { return; }
+    }
+    doUpdateAttendanceRemark(payload);
+  }
+}
+
+/**
  * 處理校正送出按鈕點擊
  */
 function handleSubmitCorrectionClick(e) {
@@ -1346,14 +1422,18 @@ function handleSubmitCorrectionClick(e) {
   }
   const correctedStartInput = card.querySelector('.corrected-start-input');
   const correctedEndInput = card.querySelector('.corrected-end-input');
+  const correctionRemarkInput = card.querySelector('.correction-remark-input');
   var correctedStart = correctedStartInput ? correctedStartInput.value.trim() : '';
   var correctedEnd = correctedEndInput ? correctedEndInput.value.trim() : '';
+  var correctionRemark = correctionRemarkInput ? correctionRemarkInput.value.trim() : '';
   if (!correctedStart || !correctedEnd) {
     showAlert('error', '請填寫校正上班時間與校正下班時間');
     return;
   }
   payload.correctedStart = normalizeTimeInput(correctedStart);
   payload.correctedEnd = normalizeTimeInput(correctedEnd);
+  payload.remark = correctionRemark;
+  payload.correctionRemark = correctionRemark;
   doSubmitCorrection(payload);
 }
 
@@ -1404,7 +1484,9 @@ async function doSubmitCorrection(payload) {
         attendanceHours: payload.attendanceHours,
         attendanceStatus: payload.attendanceStatus,
         correctedStart: payload.correctedStart,
-        correctedEnd: payload.correctedEnd
+        correctedEnd: payload.correctedEnd,
+        remark: payload.remark || payload.correctionRemark || '',
+        correctionRemark: payload.remark || payload.correctionRemark || ''
       })
     });
     const result = await response.json();
@@ -1416,5 +1498,63 @@ async function doSubmitCorrection(payload) {
     if (loadCompareBtn) loadCompareBtn.click();
   } catch (error) {
     showAlert('error', '校正送出失敗：' + error.message);
+  }
+}
+
+/**
+ * 更新班表備註到 API
+ */
+async function doUpdateScheduleRemark(payload) {
+  try {
+    var response = await fetch(CONFIG.GAS_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: JSON.stringify({
+        action: 'updateScheduleRemark',
+        branch: payload.branch,
+        name: payload.name,
+        date: payload.date,
+        start: payload.start,
+        end: payload.end,
+        remark: payload.remark
+      })
+    });
+    var result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '更新備註失敗');
+    }
+    showAlert('success', '備註已更新');
+  } catch (error) {
+    showAlert('error', '更新班表備註失敗：' + error.message);
+  }
+}
+
+/**
+ * 更新打卡備註到 API
+ */
+async function doUpdateAttendanceRemark(payload) {
+  try {
+    var response = await fetch(CONFIG.GAS_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: JSON.stringify({
+        action: 'updateAttendanceRemark',
+        branch: payload.branch,
+        empAccount: payload.empAccount,
+        date: payload.date,
+        start: payload.start,
+        end: payload.end,
+        remark: payload.remark
+      })
+    });
+    var result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '更新備註失敗');
+    }
+    showAlert('success', '備註已更新');
+  } catch (error) {
+    showAlert('error', '更新打卡備註失敗：' + error.message);
   }
 }

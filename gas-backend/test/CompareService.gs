@@ -253,7 +253,7 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       var end = row[3] || '';
       var branch = row[6] ? String(row[6]).trim() : '';
       var key = buildMatchKey(acc || sName, date, branch);
-      keyToSchedule[key] = { empAccount: acc, name: sName, date: date, startTime: start, endTime: end, hours: row[4], shift: row[5], branch: branch };
+      keyToSchedule[key] = { empAccount: acc, name: sName, date: date, startTime: start, endTime: end, hours: row[4], shift: row[5], branch: branch, remark: (row[7] !== undefined && row[7] !== null) ? String(row[7]).trim() : '' };
       allKeys[key] = true;
     });
     attendanceRecords.forEach(function(row) {
@@ -264,7 +264,7 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       var end = row[6] || '';
       var branch = row[0] ? String(row[0]).trim() : '';
       var key = buildMatchKey(acc || aName, date, branch);
-      keyToAttendance[key] = { empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], status: row[8], branch: branch };
+      keyToAttendance[key] = { empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], status: row[8], branch: branch, remark: (row[9] !== undefined && row[9] !== null) ? String(row[9]).trim() : '' };
       allKeys[key] = true;
     });
     var items = [];
@@ -307,7 +307,10 @@ function readCorrectionsValid(branchName) {
     var allData = readFromSheet(sheetName);
     if (!allData || allData.length < 2) return [];
     var header = allData[0];
-    var validColIndex = header.indexOf('是否有效') >= 0 ? header.indexOf('是否有效') : 14;
+    var validColIndex = header.indexOf('是否有效') >= 0 ? header.indexOf('是否有效') : 15;
+    var corrStartIdx = header.indexOf('校正上班') >= 0 ? header.indexOf('校正上班') : (header.indexOf('校正上班時間') >= 0 ? header.indexOf('校正上班時間') : 11);
+    var corrEndIdx = header.indexOf('校正下班') >= 0 ? header.indexOf('校正下班') : (header.indexOf('校正下班時間') >= 0 ? header.indexOf('校正下班時間') : 12);
+    var remarkIdx = header.indexOf('備註') >= 0 ? header.indexOf('備註') : 9;
     var dataRows = allData.slice(1);
     var result = [];
     dataRows.forEach(function(row) {
@@ -322,8 +325,9 @@ function readCorrectionsValid(branchName) {
         date: row[3] ? normalizeDateToDash(row[3]) : '',
         scheduleStart: row[4] ? String(row[4]).trim() : '',
         scheduleEnd: row[5] ? String(row[5]).trim() : '',
-        correctedStart: row[11] ? String(row[11]).trim() : '',
-        correctedEnd: row[12] ? String(row[12]).trim() : ''
+        correctedStart: row[corrStartIdx] ? String(row[corrStartIdx]).trim() : '',
+        correctedEnd: row[corrEndIdx] ? String(row[corrEndIdx]).trim() : '',
+        remark: row[remarkIdx] ? String(row[remarkIdx]).trim() : ''
       });
     });
     return result;
@@ -341,15 +345,15 @@ function writeCorrection(data) {
     var config = getConfig();
     var sheetName = config.SHEET_NAMES.CORRECTION || '校正';
     var sheet = getOrCreateSheet(sheetName);
-    var headerRow = ['分店', '員工帳號', '姓名', '日期', '班表上班', '班表下班', '班表時數', '打卡上班', '打卡下班', '打卡時數', '打卡狀態', '校正上班', '校正下班', '狀態', '是否有效', '建立時間'];
+    var headerRow = ['分店', '員工帳號', '姓名', '日期', '班表上班', '班表下班', '班表時數', '打卡上班', '打卡下班', '打卡時數', '打卡狀態', '校正上班', '校正下班', '狀態', '備註', '是否有效', '建立時間'];
     if (sheet.getLastRow() === 0) {
       sheet.appendRow(headerRow);
       formatHeaderRow(sheet, headerRow.length);
     }
-    var validColIndex = 14;
+    var validColIndex = 15;
     var lastRow = sheet.getLastRow();
     if (lastRow >= 2) {
-      var existingData = sheet.getRange(2, 1, lastRow, Math.min(16, sheet.getLastColumn())).getValues();
+      var existingData = sheet.getRange(2, 1, lastRow, Math.min(17, sheet.getLastColumn())).getValues();
       for (var idx = 0; idx < existingData.length; idx++) {
         var row = existingData[idx];
         var b = row[0] ? String(row[0]).trim() : '';
@@ -381,6 +385,7 @@ function writeCorrection(data) {
       data.correctedStart || '',
       data.correctedEnd || '',
       '校正',
+      data.remark || data.correctionRemark || '',
       '是',
       now
     ];

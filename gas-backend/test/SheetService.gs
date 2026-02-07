@@ -918,6 +918,74 @@ function columnToLetter(column) {
 }
 
 /**
+ * 更新班表備註（H 欄，index 7）
+ * 班表欄位：員工姓名(0), 排班日期(1), 上班(2), 下班(3), 時數(4), 班別(5), 分店(6), 備註(7)
+ */
+function updateScheduleRemark(branch, name, date, start, end, remark) {
+  try {
+    var sheetName = getConfig().SHEET_NAMES.SCHEDULE || '班表';
+    var allData = readFromSheet(sheetName);
+    if (!allData || allData.length < 2) return { success: false, error: '班表無資料' };
+    var dataRows = allData.slice(1);
+    var dateStr = normalizeDateValue(date);
+    var startStr = start ? normalizeTimeValue(start) : '';
+    var endStr = end ? normalizeTimeValue(end) : '';
+    var nameStr = name ? String(name).trim() : '';
+    var branchStr = branch ? String(branch).trim() : '';
+    for (var i = 0; i < dataRows.length; i++) {
+      var row = dataRows[i];
+      var rDate = normalizeDateValue(row[1]);
+      var rStart = row[2] ? normalizeTimeValue(row[2]) : '';
+      var rEnd = row[3] ? normalizeTimeValue(row[3]) : '';
+      var rName = row[0] ? String(row[0]).trim() : '';
+      var rBranch = (row[6] !== undefined && row[6] !== null) ? String(row[6]).trim() : '';
+      if (rName === nameStr && rDate === dateStr && rStart === startStr && rEnd === endStr && rBranch === branchStr) {
+        var sheet = getOrCreateSheet(sheetName);
+        sheet.getRange(i + 2, 8).setValue(remark || '');
+        return { success: true };
+      }
+    }
+    return { success: false, error: '找不到對應的班表資料列' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
+ * 更新打卡備註（J 欄，index 9）
+ * 打卡欄位：分店(0), 員工編號(1), 員工帳號(2), 員工姓名(3), 打卡日期(4), 上班(5), 下班(6), 時數(7), 狀態(8), 備註(9)
+ */
+function updateAttendanceRemark(branch, empAccount, date, start, end, remark) {
+  try {
+    var sheetName = getConfig().SHEET_NAMES.ATTENDANCE || '打卡';
+    var allData = readFromSheet(sheetName);
+    if (!allData || allData.length < 2) return { success: false, error: '打卡無資料' };
+    var dataRows = allData.slice(1);
+    var dateStr = normalizeDateValue(date);
+    var startStr = start ? normalizeTimeValue(start) : '';
+    var endStr = end ? normalizeTimeValue(end) : '';
+    var accStr = empAccount ? String(empAccount).trim() : '';
+    var branchStr = branch ? String(branch).trim() : '';
+    for (var i = 0; i < dataRows.length; i++) {
+      var row = dataRows[i];
+      var rDate = normalizeDateValue(row[4]);
+      var rStart = row[5] ? normalizeTimeValue(row[5]) : '';
+      var rEnd = row[6] ? normalizeTimeValue(row[6]) : '';
+      var rAcc = row[2] ? String(row[2]).trim() : '';
+      var rBranch = row[0] ? String(row[0]).trim() : '';
+      if (rBranch === branchStr && rAcc === accStr && rDate === dateStr && rStart === startStr && rEnd === endStr) {
+        var sheet = getOrCreateSheet(sheetName);
+        sheet.getRange(i + 2, 10).setValue(remark || '');
+        return { success: true };
+      }
+    }
+    return { success: false, error: '找不到對應的打卡資料列' };
+  } catch (err) {
+    return { success: false, error: err.message };
+  }
+}
+
+/**
  * 建立處理記錄
  * @param {Object} info - 處理資訊
  */
