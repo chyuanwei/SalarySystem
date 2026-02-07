@@ -65,7 +65,8 @@ SalarySystem/
 │   │   ├── Code.gs             # 主程式（doGet/doPost）
 │   │   ├── Config.gs           # 環境設定、Log 系統
 │   │   ├── ExcelParser.gs      # 泉威國安班表解析器
-│   │   ├── SheetService.gs     # 寫入、讀取、去重、loadSchedule
+│   │   ├── CompareService.gs   # 班表與打卡比對、校正讀寫
+│   │   ├── SheetService.gs     # 寫入、讀取、去重、loadSchedule、loadAttendance
 │   │   ├── DiagnosticUtils.gs  # 診斷工具
 │   │   └── TestUtils.gs        # 測試工具函數
 │   │
@@ -176,8 +177,11 @@ A30: "* O 10:00-20:30"   (全日班)
 |------|---------------|------|
 | GET | `test` | 連線測試 |
 | GET | `getBranches` | 取得分店清單（來源「分店」sheet） |
-| GET | `loadSchedule` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)，AND 篩選 |
+| GET | `loadSchedule` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
+| GET | `loadAttendance` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
+| GET | `loadCompare` | `yearMonth`(YYYYMM) 或 `startDate`+`endDate`、`names`(逗號分隔)、`branch`(必填)；回傳班表與打卡一對一比對 items |
 | POST | `upload` | `uploadType`(schedule/attendance)、`fileName`、`fileData`(base64)、`targetSheetName`、`targetGoogleSheetTab`、`branchName`(班表必填) |
+| POST | `submitCorrection` | `branch`、`empAccount`、`name`、`date`、`scheduleStart`、`scheduleEnd`、`scheduleHours`、`attendanceStart`、`attendanceEnd`、`attendanceHours`、`attendanceStatus`、`correctedStart`、`correctedEnd` |
 | POST | `calculate` | 薪資計算（尚未實作） |
 
 ---
@@ -189,7 +193,9 @@ A30: "* O 10:00-20:30"   (全日班)
 | 工作表名稱 | 說明 | 主要欄位 |
 |------------|------|----------|
 | **班表** | 上傳的班表解析結果、loadSchedule 查詢來源 | 員工姓名、排班日期、上班時間、下班時間、工作時數、班別、分店 |
-| **打卡紀錄** | 上傳的打卡 Excel（待實作） | 員工編號、日期、上班打卡、下班打卡 |
+| **打卡** | 上傳的打卡 CSV 結果 | 分店、員工編號、員工帳號、員工姓名、打卡日期、上班、下班、時數、狀態 |
+| **人員** | 班表名稱／打卡名稱 ↔ 員工帳號對應 | 員工帳號、班表名稱、打卡名稱、分店 |
+| **校正** | 班表與打卡校正紀錄 | 分店、員工帳號、姓名、日期、班表上下班、打卡上下班、校正上下班、是否有效、建立時間 |
 | **Log** | 系統 Log | 時間、等級、訊息、環境、詳細資訊 |
 | **處理記錄** | 上傳處理記錄 | 時間、檔案名稱、來源/目標工作表、筆數、狀態、訊息 |
 
@@ -410,7 +416,15 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ `verify-parser.js` - 快速驗證腳本
 - ✅ 測試指南文件（HOW_TO_TEST.md）
 
-### 12.9 測試與正式環境
+### 12.9 班表與打卡比對
+- ✅ 條件選擇：月份(YYYYMM) 或 日期區間、分店(必選)、人員(可複選)
+- ✅ loadCompare API：一對一比對班表與打卡，依人員 sheet 對應班表名稱/打卡名稱
+- ✅ 比對結果卡片：班表 vs 打卡（分店、員工帳號、姓名、日期、上班/下班/時數/狀態）
+- ✅ 校正：校正上班/下班輸入、校正送出、已校正顯示唯讀+編輯按鈕
+- ✅ submitCorrection API：寫入校正 sheet，再次校正時舊筆設為無效
+- ✅ CompareService：readPersonnelMapping、readScheduleByConditions、readAttendanceByConditions、compareScheduleAttendance、readCorrectionsValid、writeCorrection
+
+### 12.10 測試與正式環境
 - ✅ 完整的環境分離（GAS + 前端）
 - ✅ 獨立的 GAS Script ID（gas-backend/test/、gas-backend/prod/）
 - ✅ 前端 test/prod 分離（frontend/test/、frontend/prod/，入口頁選擇環境）
@@ -498,6 +512,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.25 | 測試 | 班表與打卡比對：loadCompare、submitCorrection、CompareService；前端比對區塊、校正卡片、已校正/編輯狀態 | AI |
 | 2026-02-07 | v0.6.24 | 測試 | 查詢打卡功能（loadAttendance）；打卡 sheet 欄位順序調整為 分店,員工編號,員工帳號,員工姓名,... | AI |
 | 2026-02-07 | v0.6.23 | 測試 | 修正 appendAttendance getRange 列數不符；檔案輸入 accept 加入 .csv。 | AI |
 | 2026-02-06 | v0.6.22 | 測試 | 打卡 CSV 上傳：人員驗證、分店 mapping、去重、寫入「打卡」sheet；GitHub Actions 部署 Pages。 | AI |
@@ -694,4 +709,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-07（v0.6.24 查詢打卡、打卡 sheet 欄位順序）*
+*最後更新：2026-02-07（v0.6.25 班表與打卡比對、校正功能）*
