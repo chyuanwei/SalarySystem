@@ -1321,19 +1321,10 @@
             </div>
             <div class="schedule-block schedule-block-person">
                 <div class="schedule-block-label">人員篩選</div>
-                <button type="button" id="personSelectBtn" class="person-select-btn">選擇人員</button>
-            </div>
-        </div>
-
-        <div id="personSelectModal" class="person-select-modal" role="dialog" aria-labelledby="personSelectModalTitle" aria-modal="true">
-            <div class="person-select-modal-overlay"></div>
-            <div class="person-select-modal-panel">
-                <h3 id="personSelectModalTitle" class="person-select-modal-title">選擇人員</h3>
-                <div id="personSelectModalList" class="person-select-modal-list"></div>
-                <div class="person-select-modal-actions">
-                    <button type="button" id="personSelectAllBtn" class="person-btn">全選</button>
-                    <button type="button" id="personSelectClearBtn" class="person-btn">清除</button>
-                    <button type="button" id="personSelectConfirmBtn" class="load-schedule-btn">確認</button>
+                <div id="personCheckboxGroup" class="person-checkbox-group"><span class="person-placeholder">請先選擇分店與日期</span></div>
+                <div class="schedule-person-actions">
+                    <button type="button" id="selectAllPersonsBtn" class="person-btn" disabled>全選</button>
+                    <button type="button" id="clearAllPersonsBtn" class="person-btn" disabled>清除</button>
                 </div>
             </div>
         </div>
@@ -1356,9 +1347,9 @@
             <div id="scheduleResultSection" class="result-section">
                 <div class="result-section-header">
                     <h2 class="result-title" id="queryResultTitle">班表資料</h2>
-                    <button type="button" class="collapse-toggle-btn collapsed" data-target="scheduleResultBody" title="收合/展開">▶</button>
+                    <button type="button" class="collapse-toggle-btn" data-target="scheduleResultBody" title="收合/展開">▼</button>
                 </div>
-                <div id="scheduleResultBody" class="result-section-body collapsed">
+                <div id="scheduleResultBody" class="result-section-body">
                     <div id="scheduleSummary" class="result-summary"></div>
                     <div id="scheduleList" class="result-list"></div>
                 </div>
@@ -1375,9 +1366,9 @@
             <div id="compareResultSection" class="result-section">
                 <div class="result-section-header">
                     <h2 class="result-title">比對結果</h2>
-                    <button type="button" class="collapse-toggle-btn collapsed" data-target="compareResultBody" title="收合/展開">▶</button>
+                    <button type="button" class="collapse-toggle-btn" data-target="compareResultBody" title="收合/展開">▼</button>
                 </div>
-                <div id="compareResultBody" class="result-section-body collapsed">
+                <div id="compareResultBody" class="result-section-body">
                     <div id="compareList" class="result-list compare-list"></div>
             </div>
         </div>
@@ -1437,9 +1428,9 @@
         <div id="resultSection" class="result-section">
             <div class="result-section-header">
                 <h2 class="result-title">✅ 處理結果</h2>
-                <button type="button" class="collapse-toggle-btn collapsed" data-target="resultSectionBody" title="收合/展開">▶</button>
+                <button type="button" class="collapse-toggle-btn" data-target="resultSectionBody" title="收合/展開">▼</button>
             </div>
-            <div id="resultSectionBody" class="result-section-body collapsed">
+            <div id="resultSectionBody" class="result-section-body">
                 <div id="resultSummary" class="result-summary"></div>
                 <div id="resultList" class="result-list"></div>
             </div>

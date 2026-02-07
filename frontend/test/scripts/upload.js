@@ -27,13 +27,11 @@ const loadScheduleBtn = document.getElementById('loadScheduleBtn');
 const scheduleResultSection = document.getElementById('scheduleResultSection');
 const scheduleSummary = document.getElementById('scheduleSummary');
 const scheduleList = document.getElementById('scheduleList');
-const personSelectBtn = document.getElementById('personSelectBtn');
 const branchSelect = document.getElementById('branchSelect');
 const branchGroup = document.getElementById('branchGroup');
 
-// 共用：查詢/比對的人員名單與已選人員（人員改為按鈕＋彈窗）
+// 查詢/比對共用人員名單（載入後填入 personCheckboxGroup）
 var __personnelNames = [];
-var __sharedSelectedPersonNames = [];
 
 
 // 檔案選擇事件
@@ -101,8 +99,11 @@ document.querySelectorAll('input[name="queryType"]').forEach(radio => {
 const queryBranchSelect = document.getElementById('queryBranchSelect');
 if (queryBranchSelect) queryBranchSelect.addEventListener('change', handleQueryBranchChange);
 
-// 人員選擇按鈕 → 開啟彈窗
-if (personSelectBtn) personSelectBtn.addEventListener('click', openPersonSelectModal);
+// 人員全選／清除
+var selectAllPersonsBtn = document.getElementById('selectAllPersonsBtn');
+var clearAllPersonsBtn = document.getElementById('clearAllPersonsBtn');
+if (selectAllPersonsBtn) selectAllPersonsBtn.addEventListener('click', selectAllPersons);
+if (clearAllPersonsBtn) clearAllPersonsBtn.addEventListener('click', clearAllPersons);
 
 // 載入比對按鈕
 const loadCompareBtn = document.getElementById('loadCompareBtn');
@@ -163,57 +164,18 @@ function initTabNav() {
   updateSharedConditionVisibility('query');
 }
 
-function updatePersonSelectBtnText() {
-  if (!personSelectBtn) return;
-  if (__personnelNames.length === 0) {
-    personSelectBtn.textContent = '選擇人員';
-    return;
-  }
-  var n = __sharedSelectedPersonNames.length;
-  personSelectBtn.textContent = n > 0 ? '已選 ' + n + ' 人' : '選擇人員';
+function selectAllPersons() {
+  var group = document.getElementById('personCheckboxGroup');
+  if (group) group.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = true; });
 }
 
-function openPersonSelectModal() {
-  var modal = document.getElementById('personSelectModal');
-  var listEl = document.getElementById('personSelectModalList');
-  if (!modal || !listEl) return;
-  if (__personnelNames.length === 0) {
-    listEl.innerHTML = '<p class="person-placeholder">請先選擇分店與日期區間並載入人員</p>';
-  } else {
-    var checkedSet = {};
-    __sharedSelectedPersonNames.forEach(function(name) { checkedSet[name] = true; });
-    listEl.innerHTML = __personnelNames.map(function(name) {
-      var checked = checkedSet[name] ? ' checked' : '';
-      return '<label><input type="checkbox" value="' + escapeHtmlAttr(name) + '"' + checked + '> ' + escapeHtml(name) + '</label>';
-    }).join('');
-  }
-  modal.classList.add('show');
-  var allBtn = document.getElementById('personSelectAllBtn');
-  var clearBtn = document.getElementById('personSelectClearBtn');
-  var confirmBtn = document.getElementById('personSelectConfirmBtn');
-  if (allBtn) allBtn.onclick = function() { listEl.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = true; }); };
-  if (clearBtn) clearBtn.onclick = function() { listEl.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; }); };
-  if (confirmBtn) confirmBtn.onclick = function() {
-    __sharedSelectedPersonNames = [];
-    listEl.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) { if (cb.value) __sharedSelectedPersonNames.push(cb.value); });
-    updatePersonSelectBtnText();
-    modal.classList.remove('show');
-  };
-}
-
-function closePersonSelectModal() {
-  var modal = document.getElementById('personSelectModal');
-  if (modal) modal.classList.remove('show');
+function clearAllPersons() {
+  var group = document.getElementById('personCheckboxGroup');
+  if (group) group.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
 }
 
 // 頁面載入時初始化
 document.addEventListener('DOMContentLoaded', function() {
-  var personModal = document.getElementById('personSelectModal');
-  if (personModal) {
-    personModal.addEventListener('click', function(e) {
-      if (e.target.classList.contains('person-select-modal-overlay')) closePersonSelectModal();
-    });
-  }
   initTabNav();
   initYearMonthSelects();
   toggleDateFilterMode();
@@ -672,7 +634,6 @@ function renderResults(result) {
   }).join('');
 
   resultSection.classList.add('show');
-  collapseResultBody('resultSectionBody');
 }
 
 /**
@@ -742,10 +703,13 @@ function toggleDateFilterMode() {
 
 /**
  * 載入查詢/比對共用人員名單（以該月份／日期區間＋分店的打卡資料為來源）
- * 結果存 __personnelNames，按鈕顯示「選擇人員」或「已選 N 人」
+ * 結果填入 personCheckboxGroup，保留目前勾選狀態
  */
 async function loadQueryPersonnel() {
-  if (!personSelectBtn) return;
+  var personCheckboxGroup = document.getElementById('personCheckboxGroup');
+  var selectAllBtn = document.getElementById('selectAllPersonsBtn');
+  var clearBtn = document.getElementById('clearAllPersonsBtn');
+  if (!personCheckboxGroup) return;
   var branchVal = (document.getElementById('queryBranchSelect') && document.getElementById('queryBranchSelect').value) ? document.getElementById('queryBranchSelect').value.trim() : '';
   var mode = document.querySelector('input[name="dateFilterMode"]:checked');
   var isMonth = mode && mode.value === 'month';
@@ -764,26 +728,35 @@ async function loadQueryPersonnel() {
   }
   if (!branchVal) {
     __personnelNames = [];
-    updatePersonSelectBtnText();
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">請先選擇分店</span>';
+    if (selectAllBtn) selectAllBtn.disabled = true;
+    if (clearBtn) clearBtn.disabled = true;
     return;
   }
   if (!yearMonth && !startDate) {
     __personnelNames = [];
-    updatePersonSelectBtnText();
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">請選擇月份或日期區間以載入人員</span>';
+    if (selectAllBtn) selectAllBtn.disabled = true;
+    if (clearBtn) clearBtn.disabled = true;
     return;
   }
-  personSelectBtn.textContent = '載入中...';
+  var currentChecked = getSelectedPersonNames();
+  personCheckboxGroup.innerHTML = '<span class="person-placeholder">載入中...</span>';
+  if (selectAllBtn) selectAllBtn.disabled = true;
+  if (clearBtn) clearBtn.disabled = true;
   try {
     var params = 'action=getPersonnelFromSchedule&branch=' + encodeURIComponent(branchVal);
     if (yearMonth) params += '&yearMonth=' + encodeURIComponent(yearMonth); else { params += '&startDate=' + encodeURIComponent(startDate); params += '&endDate=' + encodeURIComponent(endDate); }
     var response = await fetch(CONFIG.GAS_URL + '?' + params, { method: 'GET', mode: 'cors' });
     var result = await response.json();
     __personnelNames = (result.success && Array.isArray(result.names)) ? result.names : [];
-    updatePersonSelectBtnText();
+    renderQueryPersonCheckboxes(__personnelNames, { checked: currentChecked }, true);
   } catch (error) {
     console.error('載入人員失敗:', error);
     __personnelNames = [];
-    personSelectBtn.textContent = '載入失敗';
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">載入失敗，請重整頁面</span>';
+    if (selectAllBtn) selectAllBtn.disabled = true;
+    if (clearBtn) clearBtn.disabled = true;
   }
 }
 
@@ -825,7 +798,9 @@ function toggleCompareDateMode() {
 
 
 function getSelectedPersonNames() {
-  return __sharedSelectedPersonNames ? __sharedSelectedPersonNames.slice() : [];
+  var group = document.getElementById('personCheckboxGroup');
+  if (!group) return [];
+  return Array.prototype.slice.call(group.querySelectorAll('input[type="checkbox"]:checked')).map(function(cb) { return cb.value; }).filter(Boolean);
 }
 
 /**
@@ -971,15 +946,19 @@ async function handleLoadAttendance() {
 }
 
 /**
- * 從查詢結果 details.names 合併到共用已選人員，更新「已選 N 人」按鈕
+ * 從查詢結果 details.names 合併到人員複選框（與比對區一致）
  */
 function mergeQueryPersonFromDetails(details) {
   if (!details || !Array.isArray(details.names)) return;
-  var nameSet = {};
-  __sharedSelectedPersonNames.forEach(function(n) { nameSet[n] = true; });
-  details.names.forEach(function(n) { if (n) nameSet[n] = true; });
-  __sharedSelectedPersonNames = Object.keys(nameSet).sort();
-  updatePersonSelectBtnText();
+  var group = document.getElementById('personCheckboxGroup');
+  if (!group) return;
+  var existingNames = {};
+  group.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { if (cb.value) existingNames[cb.value] = true; });
+  details.names.forEach(function(n) { if (n) existingNames[n] = true; });
+  var names = Object.keys(existingNames).sort();
+  var checkedNames = [];
+  group.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) { if (cb.value) checkedNames.push(cb.value); });
+  renderQueryPersonCheckboxes(names, { checked: checkedNames });
 }
 
 /**
@@ -1034,7 +1013,6 @@ function renderScheduleResults(result) {
     btn.addEventListener('click', handleSaveRemarkClick);
   });
   scheduleResultSection.classList.add('show');
-  collapseResultBody('scheduleResultBody');
 }
 
 /**
@@ -1093,21 +1071,6 @@ function renderAttendanceResults(result) {
     btn.addEventListener('click', handleSaveRemarkClick);
   });
   scheduleResultSection.classList.add('show');
-  collapseResultBody('scheduleResultBody');
-}
-
-/**
- * 將指定結果區 body 設為收合狀態（新資料載入後預設收合）
- */
-function collapseResultBody(bodyId) {
-  var body = document.getElementById(bodyId);
-  if (!body) return;
-  body.classList.add('collapsed');
-  var btn = document.querySelector('.collapse-toggle-btn[data-target="' + bodyId + '"]');
-  if (btn) {
-    btn.classList.add('collapsed');
-    btn.textContent = '▶';
-  }
 }
 
 /**
@@ -1158,7 +1121,6 @@ async function handleLoadCompare() {
     renderCompareResults(result.items || []);
     populateComparePersonCheckboxes(result.items || [], {});
     if (compareResultSection) compareResultSection.classList.add('show');
-    collapseResultBody('compareResultBody');
   } catch (error) {
     showAlert('error', '載入比對失敗：' + error.message);
   } finally {
@@ -1167,18 +1129,22 @@ async function handleLoadCompare() {
 }
 
 /**
- * 從比對結果合併人員到已選名單，更新「已選 N 人」按鈕
+ * 從比對結果補足人員複選框（合併比對結果中的人員）
  */
 function populateComparePersonCheckboxes(items, existingNames) {
+  var group = document.getElementById('personCheckboxGroup');
+  if (!group) return;
   existingNames = existingNames || {};
   var nameSet = Object.assign({}, existingNames);
-  __sharedSelectedPersonNames.forEach(function(n) { nameSet[n] = true; });
+  group.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { if (cb.value) nameSet[cb.value] = true; });
   items.forEach(function(item) {
     var n = item.displayName || (item.attendance && item.attendance.name) || (item.schedule && item.schedule.name);
     if (n) nameSet[n] = true;
   });
-  __sharedSelectedPersonNames = Object.keys(nameSet).sort();
-  updatePersonSelectBtnText();
+  var names = Object.keys(nameSet).sort();
+  var checkedNames = [];
+  group.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) { if (cb.value) checkedNames.push(cb.value); });
+  renderQueryPersonCheckboxes(names, { checked: checkedNames });
 }
 
 /**
