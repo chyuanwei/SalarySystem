@@ -33,7 +33,6 @@ const selectAllPersonsBtn = document.getElementById('selectAllPersonsBtn');
 const clearAllPersonsBtn = document.getElementById('clearAllPersonsBtn');
 const branchSelect = document.getElementById('branchSelect');
 const branchGroup = document.getElementById('branchGroup');
-const queryBranchSelect = document.getElementById('queryBranchSelect');
 
 // 初始化年月選擇器
 function initScheduleSelectors() {
@@ -111,35 +110,37 @@ document.addEventListener('DOMContentLoaded', function() {
  * 載入分店清單（從 GAS getBranches API），供上傳與查詢區塊使用
  */
 async function loadBranches() {
-  if (!branchSelect && !queryBranchSelect) return;
+  const branchEl = document.getElementById('branchSelect');
+  const queryBranchEl = document.getElementById('queryBranchSelect');
+  if (!branchEl && !queryBranchEl) return;
   try {
     const response = await fetch(CONFIG.GAS_URL + '?action=getBranches', { method: 'GET', mode: 'cors' });
     const result = await response.json();
     const options = result && result.success && Array.isArray(result.names) && result.names.length > 0
       ? result.names
       : [];
-    if (branchSelect) {
-      branchSelect.innerHTML = '<option value="">請選擇分店</option>';
+    if (branchEl) {
+      branchEl.innerHTML = '<option value="">請選擇分店</option>';
       options.forEach(function(name) {
         const opt = document.createElement('option');
         opt.value = name;
         opt.textContent = name;
-        branchSelect.appendChild(opt);
+        branchEl.appendChild(opt);
       });
     }
-    if (queryBranchSelect) {
-      queryBranchSelect.innerHTML = '<option value="">全部</option>';
+    if (queryBranchEl) {
+      queryBranchEl.innerHTML = '<option value="">全部</option>';
       options.forEach(function(name) {
         const opt = document.createElement('option');
         opt.value = name;
         opt.textContent = name;
-        queryBranchSelect.appendChild(opt);
+        queryBranchEl.appendChild(opt);
       });
     }
   } catch (error) {
     console.error('載入分店清單失敗:', error);
-    if (branchSelect) branchSelect.innerHTML = '<option value="">載入失敗，請重整頁面</option>';
-    if (queryBranchSelect) queryBranchSelect.innerHTML = '<option value="">載入失敗</option>';
+    if (branchEl) branchEl.innerHTML = '<option value="">載入失敗，請重整頁面</option>';
+    if (queryBranchEl) queryBranchEl.innerHTML = '<option value="">載入失敗</option>';
   }
 }
 
@@ -548,7 +549,8 @@ async function handleLoadSchedule() {
   scheduleResultSection.classList.remove('show');
 
   const names = getSelectedPersonNames();
-  const branchVal = queryBranchSelect && queryBranchSelect.value ? queryBranchSelect.value.trim() : '';
+  const queryBranchEl = document.getElementById('queryBranchSelect');
+  const branchVal = queryBranchEl && queryBranchEl.value ? queryBranchEl.value.trim() : '';
   let url = `${CONFIG.GAS_URL}?action=loadSchedule`;
   if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
   if (dateParam) url += `&date=${encodeURIComponent(dateParam)}`;
