@@ -1353,6 +1353,7 @@ function handleConfirmIgnoreClick(e) {
   if (!card) return;
   var payloadStr = card.getAttribute('data-payload');
   if (!payloadStr) return;
+  if (!confirm('確定要將此筆打卡警示標記為已確認？')) return;
   try {
     var payload = JSON.parse(payloadStr);
     doConfirmIgnoreAttendance({
@@ -1376,6 +1377,7 @@ function handleUnconfirmIgnoreClick(e) {
   if (!card) return;
   var payloadStr = card.getAttribute('data-payload');
   if (!payloadStr) return;
+  if (!confirm('確定要取消確認？將還原為待確認狀態。')) return;
   try {
     var payload = JSON.parse(payloadStr);
     doUnconfirmIgnoreAttendance({
