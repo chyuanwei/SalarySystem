@@ -1270,8 +1270,9 @@ function renderCompareResults(items) {
 
     var scheduleText = scheduleStart + '–' + scheduleEnd + '  ' + formatHoursWithMinutes(scheduleHours, scheduleStart, scheduleEnd);
     var hoursPart = formatHoursWithMinutes(attendanceHours, attendanceStart, attendanceEnd);
+    var statusStr = attendanceStatus ? String(attendanceStatus).trim() : '';
     var attendanceText = attendanceStart + '–' + attendanceEnd + ' | ' + hoursPart +
-      (attendanceStatus && String(attendanceStatus).trim() ? ' | ' + String(attendanceStatus).trim() : '');
+      (statusStr && statusStr !== '—' ? ' | ' + statusStr : '');
 
     var payload = JSON.stringify({
       branch: branch,
