@@ -186,7 +186,7 @@ function readScheduleByConditions(yearMonth, startDate, endDate, names, branchNa
 
 /**
  * 依條件讀取打卡（支援月份或日期區間）
- * 打卡: 分店,員工編號,員工帳號,員工姓名,打卡日期,上班,下班,時數,狀態
+ * 打卡: 分店,員工編號,員工帳號,員工姓名,打卡日期,上班,下班,時數,狀態,備註,是否有效,校正備註,建立時間,校正時間
  */
 function readAttendanceByConditions(yearMonth, startDate, endDate, names, branchName) {
   try {
@@ -204,6 +204,10 @@ function readAttendanceByConditions(yearMonth, startDate, endDate, names, branch
     if (nameSet) names.forEach(function(n) { nameSet[String(n).trim()] = true; });
     var filtered = [];
     dataRows.forEach(function(row) {
+      if (row.length > ATTENDANCE_COL.VALID) {
+        var validVal = row[ATTENDANCE_COL.VALID] ? String(row[ATTENDANCE_COL.VALID]).trim() : '';
+        if (validVal === '否' || validVal === 'N' || validVal === '0') return;
+      }
       var dateVal = row[dateColIndex];
       if (!dateVal) return;
       var dateStr = normalizeDateToDash(dateVal);
@@ -560,6 +564,77 @@ function writeCorrection(data) {
     return { success: true };
   } catch (error) {
     logError('寫入校正紀錄失敗: ' + error.message, { error: error.toString() });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 校正寫回打卡 sheet：將原列設為無效，並新增一列校正後資料（是否有效=是、校正備註、校正時間）
+ */
+function writeCorrectionToAttendance(data) {
+  try {
+    var config = getConfig();
+    var sheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
+    var sheet = getOrCreateSheet(sheetName);
+    var allData = readFromSheet(sheetName);
+    if (!allData || allData.length < 2) {
+      return { success: false, error: '打卡 sheet 無資料' };
+    }
+    var dataRows = allData.slice(1);
+    var dateStr = data.date ? normalizeDateToDash(data.date) : '';
+    var startStr = data.attendanceStart ? (typeof normalizeTimeValue === 'function' ? normalizeTimeValue(data.attendanceStart) : String(data.attendanceStart).trim()) : '';
+    var endStr = data.attendanceEnd ? (typeof normalizeTimeValue === 'function' ? normalizeTimeValue(data.attendanceEnd) : String(data.attendanceEnd).trim()) : '';
+    var branchStr = (data.branch || '').toString().trim();
+    var accStr = (data.empAccount || '').toString().trim();
+    var matchingIndices = [];
+    for (var i = 0; i < dataRows.length; i++) {
+      var row = dataRows[i];
+      var rBranch = row[ATTENDANCE_COL.BRANCH] ? String(row[ATTENDANCE_COL.BRANCH]).trim() : '';
+      var rAcc = row[ATTENDANCE_COL.EMP_ACCOUNT] ? String(row[ATTENDANCE_COL.EMP_ACCOUNT]).trim() : '';
+      var rDate = row[ATTENDANCE_COL.DATE] ? normalizeDateToDash(row[ATTENDANCE_COL.DATE]) : '';
+      var rStart = row[ATTENDANCE_COL.START] ? (typeof normalizeTimeValue === 'function' ? normalizeTimeValue(row[ATTENDANCE_COL.START]) : String(row[ATTENDANCE_COL.START]).trim()) : '';
+      var rEnd = row[ATTENDANCE_COL.END] ? (typeof normalizeTimeValue === 'function' ? normalizeTimeValue(row[ATTENDANCE_COL.END]) : String(row[ATTENDANCE_COL.END]).trim()) : '';
+      if (rBranch === branchStr && rAcc === accStr && rDate === dateStr && rStart === startStr && rEnd === endStr) {
+        matchingIndices.push(i);
+      }
+    }
+    if (matchingIndices.length === 0) {
+      return { success: false, error: '找不到對應的打卡資料列（分店、員工、日期、上下班需完全符合）' };
+    }
+    var nowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    for (var j = 0; j < matchingIndices.length; j++) {
+      sheet.getRange(matchingIndices[j] + 2, ATTENDANCE_COL.VALID + 1).setValue('否');
+    }
+    var firstRow = dataRows[matchingIndices[0]];
+    var mins = timeRangeToMinutes(data.correctedStart || '', data.correctedEnd || '');
+    var hoursVal = (mins !== null) ? (Math.round(mins / 60 * 100) / 100).toString() : (firstRow[ATTENDANCE_COL.HOURS] || '');
+    var createdAt = (firstRow.length > ATTENDANCE_COL.CREATED_AT && firstRow[ATTENDANCE_COL.CREATED_AT]) ? String(firstRow[ATTENDANCE_COL.CREATED_AT]).trim() : '';
+    var newRow = [
+      firstRow[ATTENDANCE_COL.BRANCH] || '',
+      firstRow[ATTENDANCE_COL.EMP_NO] || '',
+      firstRow[ATTENDANCE_COL.EMP_ACCOUNT] || '',
+      firstRow[ATTENDANCE_COL.NAME] || '',
+      firstRow[ATTENDANCE_COL.DATE] || '',
+      data.correctedStart || '',
+      data.correctedEnd || '',
+      hoursVal,
+      firstRow[ATTENDANCE_COL.STATUS] || '',
+      firstRow[ATTENDANCE_COL.REMARK] || '',
+      '是',
+      (data.remark || data.correctionRemark || '').toString().trim(),
+      createdAt,
+      nowStr
+    ];
+    sheet.appendRow(newRow);
+    logToSheet('校正寫回打卡成功', 'OPERATION', {
+      branch: data.branch,
+      empAccount: data.empAccount,
+      date: data.date,
+      writtenRow: sheet.getLastRow()
+    });
+    return { success: true };
+  } catch (error) {
+    logError('校正寫回打卡失敗: ' + error.message, { error: error.toString() });
     return { success: false, error: error.message };
   }
 }

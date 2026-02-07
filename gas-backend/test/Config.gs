@@ -3,6 +3,25 @@
  * 測試環境
  */
 
+/**
+ * 打卡 sheet 欄位 index（0-based），共 14 欄
+ * A-K: 分店,員工編號,員工帳號,員工姓名,打卡日期,上班,下班,時數,狀態,備註,是否有效,校正備註,建立時間,校正時間
+ */
+var ATTENDANCE_COL = {
+  BRANCH: 0, EMP_NO: 1, EMP_ACCOUNT: 2, NAME: 3, DATE: 4,
+  START: 5, END: 6, HOURS: 7, STATUS: 8, REMARK: 9,
+  VALID: 10, CORRECTION_REMARK: 11, CREATED_AT: 12, CORRECTED_AT: 13
+};
+
+/**
+ * 班表 sheet 欄位 index（0-based），共 10 欄
+ * A-J: 員工姓名,排班日期,上班,下班,時數,班別,分店,備註,建立時間,修改時間
+ */
+var SCHEDULE_COL = {
+  NAME: 0, DATE: 1, START: 2, END: 3, HOURS: 4, SHIFT: 5,
+  BRANCH: 6, REMARK: 7, CREATED_AT: 8, MODIFIED_AT: 9
+};
+
 // 從 Script Properties 讀取設定
 function getConfig() {
   const props = PropertiesService.getScriptProperties();

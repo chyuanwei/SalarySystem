@@ -264,19 +264,20 @@ function handleUpload(requestData) {
       logWarning(`資料警告`, { warnings: validation.warnings });
     }
     
-    // 準備轉換後的資料：每列加 分店；員工姓名透過人員 sheet 轉成打卡名稱寫入
+    // 準備轉換後的資料：每列加 分店、備註、建立時間、修改時間；員工姓名透過人員 sheet 轉成打卡名稱寫入
     logDebug('準備寫入資料');
     var mapping = readPersonnelMapping();
     var scheduleNameToAccount = mapping ? mapping.scheduleNameToAccount : {};
     var accountToAttendanceName = mapping ? mapping.accountToAttendanceName : {};
-    const headerRow = ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店', '備註'];
+    var scheduleNowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    const headerRow = ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店', '備註', '建立時間', '修改時間'];
     const dataWithBranch = parseResult.data.map(function(row) {
       var r = row.slice();
       var scheduleName = r[0] ? String(r[0]).trim() : '';
       var acc = scheduleNameToAccount[scheduleName];
       var attendanceName = acc && accountToAttendanceName[acc] ? accountToAttendanceName[acc] : scheduleName;
       r[0] = attendanceName || scheduleName;
-      return r.concat([branchName, '']);
+      return r.concat([branchName, '', scheduleNowStr, '']);
     });
     const transformedData = [headerRow].concat(dataWithBranch);
     logDebug(`共 ${parseResult.data.length} 列資料`);
@@ -434,13 +435,17 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
         r.endTime || '',
         r.workHours || '',
         r.status || '',
-        r.remark || ''
+        r.remark || '',
+        '是',
+        '',
+        Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'),
+        ''
       ]);
     }
     
     var config = getConfig();
     var targetSheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
-    var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態', '備註'];
+    var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態', '備註', '是否有效', '校正備註', '建立時間', '校正時間'];
     var dataToWrite = [headerRow].concat(dataRows);
     
     // 以「月份＋分店」覆蓋：先刪除既有該月份該分店資料
@@ -561,11 +566,12 @@ function handleSubmitCorrection(requestData) {
       remark: remark,
       correctionRemark: remark
     };
-    var result = writeCorrection(data);
+    var result = writeCorrectionToAttendance(data);
     if (!result.success) {
-      return createJsonResponse({ success: false, error: result.error || '寫入校正紀錄失敗' });
+      return createJsonResponse({ success: false, error: result.error || '校正寫回打卡失敗' });
     }
-    return createJsonResponse({ success: true, message: '校正紀錄已送出' });
+    writeCorrection(data);
+    return createJsonResponse({ success: true, message: '校正紀錄已送出（已寫回打卡）' });
   } catch (error) {
     logError('校正送出失敗: ' + error.message, { error: error.toString() });
     return createJsonResponse({ success: false, error: '校正送出失敗: ' + error.message });

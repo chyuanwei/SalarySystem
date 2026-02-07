@@ -127,7 +127,7 @@ function autoResizeColumns(sheet, colCount) {
 
 /**
  * 移除班表 sheet 中符合「年月＋分店」的資料列（覆蓋前刪除舊資料）
- * 班表欄位：員工姓名,排班日期,上班,下班,時數,班別,分店（date=col1, branch=col6）
+ * 班表欄位：員工姓名,排班日期,上班,下班,時數,班別,分店,備註,建立時間,修改時間（date=col1, branch=col6）
  * @param {string} sheetName - 工作表名稱（班表）
  * @param {string} yearMonth - 年月 YYYYMM（如 202601）
  * @param {string} branchName - 分店名稱
@@ -144,7 +144,7 @@ function removeScheduleRowsByYearMonthAndBranch(sheetName, yearMonth, branchName
     var prefix1 = yearMonth.substring(0, 4) + '/' + yearMonth.substring(4, 6);
     var prefix2 = yearMonth.substring(0, 4) + '-' + yearMonth.substring(4, 6);
     var toDelete = [];
-    var data = sheet.getRange(2, 1, lastRow, 7).getValues();
+    var data = sheet.getRange(2, 1, lastRow, Math.max(7, sheet.getLastColumn())).getValues();
     for (var i = 0; i < data.length; i++) {
       var row = data[i];
       var dateVal = row[1];
@@ -170,7 +170,7 @@ function removeScheduleRowsByYearMonthAndBranch(sheetName, yearMonth, branchName
 
 /**
  * 移除打卡 sheet 中符合「年月＋分店」的資料列（覆蓋前刪除舊資料）
- * 打卡欄位：分店,員工編號,員工帳號,員工姓名,打卡日期,上班,下班,時數,狀態（branch=col0, date=col4）
+ * 打卡欄位：分店..狀態,備註,是否有效,校正備註,建立時間,校正時間（branch=col0, date=col4）
  * @param {string} sheetName - 工作表名稱（打卡）
  * @param {string} yearMonth - 年月 YYYYMM（如 202601）
  * @param {string} branchName - 分店名稱
@@ -187,7 +187,7 @@ function removeAttendanceRowsByYearMonthAndBranch(sheetName, yearMonth, branchNa
     var prefix1 = yearMonth.substring(0, 4) + '/' + yearMonth.substring(4, 6);
     var prefix2 = yearMonth.substring(0, 4) + '-' + yearMonth.substring(4, 6);
     var toDelete = [];
-    var data = sheet.getRange(2, 1, lastRow, 9).getValues();
+    var data = sheet.getRange(2, 1, lastRow, Math.max(9, sheet.getLastColumn())).getValues();
     for (var i = 0; i < data.length; i++) {
       var row = data[i];
       var branchVal = (row[0] !== undefined && row[0] !== null) ? String(row[0]).trim() : '';
@@ -918,8 +918,8 @@ function columnToLetter(column) {
 }
 
 /**
- * 更新班表備註（H 欄，index 7）
- * 班表欄位：員工姓名(0), 排班日期(1), 上班(2), 下班(3), 時數(4), 班別(5), 分店(6), 備註(7)
+ * 更新班表備註（H 欄）並寫入修改時間（J 欄）
+ * 班表欄位：員工姓名(0), 排班日期(1), 上班(2), 下班(3), 時數(4), 班別(5), 分店(6), 備註(7), 建立時間(8), 修改時間(9)
  */
 function updateScheduleRemark(branch, name, date, start, end, remark) {
   try {
@@ -932,6 +932,7 @@ function updateScheduleRemark(branch, name, date, start, end, remark) {
     var endStr = end ? normalizeTimeValue(end) : '';
     var nameStr = name ? String(name).trim() : '';
     var branchStr = branch ? String(branch).trim() : '';
+    var modifiedNow = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
     for (var i = 0; i < dataRows.length; i++) {
       var row = dataRows[i];
       var rDate = normalizeDateValue(row[1]);
@@ -941,7 +942,8 @@ function updateScheduleRemark(branch, name, date, start, end, remark) {
       var rBranch = (row[6] !== undefined && row[6] !== null) ? String(row[6]).trim() : '';
       if (rName === nameStr && rDate === dateStr && rStart === startStr && rEnd === endStr && rBranch === branchStr) {
         var sheet = getOrCreateSheet(sheetName);
-        sheet.getRange(i + 2, 8).setValue(remark || '');
+        sheet.getRange(i + 2, SCHEDULE_COL.REMARK + 1).setValue(remark || '');
+        sheet.getRange(i + 2, SCHEDULE_COL.MODIFIED_AT + 1).setValue(modifiedNow);
         return { success: true };
       }
     }
@@ -952,8 +954,8 @@ function updateScheduleRemark(branch, name, date, start, end, remark) {
 }
 
 /**
- * 更新打卡備註（J 欄，index 9）
- * 打卡欄位：分店(0), 員工編號(1), 員工帳號(2), 員工姓名(3), 打卡日期(4), 上班(5), 下班(6), 時數(7), 狀態(8), 備註(9)
+ * 更新打卡備註（J 欄）
+ * 打卡欄位：分店(0)..備註(9), 是否有效(10), 校正備註(11), 建立時間(12), 校正時間(13)
  */
 function updateAttendanceRemark(branch, empAccount, date, start, end, remark) {
   try {
@@ -975,7 +977,7 @@ function updateAttendanceRemark(branch, empAccount, date, start, end, remark) {
       var rBranch = row[0] ? String(row[0]).trim() : '';
       if (rBranch === branchStr && rAcc === accStr && rDate === dateStr && rStart === startStr && rEnd === endStr) {
         var sheet = getOrCreateSheet(sheetName);
-        sheet.getRange(i + 2, 10).setValue(remark || '');
+        sheet.getRange(i + 2, ATTENDANCE_COL.REMARK + 1).setValue(remark || '');
         return { success: true };
       }
     }
