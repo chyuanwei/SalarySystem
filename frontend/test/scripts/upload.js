@@ -1023,8 +1023,8 @@ function populateComparePersonCheckboxes(items, existingNames) {
   existingNames = existingNames || {};
   const nameSet = Object.assign({}, existingNames);
   items.forEach(function(item) {
-    if (item.schedule && item.schedule.name) nameSet[item.schedule.name] = true;
-    if (item.attendance && item.attendance.name) nameSet[item.attendance.name] = true;
+    var n = item.displayName || (item.attendance && item.attendance.name) || (item.schedule && item.schedule.name);
+    if (n) nameSet[n] = true;
   });
   const names = Object.keys(nameSet).sort();
   const checkedNames = [];
@@ -1077,7 +1077,7 @@ function renderCompareResults(items) {
     var s = item.schedule || null;
     var a = item.attendance || null;
     var corr = item.correction || null;
-    var displayName = (s && s.name) || (a && a.name) || '—';
+    var displayName = item.displayName || (a && a.name) || (s && s.name) || '—';
     var empAccount = (s && s.empAccount) || (a && a.empAccount) || '';
     var branch = (s && s.branch) || (a && a.branch) || '';
     var date = (s && s.date) || (a && a.date) || '';

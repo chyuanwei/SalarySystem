@@ -272,14 +272,15 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       var branch = (s && s.branch) || (a && a.branch) || branchName;
       var corrKey = buildCompareKey(empAcc, date, start, end, branch);
       var corr = correctionMap[corrKey] || null;
-      items.push({ key: key, schedule: s, attendance: a, correction: corr });
+      var displayName = (a && a.name) ? a.name : (mapping.accountToAttendanceName[empAcc] || (s && s.name) || (a && a.name) || '');
+      items.push({ key: key, schedule: s, attendance: a, correction: corr, displayName: displayName });
     });
     items.sort(function(x, y) {
       var d = (x.schedule && x.schedule.date) || (x.attendance && x.attendance.date) || '';
       var dy = (y.schedule && y.schedule.date) || (y.attendance && y.attendance.date) || '';
       if (d !== dy) return d.localeCompare(dy);
-      var n = (x.schedule && x.schedule.name) || (x.attendance && x.attendance.name) || '';
-      var ny = (y.schedule && y.schedule.name) || (y.attendance && y.attendance.name) || '';
+      var n = x.displayName || (x.schedule && x.schedule.name) || (x.attendance && x.attendance.name) || '';
+      var ny = y.displayName || (y.schedule && y.schedule.name) || (y.attendance && y.attendance.name) || '';
       return n.localeCompare(ny);
     });
     return { success: true, items: items };
