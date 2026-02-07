@@ -1236,6 +1236,7 @@ function renderCompareResults(items) {
     var attendanceText = attendanceStart + '–' + attendanceEnd + ' | ' + hoursPart +
       (statusStr && statusStr !== '—' ? ' | ' + statusStr : '');
     var overtimeAlert = !!(item.overtimeAlert);
+    var overlapWarning = !!(item.overlapWarning);
 
     var payload = JSON.stringify({
       branch: branch,
@@ -1255,7 +1256,8 @@ function renderCompareResults(items) {
     });
 
     return (
-      '<div class="compare-card' + (isCorrected ? ' corrected' : '') + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
+      '<div class="compare-card' + (isCorrected ? ' corrected' : '') + (overlapWarning ? ' overlap-warning' : '') + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
+        (overlapWarning ? '<div class="compare-card-overlap-badge">⚠ 時間重疊</div>' : '') +
         '<div class="compare-card-header">' +
           escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(formatDateWithWeekday(date)) + '</span>' +
           (branch ? '<div class="compare-card-row-label" style="margin-top:4px">' + escapeHtml(branch) + (empAccount ? ' · ' + escapeHtml(empAccount) : '') + '</div>' : '') +

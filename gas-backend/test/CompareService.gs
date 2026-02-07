@@ -282,8 +282,35 @@ function hoursValueToMinutes(hours) {
 }
 
 /**
- * 班表與打卡比對（一對一，無對應另一邊空白）
- * @return {Object} { success, items: [{ key, schedule, attendance, correction, displayName, overtimeAlert? }] }
+ * 兩時段是否重疊（依 start/end 分鐘數，跨日則 end+1440）
+ */
+function timeRangesOverlap(start1, end1, start2, end2) {
+  var m1s = timeStringToMinutes(start1);
+  var m1e = timeStringToMinutes(end1);
+  var m2s = timeStringToMinutes(start2);
+  var m2e = timeStringToMinutes(end2);
+  if (m1s === null || m1e === null || m2s === null || m2e === null) return false;
+  if (m1e < m1s) m1e += 24 * 60;
+  if (m2e < m2s) m2e += 24 * 60;
+  return (m1s < m2e && m2s < m1e);
+}
+
+/**
+ * 依開始時間排序（用 timeStringToMinutes，無效排最後）
+ */
+function sortByStartTime(list) {
+  list.sort(function(a, b) {
+    var ma = timeStringToMinutes(a.startTime);
+    var mb = timeStringToMinutes(b.startTime);
+    if (ma === null) return 1;
+    if (mb === null) return -1;
+    return ma - mb;
+  });
+}
+
+/**
+ * 班表與打卡比對（同人同日同店可多筆；依開始時間 1-1 配對；時間重疊時設 overlapWarning）
+ * @return {Object} { success, items: [{ key, schedule, attendance, correction, displayName, overtimeAlert?, overlapWarning? }] }
  */
 function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchName) {
   try {
@@ -312,8 +339,8 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
         correctionMap[k] = c;
       });
     }
-    var keyToSchedule = {};
-    var keyToAttendance = {};
+    var keyToSchedules = {};
+    var keyToAttendances = {};
     var allKeys = {};
     scheduleRecords.forEach(function(row) {
       var sName = row[0] ? String(row[0]).trim() : '';
@@ -323,7 +350,8 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       var end = row[3] || '';
       var branch = row[6] ? String(row[6]).trim() : '';
       var key = buildMatchKey(acc || sName, date, branch);
-      keyToSchedule[key] = { empAccount: acc, name: sName, date: date, startTime: start, endTime: end, hours: row[4], shift: row[5], branch: branch, remark: (row[7] !== undefined && row[7] !== null) ? String(row[7]).trim() : '' };
+      if (!keyToSchedules[key]) keyToSchedules[key] = [];
+      keyToSchedules[key].push({ empAccount: acc, name: sName, date: date, startTime: start, endTime: end, hours: row[4], shift: row[5], branch: branch, remark: (row[7] !== undefined && row[7] !== null) ? String(row[7]).trim() : '' });
       allKeys[key] = true;
     });
     attendanceRecords.forEach(function(row) {
@@ -334,7 +362,8 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       var end = row[6] || '';
       var branch = row[0] ? String(row[0]).trim() : '';
       var key = buildMatchKey(acc || aName, date, branch);
-      keyToAttendance[key] = { empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], status: row[8], branch: branch, remark: (row[9] !== undefined && row[9] !== null) ? String(row[9]).trim() : '' };
+      if (!keyToAttendances[key]) keyToAttendances[key] = [];
+      keyToAttendances[key].push({ empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], status: row[8], branch: branch, remark: (row[9] !== undefined && row[9] !== null) ? String(row[9]).trim() : '' });
       allKeys[key] = true;
     });
     var config = getConfig();
@@ -342,27 +371,55 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
     if (isNaN(overtimeAlertThreshold)) overtimeAlertThreshold = 0;
     var items = [];
     Object.keys(allKeys).forEach(function(key) {
-      var s = keyToSchedule[key] || null;
-      var a = keyToAttendance[key] || null;
-      var empAcc = (s && s.empAccount) || (a && a.empAccount) || '';
-      var date = (s && s.date) || (a && a.date) || '';
-      var start = (s && s.startTime) || (a && a.startTime) || '';
-      var end = (s && s.endTime) || (a && a.endTime) || '';
-      var branch = (s && s.branch) || (a && a.branch) || branchName;
-      var corrKey = buildCompareKey(empAcc, date, start, end, branch);
-      var corr = correctionMap[corrKey] || null;
-      var displayName = (a && a.name) ? a.name : (mapping.accountToAttendanceName[empAcc] || (s && s.name) || (a && a.name) || '');
-      var item = { key: key, schedule: s, attendance: a, correction: corr, displayName: displayName };
-      if (s && a && overtimeAlertThreshold > 0) {
-        var scheduleMins = timeRangeToMinutes(s.startTime, s.endTime);
-        if (scheduleMins === null) scheduleMins = hoursValueToMinutes(s.hours);
-        var attendanceMins = timeRangeToMinutes(a.startTime, a.endTime);
-        if (attendanceMins === null) attendanceMins = hoursValueToMinutes(a.hours);
-        if (scheduleMins !== null && attendanceMins !== null && (attendanceMins - scheduleMins) > overtimeAlertThreshold) {
-          item.overtimeAlert = true;
+      var schedules = keyToSchedules[key] || [];
+      var attendances = keyToAttendances[key] || [];
+      sortByStartTime(schedules);
+      sortByStartTime(attendances);
+      var scheduleOverlap = [];
+      for (var i = 0; i < schedules.length; i++) {
+        scheduleOverlap[i] = false;
+        for (var j = 0; j < schedules.length; j++) {
+          if (i !== j && timeRangesOverlap(schedules[i].startTime, schedules[i].endTime, schedules[j].startTime, schedules[j].endTime)) {
+            scheduleOverlap[i] = true;
+            break;
+          }
         }
       }
-      items.push(item);
+      var attendanceOverlap = [];
+      for (var ii = 0; ii < attendances.length; ii++) {
+        attendanceOverlap[ii] = false;
+        for (var jj = 0; jj < attendances.length; jj++) {
+          if (ii !== jj && timeRangesOverlap(attendances[ii].startTime, attendances[ii].endTime, attendances[jj].startTime, attendances[jj].endTime)) {
+            attendanceOverlap[ii] = true;
+            break;
+          }
+        }
+      }
+      var maxLen = Math.max(schedules.length, attendances.length);
+      for (var idx = 0; idx < maxLen; idx++) {
+        var s = idx < schedules.length ? schedules[idx] : null;
+        var a = idx < attendances.length ? attendances[idx] : null;
+        var empAcc = (s && s.empAccount) || (a && a.empAccount) || '';
+        var date = (s && s.date) || (a && a.date) || '';
+        var start = (s && s.startTime) || (a && a.startTime) || '';
+        var end = (s && s.endTime) || (a && a.endTime) || '';
+        var branch = (s && s.branch) || (a && a.branch) || branchName;
+        var corrKey = buildCompareKey(empAcc, date, start, end, branch);
+        var corr = correctionMap[corrKey] || null;
+        var displayName = (a && a.name) ? a.name : (mapping.accountToAttendanceName[empAcc] || (s && s.name) || (a && a.name) || '');
+        var overlapWarning = (s && idx < scheduleOverlap.length && scheduleOverlap[idx]) || (a && idx < attendanceOverlap.length && attendanceOverlap[idx]);
+        var item = { key: key, schedule: s, attendance: a, correction: corr, displayName: displayName, overlapWarning: overlapWarning };
+        if (s && a && overtimeAlertThreshold > 0) {
+          var scheduleMins = timeRangeToMinutes(s.startTime, s.endTime);
+          if (scheduleMins === null) scheduleMins = hoursValueToMinutes(s.hours);
+          var attendanceMins = timeRangeToMinutes(a.startTime, a.endTime);
+          if (attendanceMins === null) attendanceMins = hoursValueToMinutes(a.hours);
+          if (scheduleMins !== null && attendanceMins !== null && (attendanceMins - scheduleMins) > overtimeAlertThreshold) {
+            item.overtimeAlert = true;
+          }
+        }
+        items.push(item);
+      }
     });
     items.sort(function(x, y) {
       var d = (x.schedule && x.schedule.date) || (x.attendance && x.attendance.date) || '';
