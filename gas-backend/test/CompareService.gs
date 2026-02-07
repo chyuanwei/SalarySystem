@@ -324,6 +324,102 @@ function sortByStartTime(list) {
 }
 
 /**
+ * 共用警示判斷：依班表與打卡紀錄計算每筆打卡是否為警示（overtime 或 overlap）
+ * @param {Array} scheduleRecords - readScheduleByConditions 格式
+ * @param {Array} attendanceRecords - readAttendanceByConditions 格式
+ * @param {string} branchName - 分店
+ * @return {Object} { branch|empAccount|date|start|end: boolean }
+ */
+function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords, branchName) {
+  var alertMap = {};
+  if (!attendanceRecords || attendanceRecords.length === 0) return alertMap;
+  var mapping = readPersonnelMapping();
+  if (!mapping) return alertMap;
+  var keyToSchedules = {};
+  var keyToAttendances = {};
+  var allKeys = {};
+  (scheduleRecords || []).forEach(function(row) {
+    var sName = row[0] ? String(row[0]).trim() : '';
+    var acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
+    var date = row[1] || '';
+    var start = row[2] || '';
+    var end = row[3] || '';
+    var branch = row[6] ? String(row[6]).trim() : '';
+    var key = buildMatchKey(acc || sName, date, branch);
+    if (!keyToSchedules[key]) keyToSchedules[key] = [];
+    keyToSchedules[key].push({ empAccount: acc, name: sName, date: date, startTime: start, endTime: end, hours: row[4], shift: row[5], branch: branch });
+    allKeys[key] = true;
+  });
+  attendanceRecords.forEach(function(row) {
+    var acc = row[2] ? String(row[2]).trim() : '';
+    var aName = row[3] ? String(row[3]).trim() : '';
+    var date = row[4] || '';
+    var start = row[5] || '';
+    var end = row[6] || '';
+    var branch = row[0] ? String(row[0]).trim() : '';
+    var key = buildMatchKey(acc || aName, date, branch);
+    if (!keyToAttendances[key]) keyToAttendances[key] = [];
+    keyToAttendances[key].push({ empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], branch: branch });
+    allKeys[key] = true;
+  });
+  var config = getConfig();
+  var overtimeAlertThreshold = (config.OVERTIME_ALERT !== undefined && config.OVERTIME_ALERT !== null) ? parseInt(config.OVERTIME_ALERT, 10) : 0;
+  if (isNaN(overtimeAlertThreshold)) overtimeAlertThreshold = 0;
+  Object.keys(allKeys).forEach(function(key) {
+    var schedules = keyToSchedules[key] || [];
+    var attendances = keyToAttendances[key] || [];
+    sortByStartTime(schedules);
+    sortByStartTime(attendances);
+    var scheduleOverlap = [];
+    for (var i = 0; i < schedules.length; i++) {
+      scheduleOverlap[i] = false;
+      for (var j = 0; j < schedules.length; j++) {
+        if (i !== j && timeRangesOverlap(schedules[i].startTime, schedules[i].endTime, schedules[j].startTime, schedules[j].endTime)) {
+          scheduleOverlap[i] = true;
+          break;
+        }
+      }
+    }
+    var attendanceOverlap = [];
+    for (var ii = 0; ii < attendances.length; ii++) {
+      attendanceOverlap[ii] = false;
+      for (var jj = 0; jj < attendances.length; jj++) {
+        if (ii !== jj && timeRangesOverlap(attendances[ii].startTime, attendances[ii].endTime, attendances[jj].startTime, attendances[jj].endTime)) {
+          attendanceOverlap[ii] = true;
+          break;
+        }
+      }
+    }
+    var maxLen = Math.max(schedules.length, attendances.length);
+    for (var idx = 0; idx < maxLen; idx++) {
+      var s = idx < schedules.length ? schedules[idx] : null;
+      var a = idx < attendances.length ? attendances[idx] : null;
+      if (!a) continue;
+      var overlapWarning = (s && idx < scheduleOverlap.length && scheduleOverlap[idx]) || (a && idx < attendanceOverlap.length && attendanceOverlap[idx]);
+      var overtimeAlert = false;
+      if (!s) {
+        overtimeAlert = true;
+      } else if (overtimeAlertThreshold > 0) {
+        var scheduleMins = timeRangeToMinutes(s.startTime, s.endTime) || hoursValueToMinutes(s.hours);
+        var attendanceMins = timeRangeToMinutes(a.startTime, a.endTime) || hoursValueToMinutes(a.hours);
+        if (scheduleMins !== null && attendanceMins !== null && (attendanceMins - scheduleMins) > overtimeAlertThreshold) {
+          overtimeAlert = true;
+        }
+      }
+      var hasAlert = overlapWarning || overtimeAlert;
+      var branchVal = (a.branch || branchName || '').toString().trim();
+      var accVal = (a.empAccount || '').toString().trim();
+      var dateVal = (a.date || '').toString().trim();
+      var startVal = (a.startTime || '').toString().trim();
+      var endVal = (a.endTime || '').toString().trim();
+      var lookupKey = [branchVal, accVal, dateVal, startVal, endVal].join('|');
+      alertMap[lookupKey] = hasAlert;
+    }
+  });
+  return alertMap;
+}
+
+/**
  * 班表與打卡比對（同人同日同店可多筆；依開始時間 1-1 配對；時間重疊時設 overlapWarning）
  * @return {Object} { success, items: [{ key, schedule, attendance, correction, displayName, overtimeAlert?, overlapWarning? }] }
  */
@@ -646,6 +742,9 @@ function writeCorrectionToAttendance(data) {
       ''
     ];
     sheet.appendRow(newRow);
+    if (typeof updateAttendanceAlertsForRange === 'function' && dateNorm && branchStr) {
+      updateAttendanceAlertsForRange(null, dateNorm, dateNorm, branchStr);
+    }
     logToSheet('校正寫回打卡成功', 'OPERATION', {
       branch: data.branch,
       empAccount: data.empAccount,

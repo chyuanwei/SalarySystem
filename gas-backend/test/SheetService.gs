@@ -1105,6 +1105,58 @@ function ensureAttendanceSheetHasAlertColumn() {
 }
 
 /**
+ * 依區間更新打卡 sheet 的「警示」欄位（供班表上傳、薪資計算前、loadCompare 使用）
+ * @param {string} yearMonth - YYYYMM
+ * @param {string} startDate - YYYY-MM-DD
+ * @param {string} endDate - YYYY-MM-DD
+ * @param {string} branchName - 分店
+ * @return {Object} { success, updatedCount }
+ */
+function updateAttendanceAlertsForRange(yearMonth, startDate, endDate, branchName) {
+  try {
+    if (!branchName) return { success: true, updatedCount: 0 };
+    if ((!yearMonth || yearMonth.length !== 6) && (!startDate || startDate.length !== 10)) {
+      return { success: true, updatedCount: 0 };
+    }
+    var sResult = readScheduleByConditions(yearMonth, startDate, endDate, null, branchName);
+    var aResult = readAttendanceByConditions(yearMonth, startDate, endDate, null, branchName);
+    if (!sResult.success || !aResult.success || !aResult.records || aResult.records.length === 0) {
+      return { success: true, updatedCount: 0 };
+    }
+    var alertMap = determineAlertsForAttendanceRecords(sResult.records || [], aResult.records, branchName);
+    if (Object.keys(alertMap).length === 0) return { success: true, updatedCount: 0 };
+    ensureAttendanceSheetHasAlertColumn();
+    var sheetName = getConfig().SHEET_NAMES.ATTENDANCE || '打卡';
+    var allData = readFromSheet(sheetName);
+    if (!allData || allData.length < 2) return { success: true, updatedCount: 0 };
+    var dataRows = allData.slice(1);
+    var sheet = getOrCreateSheet(sheetName);
+    var updatedCount = 0;
+    for (var i = 0; i < dataRows.length; i++) {
+      var row = dataRows[i];
+      var validVal = (row.length > ATTENDANCE_COL.VALID) ? String(row[ATTENDANCE_COL.VALID] || '').trim() : '';
+      if (validVal === '否' || validVal === 'N' || validVal === '0') continue;
+      var rBranch = row[0] ? String(row[0]).trim() : '';
+      var rAcc = row[2] ? String(row[2]).trim() : '';
+      var rDate = normalizeDateToCompare(row[4]);
+      var rStart = row[5] ? normalizeTimeValue(row[5]) : '';
+      var rEnd = row[6] ? normalizeTimeValue(row[6]) : '';
+      var lookupKey = [rBranch, rAcc, rDate, rStart, rEnd].join('|');
+      if (alertMap[lookupKey] !== undefined) {
+        var valToSet = alertMap[lookupKey] ? 'Y' : '';
+        sheet.getRange(i + 2, ATTENDANCE_COL.ALERT + 1).setValue(valToSet);
+        updatedCount++;
+      }
+    }
+    if (updatedCount > 0) logInfo('更新警示欄位', { updatedCount: updatedCount, yearMonth: yearMonth, branch: branchName });
+    return { success: true, updatedCount: updatedCount };
+  } catch (err) {
+    logError('更新警示欄位失敗: ' + err.message, { error: err.toString() });
+    return { success: false, updatedCount: 0 };
+  }
+}
+
+/**
  * 依比對結果同步「警示」欄位到打卡 sheet
  * 比對後若為警示（overtimeAlert 或 overlapWarning），設 Q=Y；否則清空
  * @param {Array} items - compareScheduleAttendance 回傳的 items

@@ -4,7 +4,7 @@
  */
 
 // 部署標記：每次 clasp push 後可更新此版號，Log 工作表會寫入此值，用以確認程式是否成功部署
-var DEPLOY_MARKER_VERSION = 'v0.6.55';
+var DEPLOY_MARKER_VERSION = 'v0.6.56';
 
 /**
  * 處理 GET 請求
@@ -140,7 +140,14 @@ function doGet(e) {
         }
         var items = result.items || [];
         if (items.length > 0 && typeof syncAlertsToAttendance === 'function') {
-          syncAlertsToAttendance(items);
+          var syncItems = items;
+          if (names.length > 0) {
+            var fullResult = compareScheduleAttendance(yearMonth, startDate, endDate, null, branchName);
+            if (fullResult.success && fullResult.items && fullResult.items.length > 0) {
+              syncItems = fullResult.items;
+            }
+          }
+          syncAlertsToAttendance(syncItems);
         }
         return createJsonResponse({
           success: true,
@@ -314,6 +321,10 @@ function handleUpload(requestData) {
       throw new Error(writeResult.error);
     }
     
+    if (yearMonth && typeof updateAttendanceAlertsForRange === 'function') {
+      updateAttendanceAlertsForRange(yearMonth, null, null, branchName);
+    }
+    
     // 計算處理時間
     const endTime = new Date();
     const processTime = (endTime - startTime) / 1000; // 秒
@@ -464,15 +475,38 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
     
     var config = getConfig();
     var targetSheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
+    var yearMonth = '';
+    if (dataRows.length > 0 && dataRows[0][4]) {
+      yearMonth = extractYearMonth(String(dataRows[0][4]));
+    }
+    if (yearMonth && typeof determineAlertsForAttendanceRecords === 'function') {
+      var sResult = readScheduleByConditions(yearMonth, null, null, null, branchName);
+      var aResult = readAttendanceByConditions(yearMonth, null, null, null, branchName);
+      var existingRecords = (aResult.success && aResult.records) ? aResult.records : [];
+      var newRowsForMerge = dataRows.map(function(row) {
+        var r = row.slice(0, 15);
+        r[4] = (row[4] && typeof normalizeDateToDash === 'function') ? normalizeDateToDash(row[4]) : (row[4] || '');
+        r[5] = (row[5] && typeof normalizeTimeValue === 'function') ? normalizeTimeValue(row[5]) : (row[5] || '');
+        r[6] = (row[6] && typeof normalizeTimeValue === 'function') ? normalizeTimeValue(row[6]) : (row[6] || '');
+        return r;
+      });
+      var mergedRecords = existingRecords.concat(newRowsForMerge);
+      var alertMap = determineAlertsForAttendanceRecords(sResult.records || [], mergedRecords, branchName);
+      dataRows.forEach(function(row) {
+        var branchVal = (row[0] || '').toString().trim();
+        var accVal = (row[2] || '').toString().trim();
+        var dateVal = (row[4] && typeof normalizeDateToDash === 'function') ? normalizeDateToDash(row[4]) : (row[4] || '');
+        var startVal = (row[5] && typeof normalizeTimeValue === 'function') ? normalizeTimeValue(row[5]) : (row[5] || '');
+        var endVal = (row[6] && typeof normalizeTimeValue === 'function') ? normalizeTimeValue(row[6]) : (row[6] || '');
+        var lookupKey = [branchVal, accVal, dateVal, startVal, endVal].join('|');
+        row[16] = alertMap[lookupKey] ? 'Y' : '';
+      });
+    }
     var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態', '備註', '是否有效', '校正備註', '建立時間', '校正時間', '已確認並忽略', '確認忽略時間', '警示'];
     var dataToWrite = [headerRow].concat(dataRows);
     
     // 以「月份＋分店」覆蓋：先刪除既有該月份該分店資料
-    var yearMonth = '';
     var deletedCount = 0;
-    if (dataRows.length > 0 && dataRows[0][4]) {
-      yearMonth = extractYearMonth(String(dataRows[0][4]));
-    }
     if (yearMonth) {
       var removeResult = removeAttendanceRowsByYearMonthAndBranch(targetSheetName, yearMonth, branchName);
       deletedCount = removeResult.deletedCount || 0;
@@ -696,6 +730,9 @@ function handleCalculate(requestData) {
     }
     if (!branchName) {
       return createJsonResponse({ success: false, error: '請選擇分店' });
+    }
+    if (typeof updateAttendanceAlertsForRange === 'function') {
+      updateAttendanceAlertsForRange(yearMonth, startDate, endDate, branchName);
     }
     var checkResult = checkUnconfirmedAlerts(yearMonth, startDate, endDate, branchName);
     if (!checkResult.canCalculate) {
