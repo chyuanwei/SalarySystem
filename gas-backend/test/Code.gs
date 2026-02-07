@@ -96,19 +96,19 @@ function handleUpload(requestData) {
   const uploadType = requestData.uploadType || 'schedule';
 
   try {
-    if (uploadType === 'attendance') {
-      return createJsonResponse({ success: false, error: '打卡上傳功能尚未實作' });
-    }
-
     const fileName = requestData.fileName;
     const fileData = requestData.fileData;
     const targetSheetName = requestData.targetSheetName || '11501';
     const targetGoogleSheetTab = requestData.targetGoogleSheetTab || '班表';
     const branchName = requestData.branchName ? String(requestData.branchName).trim() : '';
 
-    // 班表上傳時分店必選
-    if (uploadType === 'schedule' && !branchName) {
+    // 班表／打卡上傳時分店必選
+    if ((uploadType === 'schedule' || uploadType === 'attendance') && !branchName) {
       return createJsonResponse({ success: false, error: '請選擇分店' });
+    }
+
+    if (uploadType === 'attendance') {
+      return handleAttendanceUpload(requestData, fileName, fileData, branchName, startTime);
     }
 
     logOperation('開始處理上傳: ' + fileName, {
@@ -230,6 +230,137 @@ function handleUpload(requestData) {
     });
     
     return createErrorResponse(error);
+  }
+}
+
+/**
+ * 處理打卡 CSV 上傳
+ */
+function handleAttendanceUpload(requestData, fileName, fileData, branchName, startTime) {
+  try {
+    if (!fileName || !fileData) {
+      return createJsonResponse({ success: false, error: '缺少必要參數: fileName 或 fileData' });
+    }
+    logOperation('開始處理打卡上傳: ' + fileName, { fileName: fileName, branchName: branchName });
+    
+    var parseResult = parseAttendanceCSV(fileData, fileName);
+    if (!parseResult.success) {
+      return createJsonResponse({ success: false, error: parseResult.error });
+    }
+    
+    var records = parseResult.records || [];
+    if (records.length === 0) {
+      return createJsonResponse({ success: false, error: 'CSV 無有效資料列' });
+    }
+    
+    var personResult = readPersonnelAccounts();
+    if (!personResult.success) {
+      return createJsonResponse({ success: false, error: personResult.error || '讀取人員清單失敗' });
+    }
+    var personAccounts = personResult.accounts || {};
+    
+    var mappingResult = readBranchLocationMapping();
+    if (!mappingResult.success) {
+      return createJsonResponse({ success: false, error: mappingResult.error || '讀取分店 mapping 失敗' });
+    }
+    var locationToName = mappingResult.mapping || {};
+    
+    var dataRows = [];
+    for (var i = 0; i < records.length; i++) {
+      var r = records[i];
+      var empAccount = r.empAccount || '';
+      var location = r.location || '';
+      
+      if (!personAccounts[empAccount]) {
+        return createJsonResponse({ success: false, error: '員工帳號「' + empAccount + '」不存在於人員清單' });
+      }
+      
+      var branchNameFromMapping = locationToName[location];
+      if (!branchNameFromMapping) {
+        return createJsonResponse({ success: false, error: '打卡地點「' + location + '」無對應分店 mapping' });
+      }
+      
+      if (branchNameFromMapping !== branchName) {
+        return createJsonResponse({ success: false, error: '打卡地點與所選分店不符（' + location + ' 對應 ' + branchNameFromMapping + '）' });
+      }
+      
+      dataRows.push([
+        r.empNo || '',
+        r.empName || '',
+        r.empAccount || '',
+        r.punchDate || '',
+        r.startTime || '',
+        r.endTime || '',
+        branchNameFromMapping,
+        r.workHours || '',
+        r.status || ''
+      ]);
+    }
+    
+    var config = getConfig();
+    var targetSheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
+    var headerRow = ['員工編號', '員工姓名', '員工帳號', '打卡日期', '上班時間', '下班時間', '分店', '工作時數', '狀態'];
+    var dataToWrite = [headerRow].concat(dataRows);
+    
+    var writeResult = appendAttendanceToSheet(dataToWrite, targetSheetName);
+    if (!writeResult.success) {
+      return createJsonResponse({ success: false, error: writeResult.error || '寫入打卡 sheet 失敗' });
+    }
+    
+    var endTime = new Date();
+    var processTime = ((endTime - startTime) / 1000).toFixed(2);
+    
+    createProcessRecord({
+      fileName: fileName,
+      sourceSheet: 'CSV',
+      targetSheet: targetSheetName,
+      rowCount: writeResult.rowCount,
+      status: 'SUCCESS',
+      message: '打卡 CSV 上傳成功'
+    });
+    
+    logOperation('打卡上傳成功: ' + fileName, {
+      fileName: fileName,
+      rowCount: writeResult.rowCount,
+      skippedCount: writeResult.skippedCount || 0,
+      processTime: processTime + ' 秒'
+    });
+    
+    var recordsForFrontend = (writeResult.allRecordsWithFlag || []).map(function(item) {
+      return { row: item.row, isDuplicate: item.isDuplicate };
+    });
+    
+    return createJsonResponse({
+      success: true,
+      message: '打卡檔案已成功上傳並處理',
+      columns: headerRow,
+      records: recordsForFrontend,
+      details: {
+        fileName: fileName,
+        targetSheet: targetSheetName,
+        rowCount: writeResult.rowCount,
+        parsedRowCount: records.length,
+        columnCount: headerRow.length,
+        processTime: processTime,
+        skippedCount: writeResult.skippedCount || 0
+      }
+    });
+    
+  } catch (error) {
+    logError('打卡上傳處理失敗: ' + error.message, {
+      fileName: fileName || 'unknown',
+      error: error.toString(),
+      stack: error.stack
+    });
+    createProcessRecord({
+      fileName: fileName || 'unknown',
+      sourceSheet: 'CSV',
+      targetSheet: '打卡',
+      rowCount: 0,
+      status: 'ERROR',
+      message: error.message
+    });
+    return createJsonResponse({ success: false, error: '打卡上傳處理失敗: ' + error.message });
   }
 }
 

@@ -438,6 +438,159 @@ function readScheduleByYearMonth(sheetName, yearMonth, date, names, branchName) 
 }
 
 /**
+ * 讀取人員 sheet 的員工帳號集合（用於打卡驗證）
+ * 人員 sheet 欄位：A=員工帳號, B=班表名稱, C=打卡名稱, D=分店
+ * @return {Object} { success, accounts: Set<string> } 或 { success: false, error }
+ */
+function readPersonnelAccounts() {
+  try {
+    var config = getConfig();
+    var sheetName = config.SHEET_NAMES.PERSONNEL || '人員';
+    var allData = readFromSheet(sheetName);
+    if (!allData || allData.length < 2) {
+      return { success: true, accounts: {} };
+    }
+    var accounts = {};
+    var dataRows = allData.slice(1);
+    dataRows.forEach(function(row) {
+      var acc = row[0] ? String(row[0]).trim() : '';
+      if (acc) accounts[acc] = true;
+    });
+    return { success: true, accounts: accounts };
+  } catch (error) {
+    logError('讀取人員清單失敗: ' + error.message, { error: error.toString() });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 讀取分店 sheet 的打卡地點 → 名稱 mapping
+ * 分店 sheet 欄位：A=代碼, B=名稱, C=啟用狀態, D=排序, E=打卡地點
+ * @return {Object} { success, mapping: { 打卡地點: 名稱 } } 或 { success: false, error }
+ */
+function readBranchLocationMapping() {
+  try {
+    var config = getConfig();
+    var sheetName = config.SHEET_NAMES.BRANCH || '分店';
+    var allData = readFromSheet(sheetName);
+    var mapping = {};
+    if (!allData || allData.length < 2) {
+      return { success: true, mapping: mapping };
+    }
+    var dataRows = allData.slice(1);
+    var nameColIndex = 1;
+    var locationColIndex = 4;
+    dataRows.forEach(function(row) {
+      var name = row[nameColIndex] ? String(row[nameColIndex]).trim() : '';
+      var loc = row[locationColIndex] ? String(row[locationColIndex]).trim() : '';
+      if (loc && name) mapping[loc] = name;
+    });
+    return { success: true, mapping: mapping };
+  } catch (error) {
+    logError('讀取分店 mapping 失敗: ' + error.message, { error: error.toString() });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 生成打卡去重 Key：員工帳號 + 打卡日期 + 上班時間 + 下班時間 + 分店
+ * @param {Array} row - 打卡列 [員工編號, 員工姓名, 員工帳號, 打卡日期, 上班時間, 下班時間, 分店, 工作時數, 狀態]
+ * @return {string}
+ */
+function buildAttendanceDedupKey(row) {
+  var acc = (row[2] !== undefined && row[2] !== null) ? String(row[2]).trim() : '';
+  var date = (row[3] !== undefined && row[3] !== null) ? String(row[3]).trim() : '';
+  var start = (row[4] !== undefined && row[4] !== null) ? normalizeTimeValue(row[4]) : '';
+  var end = (row[5] !== undefined && row[5] !== null) ? normalizeTimeValue(row[5]) : '';
+  var branch = (row[6] !== undefined && row[6] !== null) ? String(row[6]).trim() : '';
+  return [acc || '', date, start, end, branch].join('|');
+}
+
+/**
+ * 追加打卡資料到「打卡」sheet（含去重）
+ * @param {Array} data - 二維陣列，row1 為標題，row2+ 為資料
+ * @param {string} targetSheetName - 目標工作表（打卡）
+ * @return {Object} { success, rowCount, skippedCount, appendedRows, allRecordsWithFlag }
+ */
+function appendAttendanceToSheet(data, targetSheetName) {
+  try {
+    if (!data || data.length < 2) {
+      return { success: true, rowCount: 0, skippedCount: 0, appendedRows: [], allRecordsWithFlag: [] };
+    }
+    var sheet = getOrCreateSheet(targetSheetName);
+    var isFirstWrite = (sheet.getLastRow() === 0);
+    var headerRow = data[0];
+    var dataRows = data.slice(1);
+    
+    var existingKeys = {};
+    if (!isFirstWrite) {
+      var lastRow = sheet.getLastRow();
+      var lastCol = sheet.getLastColumn();
+      if (lastRow >= 2 && lastCol >= 7) {
+        var existingData = sheet.getRange(2, 1, lastRow, Math.min(9, lastCol)).getValues();
+        existingData.forEach(function(row) {
+          var key = buildAttendanceDedupKey(row);
+          existingKeys[key] = true;
+        });
+      }
+    }
+    
+    var newRows = [];
+    var allRecordsWithFlag = [];
+    dataRows.forEach(function(row) {
+      var key = buildAttendanceDedupKey(row);
+      if (!existingKeys[key]) {
+        existingKeys[key] = true;
+        newRows.push(row);
+        allRecordsWithFlag.push({ row: row, isDuplicate: false });
+      } else {
+        allRecordsWithFlag.push({ row: row, isDuplicate: true });
+      }
+    });
+    
+    if (newRows.length === 0) {
+      logWarning('打卡：無新資料需追加');
+      return {
+        success: true,
+        rowCount: 0,
+        skippedCount: dataRows.length,
+        appendedRows: [],
+        allRecordsWithFlag: allRecordsWithFlag
+      };
+    }
+    
+    var rowsToWrite = isFirstWrite ? [headerRow].concat(newRows) : newRows;
+    var startRow = sheet.getLastRow() + 1;
+    var rowCount = rowsToWrite.length;
+    var colCount = rowsToWrite[0].length;
+    
+    sheet.getRange(startRow, 1, startRow + rowCount - 1, colCount).setValues(rowsToWrite);
+    
+    if (isFirstWrite && data.length > 0) {
+      formatHeaderRow(sheet, colCount);
+      autoResizeColumns(sheet, colCount);
+    }
+    
+    logInfo('打卡資料追加成功', {
+      sheetName: targetSheetName,
+      appendedCount: newRows.length,
+      skippedCount: dataRows.length - newRows.length
+    });
+    
+    return {
+      success: true,
+      rowCount: newRows.length,
+      skippedCount: dataRows.length - newRows.length,
+      appendedRows: newRows,
+      allRecordsWithFlag: allRecordsWithFlag
+    };
+  } catch (error) {
+    logError('打卡資料追加失敗: ' + error.message, { error: error.toString() });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
  * 讀取分店清單（從「分店」工作表，欄位：代碼、名稱、啟用狀態、排序）
  * @return {Object} { success, names: [...] } 或 { success: false, error }
  */

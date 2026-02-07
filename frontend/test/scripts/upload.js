@@ -69,15 +69,27 @@ submitBtn.addEventListener('click', handleSubmit);
 document.querySelectorAll('input[name="uploadType"]').forEach(function(radio) {
   radio.addEventListener('change', function() {
     const isSchedule = this.value === 'schedule';
+    const isAttendance = this.value === 'attendance';
     if (sheetNameHint) {
       sheetNameHint.textContent = isSchedule
         ? '請輸入要處理的 Excel 工作表名稱（例如：11501、11502）'
-        : '請輸入要處理的 Excel 工作表名稱（例如：打卡紀錄、Sheet1）';
+        : (isAttendance ? '打卡上傳 CSV 不需輸入工作表名稱' : '請輸入要處理的 Excel 工作表名稱（例如：打卡紀錄、Sheet1）');
     }
     if (sheetNameInput && !sheetNameInput.value) {
-      sheetNameInput.placeholder = isSchedule ? '例如：11501' : '例如：打卡紀錄';
+      sheetNameInput.placeholder = isSchedule ? '例如：11501' : (isAttendance ? '不需輸入' : '例如：打卡紀錄');
     }
-    if (branchGroup) branchGroup.style.display = isSchedule ? 'block' : 'none';
+    if (branchGroup) branchGroup.style.display = (isSchedule || isAttendance) ? 'block' : 'none';
+    if (selectedFile) {
+      const ext = '.' + selectedFile.name.split('.').pop().toLowerCase();
+      const ok = isAttendance ? ext === '.csv' : CONFIG.ALLOWED_FILE_TYPES.includes(ext);
+      if (!ok) {
+        selectedFile = null;
+        fileInput.value = '';
+        fileInfo.classList.remove('show');
+        submitBtn.classList.remove('show');
+        showAlert('error', isAttendance ? '打卡請上傳 .csv 檔案，請重新選擇' : '班表請上傳 .xlsx 或 .xls 檔案，請重新選擇');
+      }
+    }
   });
 });
 
@@ -190,10 +202,13 @@ function handleDrop(e) {
  * 驗證並顯示檔案資訊
  */
 function validateAndDisplayFile(file) {
-  // 檢查檔案類型
+  // 檢查檔案類型（班表：xlsx/xls；打卡：csv）
   const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-  if (!CONFIG.ALLOWED_FILE_TYPES.includes(fileExtension)) {
-    showAlert('error', `不支援的檔案格式。請上傳 ${CONFIG.ALLOWED_FILE_TYPES.join(', ')} 檔案。`);
+  const uploadType = document.querySelector('input[name="uploadType"]:checked');
+  const isAttendance = uploadType && uploadType.value === 'attendance';
+  const allowedTypes = isAttendance ? ['.csv'] : CONFIG.ALLOWED_FILE_TYPES;
+  if (!allowedTypes.includes(fileExtension)) {
+    showAlert('error', isAttendance ? '打卡上傳請使用 .csv 檔案' : `班表上傳請使用 ${CONFIG.ALLOWED_FILE_TYPES.join('、')} 檔案`);
     return;
   }
   
@@ -261,19 +276,19 @@ async function handleSubmit() {
     return;
   }
   
-  // 班表上傳時驗證分店必選
+  // 班表／打卡上傳時驗證分店必選
   const uploadType = document.querySelector('input[name="uploadType"]:checked');
-  if (uploadType && uploadType.value === 'schedule') {
-    const branchName = branchSelect ? branchSelect.value.trim() : '';
+  const branchName = branchSelect ? branchSelect.value.trim() : '';
+  if (uploadType && (uploadType.value === 'schedule' || uploadType.value === 'attendance')) {
     if (!branchName) {
       showAlert('error', '請選擇分店');
       return;
     }
   }
 
-  // 取得並驗證工作表名稱
+  // 班表需工作表名稱；打卡不需（CSV 為整檔）
   const sheetName = sheetNameInput.value.trim();
-  if (!sheetName) {
+  if (uploadType && uploadType.value === 'schedule' && !sheetName) {
     showAlert('error', '請輸入 Excel 工作表名稱');
     return;
   }
@@ -312,10 +327,10 @@ async function handleSubmit() {
       uploadType: uploadType ? uploadType.value : 'schedule',
       fileName: selectedFile.name,
       fileData: base64Data,
-      targetSheetName: sheetName,
+      targetSheetName: sheetName || '',
       targetGoogleSheetName: CONFIG.TARGET_GOOGLE_SHEET_NAME,
-      targetGoogleSheetTab: uploadType && uploadType.value === 'attendance' ? '打卡紀錄' : CONFIG.TARGET_GOOGLE_SHEET_TAB,
-      branchName: uploadType && uploadType.value === 'schedule' ? branchName : ''
+      targetGoogleSheetTab: uploadType && uploadType.value === 'attendance' ? '打卡' : CONFIG.TARGET_GOOGLE_SHEET_TAB,
+      branchName: (uploadType && (uploadType.value === 'schedule' || uploadType.value === 'attendance')) ? branchName : ''
     };
     
     // 發送到 GAS（改用可讀取回應）
@@ -426,16 +441,25 @@ function renderResults(result) {
   const records = Array.isArray(result.records) ? result.records : [];
   const shiftCodes = Array.isArray(details.shiftCodes) ? details.shiftCodes : [];
 
-  const summaryItems = [
-    { label: '新增筆數', value: details.rowCount ?? '—' },
-    { label: '略過重複', value: details.skippedCount ?? 0 },
-    { label: '原始筆數', value: details.parsedRowCount ?? records.length ?? '—' },
-    { label: '員工數', value: details.totalEmployees || 0 },
-    { label: '班別代碼', value: shiftCodes.length ? shiftCodes.join(', ') : '—' },
-    { label: '處理時間', value: details.processTime ? `${details.processTime}s` : '—' },
-    { label: '來源工作表', value: details.sourceSheet || '—' },
-    { label: '目標工作表', value: details.targetSheet || '—' }
-  ];
+  const isAttendanceResult = result.columns && result.columns[0] === '員工編號';
+  const summaryItems = isAttendanceResult
+    ? [
+        { label: '新增筆數', value: details.rowCount ?? '—' },
+        { label: '略過重複', value: details.skippedCount ?? 0 },
+        { label: '原始筆數', value: details.parsedRowCount ?? records.length ?? '—' },
+        { label: '處理時間', value: details.processTime ? `${details.processTime}s` : '—' },
+        { label: '目標工作表', value: details.targetSheet || '—' }
+      ]
+    : [
+        { label: '新增筆數', value: details.rowCount ?? '—' },
+        { label: '略過重複', value: details.skippedCount ?? 0 },
+        { label: '原始筆數', value: details.parsedRowCount ?? records.length ?? '—' },
+        { label: '員工數', value: details.totalEmployees || 0 },
+        { label: '班別代碼', value: shiftCodes.length ? shiftCodes.join(', ') : '—' },
+        { label: '處理時間', value: details.processTime ? `${details.processTime}s` : '—' },
+        { label: '來源工作表', value: details.sourceSheet || '—' },
+        { label: '目標工作表', value: details.targetSheet || '—' }
+      ];
 
   resultSummary.innerHTML = summaryItems.map(item => `
     <div class="summary-item">
@@ -453,7 +477,34 @@ function renderResults(result) {
     return { row, isDuplicate: false };
   });
 
+  const isAttendance = result.columns && result.columns[0] === '員工編號';
   resultList.innerHTML = recordList.map(({ row, isDuplicate }) => {
+    const duplicateBadge = isDuplicate ? '<span class="result-card-duplicate" title="此筆為重複，已略過寫入">重複</span>' : '';
+    if (isAttendance) {
+      const empNo = row[0];
+      const name = row[1];
+      const empAccount = row[2];
+      const date = row[3];
+      const start = row[4];
+      const end = row[5];
+      const branch = row[6];
+      const hours = row[7];
+      const status = row[8];
+      return `
+      <div class="result-card ${isDuplicate ? 'result-card--duplicate' : ''}">
+        ${duplicateBadge}
+        <div class="result-row"><span class="result-label">員工編號</span><span class="result-value">${empNo || '—'}</span></div>
+        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
+        <div class="result-row"><span class="result-label">員工帳號</span><span class="result-value">${empAccount || '—'}</span></div>
+        <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${date || '—'}</span></div>
+        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
+        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
+        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
+        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${hours || '—'}</span></div>
+        <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${status || '—'}</span></div>
+      </div>
+    `;
+    }
     const name = row[0];
     const date = row[1];
     const start = row[2];
@@ -461,7 +512,6 @@ function renderResults(result) {
     const hours = row[4];
     const shift = row[5];
     const branch = row[6];
-    const duplicateBadge = isDuplicate ? '<span class="result-card-duplicate" title="此筆為重複，已略過寫入">重複</span>' : '';
     return `
       <div class="result-card ${isDuplicate ? 'result-card--duplicate' : ''}">
         ${duplicateBadge}
