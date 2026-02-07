@@ -21,7 +21,7 @@ const CONFIG = {
   
   // Google Sheets 目標
   TARGET_GOOGLE_SHEET_NAME: 'SalarySystemTest',
-  TARGET_GOOGLE_SHEET_TAB: '國安班表'
+  TARGET_GOOGLE_SHEET_TAB: '班表'
 };
 
 CONFIG.GAS_URL = CONFIG.GAS_URL_TEST;

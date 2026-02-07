@@ -18,9 +18,14 @@ function doGet(e) {
         const jobId = e.parameter.jobId;
         return getJobStatus(jobId);
       
+      case 'getBranches': {
+        const result = readBranchNames();
+        return createJsonResponse(result);
+      }
+      
       case 'loadSchedule': {
         const config = getConfig();
-        const sheetName = config.SHEET_NAMES.SCHEDULE || '國安班表';
+        const sheetName = config.SHEET_NAMES.SCHEDULE || '班表';
         const yearMonth = e.parameter.yearMonth || '';
         const dateParam = e.parameter.date || '';
         const namesParam = e.parameter.names || '';
@@ -97,12 +102,19 @@ function handleUpload(requestData) {
     const fileName = requestData.fileName;
     const fileData = requestData.fileData;
     const targetSheetName = requestData.targetSheetName || '11501';
-    const targetGoogleSheetTab = requestData.targetGoogleSheetTab || '國安班表';
+    const targetGoogleSheetTab = requestData.targetGoogleSheetTab || '班表';
+    const branchName = requestData.branchName ? String(requestData.branchName).trim() : '';
+
+    // 班表上傳時分店必選
+    if (uploadType === 'schedule' && !branchName) {
+      return createJsonResponse({ success: false, error: '請選擇分店' });
+    }
 
     logOperation('開始處理上傳: ' + fileName, {
       fileName: fileName,
       targetSheetName: targetSheetName,
-      targetGoogleSheetTab: targetGoogleSheetTab
+      targetGoogleSheetTab: targetGoogleSheetTab,
+      branchName: branchName
     });
     
     // 驗證必要參數
@@ -134,12 +146,13 @@ function handleUpload(requestData) {
       logWarning(`資料警告`, { warnings: validation.warnings });
     }
     
-    // 準備轉換後的資料（parseResult.data 已經是解析好的格式）
+    // 準備轉換後的資料（parseResult.data 已經是解析好的格式，每列加 分店）
     logDebug('準備寫入資料');
-    const transformedData = [
-      ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別'],
-      ...parseResult.data
-    ];
+    const headerRow = ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店'];
+    const dataWithBranch = parseResult.data.map(function(row) {
+      return row.concat([branchName]);
+    });
+    const transformedData = [headerRow].concat(dataWithBranch);
     logDebug(`共 ${parseResult.data.length} 列資料`);
     
     // 寫入 Google Sheets（附加模式）
@@ -180,7 +193,7 @@ function handleUpload(requestData) {
     return createJsonResponse({
       success: true,
       message: '檔案已成功上傳並處理',
-      columns: ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別'],
+      columns: ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店'],
       records: records,
       details: {
         fileName: fileName,

@@ -159,7 +159,7 @@ function appendToSheet(data, targetSheetName) {
         const lastRow = sheet.getLastRow();
         const lastCol = sheet.getLastColumn();
         if (lastRow >= 2 && lastCol > 0) {
-          const colCountForKey = Math.min(6, lastCol);
+          const colCountForKey = Math.min(7, lastCol);
           const existingData = sheet.getRange(2, 1, lastRow - 1, colCountForKey).getValues();
           existingData.forEach(row => {
             const key = buildDedupKey(row);
@@ -260,8 +260,8 @@ function appendToSheet(data, targetSheetName) {
 }
 
 /**
- * 生成去重 Key：員工姓名 + 排班日期 + 上班時間 + 下班時間 + 班別
- * @param {Array} row - 單列資料
+ * 生成去重 Key：員工姓名 + 排班日期 + 上班時間 + 下班時間 + 班別 + 分店
+ * @param {Array} row - 單列資料（7 欄時含分店）
  * @return {string} 去重 Key
  */
 function buildDedupKey(row) {
@@ -270,7 +270,8 @@ function buildDedupKey(row) {
   const start = normalizeTimeValue(row[2]);
   const end = normalizeTimeValue(row[3]);
   const shift = row[5] ? row[5].toString().trim().toUpperCase() : '';
-  return [name, date, start, end, shift].join('|');
+  const branch = (row[6] !== undefined && row[6] !== null) ? String(row[6]).trim() : '';
+  return [name, date, start, end, shift, branch].join('|');
 }
 
 /**
@@ -336,7 +337,7 @@ function readScheduleByYearMonth(sheetName, yearMonth, date, names) {
       return { success: false, error: '請提供 yearMonth（YYYYMM）或 date（YYYY-MM-DD）' };
     }
 
-    const allData = readFromSheet(sheetName || '國安班表');
+    const allData = readFromSheet(sheetName || '班表');
     if (allData.length < 2) {
       return {
         success: true,
@@ -423,6 +424,38 @@ function readScheduleByYearMonth(sheetName, yearMonth, date, names) {
       yearMonth: yearMonth,
       error: error.toString()
     });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 讀取分店清單（從「分店」工作表，欄位：代碼、名稱、啟用狀態、排序）
+ * @return {Object} { success, names: [...] } 或 { success: false, error }
+ */
+function readBranchNames() {
+  try {
+    const config = getConfig();
+    const sheetName = config.SHEET_NAMES.BRANCH || '分店';
+    const allData = readFromSheet(sheetName);
+    if (!allData || allData.length < 2) {
+      return { success: true, names: [] };
+    }
+    // 結構：A=代碼, B=名稱, C=啟用狀態, D=排序
+    const dataRows = allData.slice(1);
+    const result = [];
+    dataRows.forEach(function(row) {
+      const name = row[1] ? String(row[1]).trim() : '';
+      const enabled = row[2] ? String(row[2]).trim() : '';
+      const sortOrder = row[3] !== undefined && row[3] !== null ? (typeof row[3] === 'number' ? row[3] : parseInt(row[3], 10) || 0) : 0;
+      if (name && (enabled === '是' || enabled === 'Y' || enabled === '1' || enabled === '')) {
+        result.push({ name: name, sortOrder: isNaN(sortOrder) ? 0 : sortOrder });
+      }
+    });
+    result.sort(function(a, b) { return a.sortOrder - b.sortOrder; });
+    const names = result.map(function(r) { return r.name; });
+    return { success: true, names: names };
+  } catch (error) {
+    logError('讀取分店清單失敗: ' + error.message, { error: error.toString() });
     return { success: false, error: error.message };
   }
 }

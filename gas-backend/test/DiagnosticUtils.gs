@@ -90,7 +90,7 @@ function diagnoseUploadFlow() {
  */
 function checkSheetData(sheetName) {
   if (!sheetName) {
-    sheetName = '國安班表'; // 預設檢查國安班表
+    sheetName = '班表'; // 預設檢查班表
   }
   
   Logger.log(`========== 檢查工作表: ${sheetName} ==========`);

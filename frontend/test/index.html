@@ -928,6 +928,13 @@
                 <label class="upload-type-radio"><input type="radio" name="uploadType" value="attendance"> 打卡</label>
             </div>
         </div>
+        <div class="input-group branch-group" id="branchGroup">
+            <label for="branchSelect">🏪 分店</label>
+            <select id="branchSelect" class="schedule-select">
+                <option value="">請選擇分店</option>
+            </select>
+            <span class="hint">班表上傳時必選，來源為「分店」工作表</span>
+        </div>
         <div class="input-group">
             <label for="sheetName">📋 Excel 工作表名稱</label>
             <input 
@@ -959,7 +966,7 @@
                 <li><strong>查詢：</strong>選擇年月（或輸入 202601）或單日，可多選人員篩選</li>
                 <li><strong>上傳：</strong>支援格式 .xlsx、.xls，檔案大小限制 10MB</li>
                 <li>系統會自動解析 Excel 中的工作表</li>
-                <li>資料將儲存至 Google Sheets「國安班表」</li>
+                <li>資料將儲存至 Google Sheets「班表」</li>
                 <li><strong>⚠️ 上傳後請手動檢查 Google Sheets 確認是否成功</strong></li>
                 <li>🔧 <a href="test-connection.html" style="color: #667eea; text-decoration: none; font-weight: bold;">測試 GAS 連線</a></li>
             </ul>

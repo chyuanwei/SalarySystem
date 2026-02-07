@@ -16,7 +16,8 @@ function getConfig() {
     
     // 工作表名稱對應
     SHEET_NAMES: {
-      SCHEDULE: '國安班表',      // 班表資料
+      SCHEDULE: '班表',          // 班表資料
+      BRANCH: '分店',            // 分店清單（代碼、名稱、啟用狀態、排序）
       ATTENDANCE: '打卡紀錄',    // 打卡紀錄
       CALCULATION: '計算結果',   // 計算結果
       ADJUSTMENTS: '調整記錄',   // 調整記錄

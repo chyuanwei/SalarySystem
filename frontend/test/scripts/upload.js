@@ -31,6 +31,8 @@ const scheduleList = document.getElementById('scheduleList');
 const personCheckboxGroup = document.getElementById('personCheckboxGroup');
 const selectAllPersonsBtn = document.getElementById('selectAllPersonsBtn');
 const clearAllPersonsBtn = document.getElementById('clearAllPersonsBtn');
+const branchSelect = document.getElementById('branchSelect');
+const branchGroup = document.getElementById('branchGroup');
 
 // 初始化年月選擇器
 function initScheduleSelectors() {
@@ -63,17 +65,19 @@ uploadSection.addEventListener('drop', handleDrop);
 // 提交按鈕事件
 submitBtn.addEventListener('click', handleSubmit);
 
-// 上傳類型切換（更新工作表名稱說明）
+// 上傳類型切換（更新工作表名稱說明、分店區塊顯示）
 document.querySelectorAll('input[name="uploadType"]').forEach(function(radio) {
   radio.addEventListener('change', function() {
+    const isSchedule = this.value === 'schedule';
     if (sheetNameHint) {
-      sheetNameHint.textContent = this.value === 'schedule'
+      sheetNameHint.textContent = isSchedule
         ? '請輸入要處理的 Excel 工作表名稱（例如：11501、11502）'
         : '請輸入要處理的 Excel 工作表名稱（例如：打卡紀錄、Sheet1）';
     }
     if (sheetNameInput && !sheetNameInput.value) {
-      sheetNameInput.placeholder = this.value === 'schedule' ? '例如：11501' : '例如：打卡紀錄';
+      sheetNameInput.placeholder = isSchedule ? '例如：11501' : '例如：打卡紀錄';
     }
+    if (branchGroup) branchGroup.style.display = isSchedule ? 'block' : 'none';
   });
 });
 
@@ -94,7 +98,36 @@ if (clearAllPersonsBtn) clearAllPersonsBtn.addEventListener('click', clearAllPer
 document.addEventListener('DOMContentLoaded', function() {
   if (yearSelect && monthSelect) initScheduleSelectors();
   toggleDateFilterMode();
+  loadBranches();
+  // 初始顯示分店區塊（班表為預設）
+  if (branchGroup) {
+    const mode = document.querySelector('input[name="uploadType"]:checked');
+    branchGroup.style.display = mode && mode.value === 'schedule' ? 'block' : 'none';
+  }
 });
+
+/**
+ * 載入分店清單（從 GAS getBranches API）
+ */
+async function loadBranches() {
+  if (!branchSelect) return;
+  try {
+    const response = await fetch(CONFIG.GAS_URL + '?action=getBranches', { method: 'GET', mode: 'cors' });
+    const result = await response.json();
+    branchSelect.innerHTML = '<option value="">請選擇分店</option>';
+    if (result && result.success && Array.isArray(result.names) && result.names.length > 0) {
+      result.names.forEach(function(name) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        branchSelect.appendChild(opt);
+      });
+    }
+  } catch (error) {
+    console.error('載入分店清單失敗:', error);
+    branchSelect.innerHTML = '<option value="">載入失敗，請重整頁面</option>';
+  }
+}
 
 /**
  * 處理檔案選擇
@@ -213,6 +246,16 @@ async function handleSubmit() {
     return;
   }
   
+  // 班表上傳時驗證分店必選
+  const uploadType = document.querySelector('input[name="uploadType"]:checked');
+  if (uploadType && uploadType.value === 'schedule') {
+    const branchName = branchSelect ? branchSelect.value.trim() : '';
+    if (!branchName) {
+      showAlert('error', '請選擇分店');
+      return;
+    }
+  }
+
   // 取得並驗證工作表名稱
   const sheetName = sheetNameInput.value.trim();
   if (!sheetName) {
@@ -248,6 +291,7 @@ async function handleSubmit() {
     // 準備上傳資料
     updateProgress(40, '正在上傳到伺服器...');
     const uploadType = document.querySelector('input[name="uploadType"]:checked');
+    const branchName = branchSelect ? branchSelect.value.trim() : '';
     const payload = {
       action: 'upload',
       uploadType: uploadType ? uploadType.value : 'schedule',
@@ -255,7 +299,8 @@ async function handleSubmit() {
       fileData: base64Data,
       targetSheetName: sheetName,
       targetGoogleSheetName: CONFIG.TARGET_GOOGLE_SHEET_NAME,
-      targetGoogleSheetTab: uploadType && uploadType.value === 'attendance' ? '打卡紀錄' : CONFIG.TARGET_GOOGLE_SHEET_TAB
+      targetGoogleSheetTab: uploadType && uploadType.value === 'attendance' ? '打卡紀錄' : CONFIG.TARGET_GOOGLE_SHEET_TAB,
+      branchName: uploadType && uploadType.value === 'schedule' ? branchName : ''
     };
     
     // 發送到 GAS（改用可讀取回應）
@@ -394,14 +439,13 @@ function renderResults(result) {
   });
 
   resultList.innerHTML = recordList.map(({ row, isDuplicate }) => {
-    const [
-      name,
-      date,
-      start,
-      end,
-      hours,
-      shift
-    ] = row;
+    const name = row[0];
+    const date = row[1];
+    const start = row[2];
+    const end = row[3];
+    const hours = row[4];
+    const shift = row[5];
+    const branch = row[6];
     const duplicateBadge = isDuplicate ? '<span class="result-card-duplicate" title="此筆為重複，已略過寫入">重複</span>' : '';
     return `
       <div class="result-card ${isDuplicate ? 'result-card--duplicate' : ''}">
@@ -409,6 +453,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
         <div class="result-row"><span class="result-label">日期</span><span class="result-value">${date || '—'}</span></div>
         <div class="result-row"><span class="result-label">班別</span><span class="result-value">${shift || '—'}</span></div>
+        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
         <div class="result-row"><span class="result-label">時數</span><span class="result-value">${hours || '—'}</span></div>
@@ -553,12 +598,19 @@ function renderScheduleResults(result) {
   }
 
   scheduleList.innerHTML = records.map(row => {
-    const [name, date, start, end, hours, shift] = row;
+    const name = row[0];
+    const date = row[1];
+    const start = row[2];
+    const end = row[3];
+    const hours = row[4];
+    const shift = row[5];
+    const branch = row[6];
     return `
       <div class="result-card">
         <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
         <div class="result-row"><span class="result-label">日期</span><span class="result-value">${date || '—'}</span></div>
         <div class="result-row"><span class="result-label">班別</span><span class="result-value">${shift || '—'}</span></div>
+        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
         <div class="result-row"><span class="result-label">時數</span><span class="result-value">${hours || '—'}</span></div>

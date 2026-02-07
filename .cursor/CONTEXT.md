@@ -11,7 +11,7 @@
 處理泉威國安班表，自動解析代碼式排班資料（A, B, O 等班別代碼），轉換為標準化排班記錄，並儲存至 Google Sheets。另支援查詢現行國安班表資料。
 
 ### 系統架構
-- **前端**：單頁網頁（index.html），含**查詢國安班表**與**上傳**兩大功能。
+- **前端**：入口頁 `index.html` 選擇 test/prod 環境；`frontend/test/`、`frontend/prod/` 各自含**查詢國安班表**與**上傳**功能。
 - **後端**：Google Apps Script (GAS)，負責 Excel 解析、班表/打卡寫入、loadSchedule 查詢 API。
 - **資料儲存**：Google Sheets（國安班表、打卡紀錄、Log、處理記錄）。
 
@@ -47,13 +47,13 @@ SalarySystem/
 ├── frontend/                   # 前端網頁
 │   ├── index.html              # 入口：選擇測試/正式環境
 │   ├── test/                   # 測試環境前端（開發用）
-│   │   ├── index.html          # 查詢國安班表 + 上傳
-│   │   ├── config.js           # ENVIRONMENT: test, GAS_URL_TEST
+│   │   ├── index.html          # 查詢班表 + 上傳（含分店下拉）
+│   │   ├── config.js           # ENVIRONMENT: test, GAS_URL_TEST, TARGET_GOOGLE_SHEET_TAB: 班表
 │   │   ├── test-connection.html
 │   │   └── scripts/upload.js
 │   └── prod/                   # 正式環境前端（deploy-prod 同步）
 │       ├── index.html
-│       ├── config.js           # ENVIRONMENT: production, GAS_URL_PROD
+│       ├── config.js           # ENVIRONMENT: production, GAS_URL_PROD, TARGET_GOOGLE_SHEET_TAB: 班表
 │       ├── test-connection.html
 │       └── scripts/upload.js
 │
@@ -175,8 +175,9 @@ A30: "* O 10:00-20:30"   (全日班)
 | 方法 | action / 說明 | 參數 |
 |------|---------------|------|
 | GET | `test` | 連線測試 |
+| GET | `getBranches` | 取得分店清單（來源「分店」sheet） |
 | GET | `loadSchedule` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)，AND 篩選 |
-| POST | `upload` | `uploadType`(schedule/attendance)、`fileName`、`fileData`(base64)、`targetSheetName`、`targetGoogleSheetTab` |
+| POST | `upload` | `uploadType`(schedule/attendance)、`fileName`、`fileData`(base64)、`targetSheetName`、`targetGoogleSheetTab`、`branchName`(班表必填) |
 | POST | `calculate` | 薪資計算（尚未實作） |
 
 ---
@@ -187,7 +188,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 工作表名稱 | 說明 | 主要欄位 |
 |------------|------|----------|
-| **國安班表** | 上傳的班表解析結果、loadSchedule 查詢來源 | 員工姓名、排班日期、上班時間、下班時間、工作時數、班別 |
+| **班表** | 上傳的班表解析結果、loadSchedule 查詢來源 | 員工姓名、排班日期、上班時間、下班時間、工作時數、班別、分店 |
 | **打卡紀錄** | 上傳的打卡 Excel（待實作） | 員工編號、日期、上班打卡、下班打卡 |
 | **Log** | 系統 Log | 時間、等級、訊息、環境、詳細資訊 |
 | **處理記錄** | 上傳處理記錄 | 時間、檔案名稱、來源/目標工作表、筆數、狀態、訊息 |
@@ -410,8 +411,9 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ 測試指南文件（HOW_TO_TEST.md）
 
 ### 12.9 測試與正式環境
-- ✅ 完整的環境分離
-- ✅ 獨立的 GAS Script ID
+- ✅ 完整的環境分離（GAS + 前端）
+- ✅ 獨立的 GAS Script ID（gas-backend/test/、gas-backend/prod/）
+- ✅ 前端 test/prod 分離（frontend/test/、frontend/prod/，入口頁選擇環境）
 - ✅ 獨立的 Google Sheets
 
 ---
@@ -496,6 +498,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-06 | v0.6.19 | 測試 | 班表新增欄位 G「分店」；工作表改名為「班表」；上傳畫面分店下拉（來源「分店」sheet）；getBranches API；buildDedupKey 含分店。 | AI |
 | 2026-02-06 | v0.6.18 | 測試 | 前端 test/prod 分離：入口 index.html、frontend/test/、frontend/prod/；開發僅改 test，deploy-prod 同步至 prod。 | AI |
 | 2026-02-06 | v0.6.17 | 正式 | 從 test 同步至 prod：loadSchedule、uploadType、allRecordsWithFlag；Code/Config 設為正式環境。 | AI |
 | 2026-02-06 | v0.6.17 | 測試 | 修正工作表名稱為空時未捲動至錯誤；查詢國安班表區塊 UX 重新排版。 | User |
@@ -686,4 +689,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-06（v0.6.18 前端 test/prod 分離）*
+*最後更新：2026-02-06（v0.6.19 班表分店欄位）*
