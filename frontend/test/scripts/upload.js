@@ -144,8 +144,35 @@ if (alertModal) {
   });
 }
 
+// Tab 切換：一次只顯示一個功能區塊
+function initTabNav() {
+  var nav = document.querySelector('.tab-nav');
+  if (!nav) return;
+  nav.addEventListener('click', function(e) {
+    var btn = e.target && e.target.closest && e.target.closest('.tab-nav-btn');
+    if (!btn || btn.classList.contains('active')) return;
+    var tabId = btn.getAttribute('data-tab');
+    var paneId = 'tab-pane-' + tabId;
+    var pane = document.getElementById(paneId);
+    if (!pane) return;
+    document.querySelectorAll('.tab-nav-btn').forEach(function(b) {
+      b.classList.remove('active');
+      b.setAttribute('aria-selected', 'false');
+    });
+    document.querySelectorAll('.tab-pane').forEach(function(p) {
+      p.classList.remove('active');
+      p.setAttribute('hidden', '');
+    });
+    btn.classList.add('active');
+    btn.setAttribute('aria-selected', 'true');
+    pane.classList.add('active');
+    pane.removeAttribute('hidden');
+  });
+}
+
 // 頁面載入時初始化
 document.addEventListener('DOMContentLoaded', function() {
+  initTabNav();
   initYearMonthSelects();
   toggleDateFilterMode();
   toggleCompareDateMode();

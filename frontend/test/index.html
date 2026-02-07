@@ -56,6 +56,53 @@
             font-weight: 600;
         }
 
+        .tab-nav {
+            display: flex;
+            gap: 0;
+            margin-bottom: 20px;
+            border-radius: 12px;
+            overflow: hidden;
+            background: #e9ecef;
+            padding: 4px;
+        }
+        .tab-nav-btn {
+            flex: 1;
+            border: none;
+            background: transparent;
+            padding: 12px 8px;
+            font-size: 14px;
+            font-weight: 600;
+            color: #666;
+            cursor: pointer;
+            transition: background 0.2s, color 0.2s;
+            min-height: 44px;
+        }
+        .tab-nav-btn:hover {
+            color: #333;
+        }
+        .tab-nav-btn.active {
+            background: white;
+            color: #667eea;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            border-radius: 8px;
+        }
+        .tab-content {
+            min-height: 200px;
+        }
+        .tab-pane {
+            display: none;
+        }
+        .tab-pane.active {
+            display: block;
+        }
+
+        .salary-section {
+            background: #f8f9fa;
+            border: 1px solid #e6e9ee;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
         .schedule-query-section {
             background: #f8f9fa;
             border: 1px solid #e6e9ee;
@@ -882,11 +929,38 @@
         @media (max-width: 576px) {
             body {
                 padding: 10px;
+                padding-bottom: 72px;
             }
 
             .container {
                 padding: 20px 15px;
                 border-radius: 12px;
+            }
+
+            .tab-nav {
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                margin: 0;
+                border-radius: 0;
+                z-index: 100;
+                padding: 6px 4px 8px;
+                background: #fff;
+                box-shadow: 0 -2px 12px rgba(0,0,0,0.1);
+            }
+            .tab-nav-btn {
+                font-size: 11px;
+                padding: 8px 4px;
+                min-height: 48px;
+                flex-direction: column;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                gap: 2px;
+            }
+            .tab-content {
+                margin-bottom: 0;
             }
 
             h1 {
@@ -1126,6 +1200,15 @@
             </div>
         </div>
 
+        <nav class="tab-nav" role="tablist" aria-label="主功能">
+            <button type="button" class="tab-nav-btn active" role="tab" aria-selected="true" aria-controls="tab-pane-query" id="tab-btn-query" data-tab="query">📅 查詢</button>
+            <button type="button" class="tab-nav-btn" role="tab" aria-selected="false" aria-controls="tab-pane-compare" id="tab-btn-compare" data-tab="compare">🔄 比對</button>
+            <button type="button" class="tab-nav-btn" role="tab" aria-selected="false" aria-controls="tab-pane-upload" id="tab-btn-upload" data-tab="upload">📄 上傳</button>
+            <button type="button" class="tab-nav-btn" role="tab" aria-selected="false" aria-controls="tab-pane-salary" id="tab-btn-salary" data-tab="salary">💰 計算</button>
+        </nav>
+
+        <div class="tab-content">
+        <div id="tab-pane-query" class="tab-pane active" role="tabpanel" aria-labelledby="tab-btn-query">
         <div class="schedule-query-section">
             <div class="schedule-block schedule-block-query-type">
                 <div class="schedule-block-label">查詢類型</div>
@@ -1191,7 +1274,9 @@
                 </div>
             </div>
         </div>
+        </div>
 
+        <div id="tab-pane-compare" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-compare" hidden>
         <div class="compare-section" id="compareSection">
             <h3 class="schedule-query-title">🔄 班表與打卡比對</h3>
             <div class="schedule-block">
@@ -1241,10 +1326,12 @@
                 </div>
                 <div id="compareResultBody" class="result-section-body">
                     <div id="compareList" class="result-list compare-list"></div>
-                </div>
             </div>
         </div>
+        </div>
+        </div>
 
+        <div id="tab-pane-upload" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-upload" hidden>
         <div class="upload-section" id="uploadSection">
             <div class="upload-icon">📄</div>
             <div class="upload-text">
@@ -1303,6 +1390,16 @@
                 <div id="resultSummary" class="result-summary"></div>
                 <div id="resultList" class="result-list"></div>
             </div>
+        </div>
+        </div>
+
+        <div id="tab-pane-salary" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-salary" hidden>
+        <div class="salary-section">
+            <h3 class="schedule-query-title">💰 計算薪資</h3>
+            <p class="person-placeholder" style="padding:20px; text-align:center; color:#666;">計算薪資功能尚未實作，敬請期待。</p>
+        </div>
+        </div>
+
         </div>
 
         <div class="info-section">
