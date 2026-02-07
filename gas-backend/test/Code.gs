@@ -4,7 +4,7 @@
  */
 
 // 部署標記：每次 clasp push 後可更新此版號，Log 工作表會寫入此值，用以確認程式是否成功部署
-var DEPLOY_MARKER_VERSION = 'v0.6.59';
+var DEPLOY_MARKER_VERSION = 'v0.6.60';
 
 /**
  * 處理 GET 請求

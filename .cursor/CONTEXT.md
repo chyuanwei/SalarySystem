@@ -549,6 +549,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.60 | 測試 | 打卡上傳警示：只傳本次上傳的打卡（newRowsForMerge），不再合併舊打卡 | AI |
 | 2026-02-07 | v0.6.59 | 測試 | 組 key 時日期正規化（normalizeDateToDash）；新增「警示對應-日期除錯」log（keysWithBothCount、原始日期型別） | AI |
 | 2026-02-07 | v0.6.58 | 測試 | 警示邏輯：同一 lookupKey 不讓 false 覆寫 true；新增「有班表也有打卡的 key 原因」log（noSchedule/overlap/overtime/noAlert） | AI |
 | 2026-02-07 | v0.6.57 | 測試 | 警示邏輯：同一 lookupKey 不讓 false 覆寫 true；新增「有班表也有打卡的 key 原因」log（noSchedule/overlap/overtime/noAlert） | AI |
