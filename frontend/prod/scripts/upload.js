@@ -177,6 +177,20 @@ function validateAndDisplayFile(file) {
 }
 
 /**
+ * 格式化工作時數為分鐘顯示（後端為小時，7.5 → 450分）
+ */
+function formatMinutes(val) {
+  if (val === undefined || val === null || String(val).trim() === '') return '—';
+  var s = String(val).trim();
+  var m = s.match(/[\d.]+/);
+  if (!m) return s;
+  var num = parseFloat(m[0]);
+  if (isNaN(num)) return s;
+  var minutes = Math.round(num * 60);
+  return minutes + '分';
+}
+
+/**
  * 格式化檔案大小
  */
 function formatFileSize(bytes) {
@@ -411,7 +425,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">班別</span><span class="result-value">${shift || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
-        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${hours || '—'}</span></div>
+        <div class="result-row"><span class="result-label">分鐘</span><span class="result-value">${formatMinutes(hours)}</span></div>
       </div>
     `;
   }).join('');
@@ -561,7 +575,7 @@ function renderScheduleResults(result) {
         <div class="result-row"><span class="result-label">班別</span><span class="result-value">${shift || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
-        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${hours || '—'}</span></div>
+        <div class="result-row"><span class="result-label">分鐘</span><span class="result-value">${formatMinutes(hours)}</span></div>
       </div>
     `;
   }).join('');
