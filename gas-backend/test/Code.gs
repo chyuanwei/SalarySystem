@@ -35,12 +35,33 @@ function doGet(e) {
       case 'loadSchedule': {
         const config = getConfig();
         const sheetName = config.SHEET_NAMES.SCHEDULE || '班表';
-        const yearMonth = e.parameter.yearMonth || '';
-        const dateParam = e.parameter.date || '';
+        const yearMonth = (e.parameter.yearMonth || '').toString().trim() || null;
+        const dateParam = (e.parameter.date || '').toString().trim() || null;
+        const startDate = (e.parameter.startDate || '').toString().trim() || null;
+        const endDate = (e.parameter.endDate || '').toString().trim() || null;
         const namesParam = e.parameter.names || '';
         const names = namesParam ? namesParam.split(',').map(function(n) { return n.trim(); }).filter(Boolean) : [];
         const branchName = (e.parameter.branch || '').toString().trim() || null;
-        const result = readScheduleByYearMonth(sheetName, yearMonth, dateParam, names, branchName);
+        var result;
+        if (startDate && startDate.length === 10) {
+          result = readScheduleByConditions(yearMonth, startDate, endDate, names, branchName);
+          if (!result.success) {
+            return createJsonResponse({ success: false, error: result.error });
+          }
+          var distinctNames = [];
+          var seen = {};
+          (result.records || []).forEach(function(row) {
+            var n = row[0] ? String(row[0]).trim() : '';
+            if (n && !seen[n]) { seen[n] = true; distinctNames.push(n); }
+          });
+          distinctNames.sort();
+          return createJsonResponse({
+            success: true,
+            records: result.records,
+            details: { yearMonth: yearMonth || '', date: '', startDate: startDate, endDate: endDate || startDate, names: distinctNames, branch: branchName || '', rowCount: (result.records || []).length }
+          });
+        }
+        result = readScheduleByYearMonth(sheetName, yearMonth, dateParam, names, branchName);
         if (!result.success) {
           return createJsonResponse({ success: false, error: result.error });
         }
@@ -54,12 +75,33 @@ function doGet(e) {
       case 'loadAttendance': {
         const config = getConfig();
         const sheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
-        const yearMonth = e.parameter.yearMonth || '';
-        const dateParam = e.parameter.date || '';
+        const yearMonth = (e.parameter.yearMonth || '').toString().trim() || null;
+        const dateParam = (e.parameter.date || '').toString().trim() || null;
+        const startDate = (e.parameter.startDate || '').toString().trim() || null;
+        const endDate = (e.parameter.endDate || '').toString().trim() || null;
         const namesParam = e.parameter.names || '';
         const names = namesParam ? namesParam.split(',').map(function(n) { return n.trim(); }).filter(Boolean) : [];
         const branchName = (e.parameter.branch || '').toString().trim() || null;
-        const result = readAttendanceByYearMonth(sheetName, yearMonth, dateParam, names, branchName);
+        var result;
+        if (startDate && startDate.length === 10) {
+          result = readAttendanceByConditions(yearMonth, startDate, endDate, names, branchName);
+          if (!result.success) {
+            return createJsonResponse({ success: false, error: result.error });
+          }
+          var distinctNames = [];
+          var seen = {};
+          (result.records || []).forEach(function(row) {
+            var n = row[3] ? String(row[3]).trim() : '';
+            if (n && !seen[n]) { seen[n] = true; distinctNames.push(n); }
+          });
+          distinctNames.sort();
+          return createJsonResponse({
+            success: true,
+            records: result.records,
+            details: { yearMonth: yearMonth || '', date: '', startDate: startDate, endDate: endDate || startDate, names: distinctNames, branch: branchName || '', rowCount: (result.records || []).length }
+          });
+        }
+        result = readAttendanceByYearMonth(sheetName, yearMonth, dateParam, names, branchName);
         if (!result.success) {
           return createJsonResponse({ success: false, error: result.error });
         }

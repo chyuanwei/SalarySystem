@@ -20,10 +20,9 @@ const alertBox = document.getElementById('alert');
 const resultSection = document.getElementById('resultSection');
 const resultSummary = document.getElementById('resultSummary');
 const resultList = document.getElementById('resultList');
-const yearSelect = document.getElementById('yearSelect');
-const monthSelect = document.getElementById('monthSelect');
-const yearMonthInput = document.getElementById('yearMonthInput');
-const datePicker = document.getElementById('datePicker');
+const queryYearMonthInput = document.getElementById('queryYearMonthInput');
+const queryStartDate = document.getElementById('queryStartDate');
+const queryEndDate = document.getElementById('queryEndDate');
 const loadScheduleBtn = document.getElementById('loadScheduleBtn');
 const scheduleResultSection = document.getElementById('scheduleResultSection');
 const scheduleSummary = document.getElementById('scheduleSummary');
@@ -34,25 +33,6 @@ const clearAllPersonsBtn = document.getElementById('clearAllPersonsBtn');
 const branchSelect = document.getElementById('branchSelect');
 const branchGroup = document.getElementById('branchGroup');
 
-// 初始化年月選擇器
-function initScheduleSelectors() {
-  const now = new Date();
-  const currentYear = now.getFullYear();
-  for (let y = currentYear - 2; y <= currentYear + 2; y++) {
-    const opt = document.createElement('option');
-    opt.value = String(y);
-    opt.textContent = String(y);
-    if (y === currentYear) opt.selected = true;
-    yearSelect.appendChild(opt);
-  }
-  for (let m = 1; m <= 12; m++) {
-    const opt = document.createElement('option');
-    opt.value = String(m).padStart(2, '0');
-    opt.textContent = String(m).padStart(2, '0') + ' 月';
-    if (m === now.getMonth() + 1) opt.selected = true;
-    monthSelect.appendChild(opt);
-  }
-}
 
 // 檔案選擇事件
 fileInput.addEventListener('change', handleFileSelect);
@@ -115,7 +95,9 @@ document.querySelectorAll('input[name="queryType"]').forEach(radio => {
     }
   });
 });
-if (datePicker) datePicker.addEventListener('change', function() {});
+// 查詢區：選擇分店時載入該分店人員
+const queryBranchSelect = document.getElementById('queryBranchSelect');
+if (queryBranchSelect) queryBranchSelect.addEventListener('change', handleQueryBranchChange);
 
 // 人員篩選按鈕
 if (selectAllPersonsBtn) selectAllPersonsBtn.addEventListener('click', selectAllPersons);
@@ -136,7 +118,6 @@ if (compareBranchSelect) compareBranchSelect.addEventListener('change', handleCo
 
 // 頁面載入時初始化
 document.addEventListener('DOMContentLoaded', function() {
-  if (yearSelect && monthSelect) initScheduleSelectors();
   toggleDateFilterMode();
   toggleCompareDateMode();
   loadBranches();
@@ -171,7 +152,7 @@ async function loadBranches() {
       });
     }
     if (queryBranchEl) {
-      queryBranchEl.innerHTML = '<option value="">全部</option>';
+      queryBranchEl.innerHTML = '<option value="">請選擇分店</option>';
       options.forEach(function(name) {
         const opt = document.createElement('option');
         opt.value = name;
@@ -541,7 +522,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">員工編號</span><span class="result-value">${empNo || '—'}</span></div>
         <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
         <div class="result-row"><span class="result-label">員工帳號</span><span class="result-value">${empAccount || '—'}</span></div>
-        <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${date || '—'}</span></div>
+        <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${formatDateWithWeekday(date)}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
@@ -561,7 +542,7 @@ function renderResults(result) {
       <div class="result-card ${isDuplicate ? 'result-card--duplicate' : ''}">
         ${duplicateBadge}
         <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
-        <div class="result-row"><span class="result-label">日期</span><span class="result-value">${date || '—'}</span></div>
+        <div class="result-row"><span class="result-label">日期</span><span class="result-value">${formatDateWithWeekday(date)}</span></div>
         <div class="result-row"><span class="result-label">班別</span><span class="result-value">${shift || '—'}</span></div>
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
@@ -587,13 +568,67 @@ function toggleDateFilterMode() {
   const mode = document.querySelector('input[name="dateFilterMode"]:checked');
   const isMonth = mode && mode.value === 'month';
   const dateMonthGroup = document.getElementById('dateMonthGroup');
-  const dateDayGroup = document.getElementById('dateDayGroup');
-  if (yearSelect) yearSelect.disabled = !isMonth;
-  if (monthSelect) monthSelect.disabled = !isMonth;
-  if (yearMonthInput) yearMonthInput.disabled = !isMonth;
-  if (datePicker) datePicker.disabled = isMonth;
+  const dateRangeGroup = document.getElementById('dateRangeGroup');
+  if (queryYearMonthInput) queryYearMonthInput.disabled = !isMonth;
+  if (queryStartDate) queryStartDate.disabled = isMonth;
+  if (queryEndDate) queryEndDate.disabled = isMonth;
   if (dateMonthGroup) dateMonthGroup.classList.toggle('hidden', !isMonth);
-  if (dateDayGroup) dateDayGroup.classList.toggle('hidden', isMonth);
+  if (dateRangeGroup) dateRangeGroup.classList.toggle('hidden', isMonth);
+}
+
+/**
+ * 載入查詢區該分店人員（getPersonnelByBranch）
+ */
+async function loadQueryPersonnel(branchVal) {
+  if (!personCheckboxGroup) return;
+  if (!branchVal || !branchVal.trim()) {
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">請先選擇分店</span>';
+    if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
+    if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
+    return;
+  }
+  personCheckboxGroup.innerHTML = '<span class="person-placeholder">載入中...</span>';
+  if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
+  if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
+  try {
+    const url = CONFIG.GAS_URL + '?action=getPersonnelByBranch&branch=' + encodeURIComponent(branchVal);
+    const response = await fetch(url, { method: 'GET', mode: 'cors' });
+    const result = await response.json();
+    const names = (result.success && Array.isArray(result.names)) ? result.names : [];
+    renderQueryPersonCheckboxes(names, {});
+  } catch (error) {
+    console.error('載入分店人員失敗:', error);
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">載入失敗，請重整頁面</span>';
+  }
+}
+
+function renderQueryPersonCheckboxes(names, opts) {
+  if (!personCheckboxGroup) return;
+  const checkedSet = {};
+  if (opts && Array.isArray(opts.checked)) opts.checked.forEach(function(n) { checkedSet[n] = true; });
+  personCheckboxGroup.innerHTML = '';
+  if (names.length > 0) {
+    names.forEach(function(n) {
+      const label = document.createElement('label');
+      const cb = document.createElement('input');
+      cb.type = 'checkbox';
+      cb.value = n;
+      if (checkedSet[n]) cb.checked = true;
+      label.appendChild(cb);
+      label.appendChild(document.createTextNode(n));
+      personCheckboxGroup.appendChild(label);
+    });
+    if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = false;
+    if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = false;
+  } else {
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">此分店無人員資料</span>';
+  }
+}
+
+function handleQueryBranchChange() {
+  const qb = document.getElementById('queryBranchSelect');
+  const branchVal = qb && qb.value ? qb.value.trim() : '';
+  loadQueryPersonnel(branchVal);
 }
 
 function toggleCompareDateMode() {
@@ -643,25 +678,37 @@ async function handleLoadQuery() {
 }
 
 /**
- * 載入班表（依年月/日期、分店、人員篩選，AND 關係）
+ * 載入班表（依月份/日期區間、分店必選、人員篩選，與比對區一致）
  */
 async function handleLoadSchedule() {
   const mode = document.querySelector('input[name="dateFilterMode"]:checked');
+  const isMonth = mode && mode.value === 'month';
   let yearMonth = '';
-  let dateParam = '';
+  let startDate = '';
+  let endDate = '';
 
-  if (mode && mode.value === 'day' && datePicker && datePicker.value) {
-    dateParam = datePicker.value;
+  if (isMonth) {
+    const ym = queryYearMonthInput && queryYearMonthInput.value.trim().match(/^\d{6}$/)
+      ? queryYearMonthInput.value.trim()
+      : '';
+    if (!ym) {
+      showAlert('error', '請輸入年月（例如 202601）');
+      return;
+    }
+    yearMonth = ym;
   } else {
-    if (yearMonthInput && yearMonthInput.value.trim().match(/^\d{6}$/)) {
-      yearMonth = yearMonthInput.value.trim();
-    } else if (yearSelect && monthSelect) {
-      yearMonth = yearSelect.value + monthSelect.value;
+    startDate = queryStartDate && queryStartDate.value ? queryStartDate.value.trim() : '';
+    endDate = queryEndDate && queryEndDate.value ? queryEndDate.value.trim() : startDate;
+    if (!startDate || startDate.length !== 10) {
+      showAlert('error', '請選擇日期區間（開始日期）');
+      return;
     }
   }
 
-  if (!yearMonth && !dateParam) {
-    showAlert('error', '請選擇整月（年月）或單日');
+  const queryBranchEl = document.getElementById('queryBranchSelect');
+  const branchVal = queryBranchEl && queryBranchEl.value ? queryBranchEl.value.trim() : '';
+  if (!branchVal) {
+    showAlert('error', '請選擇分店');
     return;
   }
 
@@ -671,12 +718,10 @@ async function handleLoadSchedule() {
   scheduleResultSection.classList.remove('show');
 
   const names = getSelectedPersonNames();
-  const queryBranchEl = document.getElementById('queryBranchSelect');
-  const branchVal = queryBranchEl && queryBranchEl.value ? queryBranchEl.value.trim() : '';
-  let url = `${CONFIG.GAS_URL}?action=loadSchedule`;
+  let url = `${CONFIG.GAS_URL}?action=loadSchedule&branch=${encodeURIComponent(branchVal)}`;
   if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
-  if (dateParam) url += `&date=${encodeURIComponent(dateParam)}`;
-  if (branchVal) url += `&branch=${encodeURIComponent(branchVal)}`;
+  if (startDate) url += `&startDate=${encodeURIComponent(startDate)}`;
+  if (endDate) url += `&endDate=${encodeURIComponent(endDate)}`;
   if (names.length > 0) url += `&names=${encodeURIComponent(names.join(','))}`;
 
   try {
@@ -688,6 +733,7 @@ async function handleLoadSchedule() {
     }
 
     renderScheduleResults(result);
+    mergeQueryPersonFromDetails(result.details);
     scheduleResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
   } catch (error) {
     showAlert('error', '載入班表失敗：' + error.message);
@@ -698,25 +744,37 @@ async function handleLoadSchedule() {
 }
 
 /**
- * 載入打卡（依年月/日期、分店、人員篩選，AND 關係）
+ * 載入打卡（依月份/日期區間、分店必選、人員篩選，與比對區一致）
  */
 async function handleLoadAttendance() {
   const mode = document.querySelector('input[name="dateFilterMode"]:checked');
+  const isMonth = mode && mode.value === 'month';
   let yearMonth = '';
-  let dateParam = '';
+  let startDate = '';
+  let endDate = '';
 
-  if (mode && mode.value === 'day' && datePicker && datePicker.value) {
-    dateParam = datePicker.value;
+  if (isMonth) {
+    const ym = queryYearMonthInput && queryYearMonthInput.value.trim().match(/^\d{6}$/)
+      ? queryYearMonthInput.value.trim()
+      : '';
+    if (!ym) {
+      showAlert('error', '請輸入年月（例如 202601）');
+      return;
+    }
+    yearMonth = ym;
   } else {
-    if (yearMonthInput && yearMonthInput.value.trim().match(/^\d{6}$/)) {
-      yearMonth = yearMonthInput.value.trim();
-    } else if (yearSelect && monthSelect) {
-      yearMonth = yearSelect.value + monthSelect.value;
+    startDate = queryStartDate && queryStartDate.value ? queryStartDate.value.trim() : '';
+    endDate = queryEndDate && queryEndDate.value ? queryEndDate.value.trim() : startDate;
+    if (!startDate || startDate.length !== 10) {
+      showAlert('error', '請選擇日期區間（開始日期）');
+      return;
     }
   }
 
-  if (!yearMonth && !dateParam) {
-    showAlert('error', '請選擇整月（年月）或單日');
+  const queryBranchEl = document.getElementById('queryBranchSelect');
+  const branchVal = queryBranchEl && queryBranchEl.value ? queryBranchEl.value.trim() : '';
+  if (!branchVal) {
+    showAlert('error', '請選擇分店');
     return;
   }
 
@@ -726,12 +784,10 @@ async function handleLoadAttendance() {
   scheduleResultSection.classList.remove('show');
 
   const names = getSelectedPersonNames();
-  const queryBranchEl = document.getElementById('queryBranchSelect');
-  const branchVal = queryBranchEl && queryBranchEl.value ? queryBranchEl.value.trim() : '';
-  let url = `${CONFIG.GAS_URL}?action=loadAttendance`;
+  let url = `${CONFIG.GAS_URL}?action=loadAttendance&branch=${encodeURIComponent(branchVal)}`;
   if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
-  if (dateParam) url += `&date=${encodeURIComponent(dateParam)}`;
-  if (branchVal) url += `&branch=${encodeURIComponent(branchVal)}`;
+  if (startDate) url += `&startDate=${encodeURIComponent(startDate)}`;
+  if (endDate) url += `&endDate=${encodeURIComponent(endDate)}`;
   if (names.length > 0) url += `&names=${encodeURIComponent(names.join(','))}`;
 
   try {
@@ -743,6 +799,7 @@ async function handleLoadAttendance() {
     }
 
     renderAttendanceResults(result);
+    mergeQueryPersonFromDetails(result.details);
     scheduleResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
   } catch (error) {
     showAlert('error', '載入打卡失敗：' + error.message);
@@ -753,18 +810,37 @@ async function handleLoadAttendance() {
 }
 
 /**
+ * 從查詢結果 details.names 合併到查詢區人員複選框（與比對區一致）
+ */
+function mergeQueryPersonFromDetails(details) {
+  if (!details || !Array.isArray(details.names) || !personCheckboxGroup) return;
+  const existingNames = {};
+  personCheckboxGroup.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+    if (cb.value) existingNames[cb.value] = true;
+  });
+  details.names.forEach(function(n) { existingNames[n] = true; });
+  const names = Object.keys(existingNames).sort();
+  const checkedNames = [];
+  personCheckboxGroup.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
+    if (cb.value) checkedNames.push(cb.value);
+  });
+  renderQueryPersonCheckboxes(names, { checked: checkedNames });
+}
+
+/**
  * 顯示班表查詢結果
  */
 function renderScheduleResults(result) {
   const details = result.details || {};
   const records = Array.isArray(result.records) ? result.records : [];
-  const names = Array.isArray(details.names) ? details.names : [];
-
-  const branchLabel = details.branch ? details.branch : '全部';
+  const branchLabel = details.branch ? details.branch : '—';
+  const dateRangeLabel = details.startDate
+    ? (details.startDate.replace(/-/g, '/') + (details.endDate && details.endDate !== details.startDate ? ' ~ ' + details.endDate.replace(/-/g, '/') : ''))
+    : (details.date ? details.date.replace(/-/g, '/') : (details.yearMonth ? details.yearMonth.substring(0,4) + '/' + details.yearMonth.substring(4,6) : '—'));
   scheduleSummary.innerHTML = `
     <div class="summary-item">
       <div class="summary-label">日期範圍</div>
-      <div class="summary-value">${details.date ? details.date.replace(/-/g, '/') : (details.yearMonth ? details.yearMonth.substring(0,4) + '/' + details.yearMonth.substring(4,6) : '—')}</div>
+      <div class="summary-value">${dateRangeLabel}</div>
     </div>
     <div class="summary-item">
       <div class="summary-label">分店</div>
@@ -776,27 +852,6 @@ function renderScheduleResults(result) {
     </div>
   `;
 
-  if (personCheckboxGroup) {
-    personCheckboxGroup.innerHTML = '';
-    if (names.length > 0) {
-      names.forEach(n => {
-        const label = document.createElement('label');
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.value = n;
-        label.appendChild(cb);
-        label.appendChild(document.createTextNode(n));
-        personCheckboxGroup.appendChild(label);
-      });
-      if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = false;
-      if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = false;
-    } else {
-      personCheckboxGroup.innerHTML = '<span class="person-placeholder">此範圍無人員資料</span>';
-      if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
-      if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
-    }
-  }
-
   scheduleList.innerHTML = records.map(row => {
     const name = row[0];
     const date = row[1];
@@ -807,12 +862,12 @@ function renderScheduleResults(result) {
     const branch = row[6];
     return `
       <div class="result-card">
-        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
-        <div class="result-row"><span class="result-label">日期</span><span class="result-value">${date || '—'}</span></div>
-        <div class="result-row"><span class="result-label">班別</span><span class="result-value">${shift || '—'}</span></div>
-        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
-        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
-        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
+        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${escapeHtml(name || '—')}</span></div>
+        <div class="result-row"><span class="result-label">日期</span><span class="result-value">${formatDateWithWeekday(date)}</span></div>
+        <div class="result-row"><span class="result-label">班別</span><span class="result-value">${escapeHtml(shift || '—')}</span></div>
+        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${escapeHtml(branch || '—')}</span></div>
+        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${escapeHtml(start || '—')}</span></div>
+        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${escapeHtml(end || '—')}</span></div>
         <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatHours(hours)}</span></div>
       </div>
     `;
@@ -827,13 +882,14 @@ function renderScheduleResults(result) {
 function renderAttendanceResults(result) {
   const details = result.details || {};
   const records = Array.isArray(result.records) ? result.records : [];
-  const names = Array.isArray(details.names) ? details.names : [];
-
-  const branchLabel = details.branch ? details.branch : '全部';
+  const branchLabel = details.branch ? details.branch : '—';
+  const dateRangeLabel = details.startDate
+    ? (details.startDate.replace(/-/g, '/') + (details.endDate && details.endDate !== details.startDate ? ' ~ ' + details.endDate.replace(/-/g, '/') : ''))
+    : (details.date ? details.date.replace(/-/g, '/') : (details.yearMonth ? details.yearMonth.substring(0,4) + '/' + details.yearMonth.substring(4,6) : '—'));
   scheduleSummary.innerHTML = `
     <div class="summary-item">
       <div class="summary-label">日期範圍</div>
-      <div class="summary-value">${details.date ? details.date.replace(/-/g, '/') : (details.yearMonth ? details.yearMonth.substring(0,4) + '/' + details.yearMonth.substring(4,6) : '—')}</div>
+      <div class="summary-value">${dateRangeLabel}</div>
     </div>
     <div class="summary-item">
       <div class="summary-label">分店</div>
@@ -844,27 +900,6 @@ function renderAttendanceResults(result) {
       <div class="summary-value">${details.rowCount ?? records.length ?? 0}</div>
     </div>
   `;
-
-  if (personCheckboxGroup) {
-    personCheckboxGroup.innerHTML = '';
-    if (names.length > 0) {
-      names.forEach(n => {
-        const label = document.createElement('label');
-        const cb = document.createElement('input');
-        cb.type = 'checkbox';
-        cb.value = n;
-        label.appendChild(cb);
-        label.appendChild(document.createTextNode(n));
-        personCheckboxGroup.appendChild(label);
-      });
-      if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = false;
-      if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = false;
-    } else {
-      personCheckboxGroup.innerHTML = '<span class="person-placeholder">此範圍無人員資料</span>';
-      if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
-      if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
-    }
-  }
 
   scheduleList.innerHTML = records.map(row => {
     const branch = row[0];
@@ -878,15 +913,15 @@ function renderAttendanceResults(result) {
     const status = row[8];
     return `
       <div class="result-card">
-        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
-        <div class="result-row"><span class="result-label">員工編號</span><span class="result-value">${empNo || '—'}</span></div>
-        <div class="result-row"><span class="result-label">員工帳號</span><span class="result-value">${empAccount || '—'}</span></div>
-        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
-        <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${date || '—'}</span></div>
-        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
-        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
+        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${escapeHtml(branch || '—')}</span></div>
+        <div class="result-row"><span class="result-label">員工編號</span><span class="result-value">${escapeHtml(empNo || '—')}</span></div>
+        <div class="result-row"><span class="result-label">員工帳號</span><span class="result-value">${escapeHtml(empAccount || '—')}</span></div>
+        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${escapeHtml(name || '—')}</span></div>
+        <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${formatDateWithWeekday(date)}</span></div>
+        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${escapeHtml(start || '—')}</span></div>
+        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${escapeHtml(end || '—')}</span></div>
         <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatHours(hours)}</span></div>
-        <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${status || '—'}</span></div>
+        <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${escapeHtml(status || '—')}</span></div>
       </div>
     `;
   }).join('');
@@ -1115,7 +1150,7 @@ function renderCompareResults(items) {
     return (
       '<div class="compare-card' + (isCorrected ? ' corrected' : '') + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
         '<div class="compare-card-header">' +
-          escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(date) + '</span>' +
+          escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(formatDateWithWeekday(date)) + '</span>' +
           (branch ? '<div class="compare-card-row-label" style="margin-top:4px">' + escapeHtml(branch) + (empAccount ? ' · ' + escapeHtml(empAccount) : '') + '</div>' : '') +
         '</div>' +
         '<div class="compare-card-block">' +
@@ -1155,6 +1190,32 @@ function normalizeTimeInput(val) {
   var s = val.trim();
   if (/^\d{4}$/.test(s)) return s.substring(0, 2) + ':' + s.substring(2);
   return s;
+}
+
+/**
+ * 日期加上星期幾，格式：YYYY/MM/DD (一) ~ (日)
+ * @param {string} dateStr - YYYY-MM-DD 或 YYYY/MM/DD
+ */
+function formatDateWithWeekday(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return '—';
+  var s = dateStr.trim();
+  if (!s) return '—';
+  var parts = s.split(/[-/]/);
+  if (parts.length < 3) return s;
+  var y = parseInt(parts[0], 10);
+  var m = parseInt(parts[1], 10) - 1;
+  var d = parseInt(parts[2], 10);
+  if (isNaN(y) || isNaN(m) || isNaN(d)) return s;
+  try {
+    var dt = new Date(y, m, d);
+    if (dt.getFullYear() !== y || dt.getMonth() !== m || dt.getDate() !== d) return s;
+    var weekdays = ['日', '一', '二', '三', '四', '五', '六'];
+    var wd = weekdays[dt.getDay()];
+    var display = y + '/' + String(m + 1).padStart(2, '0') + '/' + String(d).padStart(2, '0');
+    return display + ' (' + wd + ')';
+  } catch (e) {
+    return s;
+  }
 }
 
 /**

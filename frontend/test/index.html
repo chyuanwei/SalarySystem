@@ -1019,37 +1019,36 @@
             <h3 class="schedule-query-title" id="querySectionTitle">📅 查詢班表</h3>
 
             <div class="schedule-block schedule-block-date">
-                <div class="schedule-block-label">日期篩選</div>
+                <div class="schedule-block-label">條件選擇 <span class="schedule-hint-small">（必選：月份或日期區間、分店）</span></div>
                 <div class="schedule-date-modes">
-                    <label class="schedule-radio"><input type="radio" name="dateFilterMode" value="month" checked> 整月</label>
-                    <label class="schedule-radio"><input type="radio" name="dateFilterMode" value="day"> 單日</label>
+                    <label class="schedule-radio"><input type="radio" name="dateFilterMode" value="month" checked> 月份</label>
+                    <label class="schedule-radio"><input type="radio" name="dateFilterMode" value="range"> 日期區間</label>
                 </div>
                 <div class="schedule-date-month-group" id="dateMonthGroup">
-                    <label class="schedule-inline-label">年份</label>
-                    <select id="yearSelect" class="schedule-select"></select>
-                    <label class="schedule-inline-label">月份</label>
-                    <select id="monthSelect" class="schedule-select"></select>
-                    <span class="schedule-inline-sep">或</span>
-                    <input type="text" id="yearMonthInput" class="schedule-yearmonth-input" placeholder="202601" maxlength="6">
+                    <label class="schedule-inline-label">年月</label>
+                    <input type="text" id="queryYearMonthInput" class="schedule-yearmonth-input" placeholder="" maxlength="6" value="">
+                    <span class="schedule-hint-small">例如：202601</span>
                 </div>
-                <div class="schedule-date-day-group hidden" id="dateDayGroup">
-                    <label class="schedule-inline-label">選擇日期</label>
-                    <input type="date" id="datePicker" class="schedule-date-input" disabled>
+                <div class="schedule-date-day-group hidden" id="dateRangeGroup">
+                    <label class="schedule-inline-label">開始日期</label>
+                    <input type="date" id="queryStartDate" class="schedule-date-input">
+                    <label class="schedule-inline-label">結束日期</label>
+                    <input type="date" id="queryEndDate" class="schedule-date-input">
                 </div>
             </div>
 
             <div class="schedule-block schedule-block-branch">
-                <div class="schedule-block-label">分店篩選</div>
+                <div class="schedule-block-label">分店 <span class="schedule-hint-small">（必選）</span></div>
                 <select id="queryBranchSelect" class="schedule-select">
-                    <option value="">全部</option>
+                    <option value="">請選擇分店</option>
                 </select>
             </div>
 
             <div class="schedule-block schedule-block-person">
-                <div class="schedule-block-label">人員篩選 <span class="schedule-hint-small">（載入後可多選）</span></div>
+                <div class="schedule-block-label">人員篩選 <span class="schedule-hint-small">（選擇分店後載入，可複選）</span></div>
                 <div class="schedule-person-row">
                     <div id="personCheckboxGroup" class="person-checkbox-group">
-                        <span class="person-placeholder">請先載入取得名單</span>
+                        <span class="person-placeholder">請先選擇分店</span>
                     </div>
                     <div class="schedule-person-actions">
                         <button type="button" id="selectAllPersonsBtn" class="person-btn" disabled>全選</button>
@@ -1178,7 +1177,7 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260207"></script>
-    <script src="scripts/upload.js?v=20260207"></script>
+    <script src="config.js?v=20260208"></script>
+    <script src="scripts/upload.js?v=20260208"></script>
 </body>
 </html>
