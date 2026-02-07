@@ -33,8 +33,8 @@
 4. 顯示結果卡片
 
 **上傳**
-1. 選擇上傳類型：班表 | 打卡（打卡尚未實作）
-2. 選擇 Excel 檔案、輸入工作表名稱
+1. 選擇上傳類型：班表 | 打卡
+2. 班表：選擇 Excel 檔案、輸入工作表名稱；打卡：選擇 CSV 檔案、分店
 3. 開始上傳並處理 → GAS 解析並寫入
 4. 前端顯示摘要（新增筆數、略過重複）與明細卡片（含重複標示）
 5. 錯誤/警告時捲動至訊息處；成功時捲動至結果區
@@ -48,7 +48,9 @@ SalarySystem/
 ├── .cursor/
 │   ├── CONTEXT.md              ← 本檔案
 │   └── rules/
-│       └── gas-deploy-comment.mdc
+│       ├── gas-deploy-comment.mdc
+│       ├── no-prod-without-instruction.mdc
+│       └── push-means-git-and-clasp.mdc
 ├── .gitignore
 ├── README.md
 ├── SETUP.md
@@ -74,7 +76,8 @@ SalarySystem/
 │   │   ├── Code.gs             # 主程式（doGet/doPost）
 │   │   ├── Config.gs           # 環境設定、Log 系統
 │   │   ├── ExcelParser.gs      # 泉威國安班表解析器
-│   │   ├── CompareService.gs   # 班表與打卡比對、校正讀寫
+│   │   ├── AttendanceParser.gs # 打卡 CSV 解析器
+│   │   ├── CompareService.gs   # 班表與打卡比對、校正讀寫、getSingleCompareItem
 │   │   ├── SheetService.gs     # 寫入、讀取、去重、loadSchedule、loadAttendance
 │   │   ├── DiagnosticUtils.gs  # 診斷工具
 │   │   └── TestUtils.gs        # 測試工具函數
@@ -86,24 +89,21 @@ SalarySystem/
 │
 ├── tests/                      # 測試
 │   ├── jest.config.js
-│   ├── jest.setup.js
-│   ├── unit/
-│   │   ├── excelParser.test.js
-│   │   ├── dataValidator.test.js
-│   │   ├── salaryCalculator.test.js
-│   │   └── adjustment.test.js
-│   └── integration/
-│       └── fullFlow.test.js
+│   └── jest.setup.js
 │
 ├── test-data/                  # 測試資料
 │   └── 2026泉威國安班表.xlsx   # 實際班表檔案（11501, 11502 工作表）
 │
 ├── docs/                       # 文件
 │   ├── API.md                  # API 端點說明
+│   ├── ADJUSTMENT.md           # 調整功能說明
+│   ├── CALCULATION.md          # 薪資計算說明
 │   ├── FIELD_MAPPING.md        # 欄位映射說明
 │   ├── LOG_SYSTEM.md           # Log 系統說明
 │   ├── NO_CORS_ISSUE.md        # CORS 問題說明
-│   └── SCHEMA_NEW_COLUMNS_ANALYSIS.md  # 打卡 14 欄／班表 10 欄分析與實作對照
+│   ├── SCHEMA.md               # 資料表結構
+│   ├── SCHEMA_NEW_COLUMNS_ANALYSIS.md  # 打卡／班表欄位分析
+│   └── UI_SPEC.md              # UI 規格
 │
 ├── REPLACEMENT_SUMMARY.md      # 解析器替換完成報告
 ├── TEST_REPORT.md              # 測試報告模板
@@ -193,7 +193,9 @@ A30: "* O 10:00-20:30"   (全日班)
 | GET | `loadAttendance` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
 | GET | `loadCompare` | `yearMonth`(YYYYMM) 或 `startDate`+`endDate`、`names`(逗號分隔)、`branch`(必填)；回傳班表與打卡比對 items（同人同日同店可多筆，依開始時間 1-1 配對；時間重疊時 item 含 overlapWarning） |
 | POST | `upload` | `uploadType`(schedule/attendance)、`fileName`、`fileData`(base64)、`targetSheetName`、`targetGoogleSheetTab`、`branchName`(班表必填) |
-| POST | `submitCorrection` | `branch`、`empAccount`、`name`、`date`、`scheduleStart`、`scheduleEnd`、`scheduleHours`、`attendanceStart`、`attendanceEnd`、`attendanceHours`、`attendanceStatus`、`correctedStart`、`correctedEnd` |
+| POST | `submitCorrection` | `branch`、`empAccount`、`name`、`date`、`scheduleStart`、`scheduleEnd`、`scheduleHours`、`attendanceStart`、`attendanceEnd`、`attendanceHours`、`attendanceStatus`、`correctedStart`、`correctedEnd`；回傳 item 供前端局部更新 |
+| POST | `confirmIgnoreAttendance` | `branch`、`empAccount`、`date`、`start`、`end`；打卡警示確認，回傳 confirmedIgnore |
+| POST | `unconfirmIgnoreAttendance` | 同上；取消確認 |
 | POST | `calculate` | 薪資計算（尚未實作） |
 
 ---
@@ -383,7 +385,7 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ 上班/下班時間正確顯示（normalizeTimeValue 支援 Date/數字）
 
 ### 12.2 檔案上傳與解析
-- ✅ 上傳類型單選：班表 | 打卡（打卡尚未實作）
+- ✅ 上傳類型單選：班表 | 打卡
 - ✅ 拖曳或選擇 Excel 檔案上傳
 - ✅ 檔案大小與格式驗證、上傳進度顯示
 - ✅ 可自訂 Excel 工作表名稱（11501、11502 等）
@@ -452,12 +454,13 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ 比對結果卡片：班表 vs 打卡（分店、員工帳號、姓名、日期、上班/下班/時數/狀態）；可僅班表或僅打卡（另一側—）
 - ✅ 校正：校正上班/下班輸入、校正送出、已校正顯示唯讀+編輯按鈕
 - ✅ submitCorrection API：**校正寫回打卡**（writeCorrectionToAttendance）— 原列設為無效、新增一列校正後資料（是否有效=是、校正備註、校正時間）；並寫入校正 sheet 供「已校正」顯示
+- ✅ **比對局部 AJAX 更新**：送出校正、待確認、取消確認改為只更新該張卡片，不再觸發 loadCompareBtn；後端 getSingleCompareItem、handleSubmitCorrection 回傳 item、confirm/unconfirm 回傳 confirmedIgnore
 - ✅ 讀取打卡（readAttendanceByConditions）僅取「是否有效=是」的列；算薪以打卡 sheet 有效列為準
-- ✅ Config.gs：ATTENDANCE_COL、SCHEDULE_COL 固定打卡 17 欄／班表 10 欄 index，避免對錯欄
+- ✅ Config.gs：ATTENDANCE_COL、SCHEDULE_COL 固定打卡 17 欄／班表 11 欄（含 K 員工帳號），避免對錯欄
 - ✅ 人員選單以該月份／日期區間＋分店的打卡資料為來源（getPersonnelFromSchedule）；載入比對後可合併結果人員補足選單
 - ✅ 比對卡片：手機優先排版、44px 觸控目標；加班警示（OVERTIME_ALERT）時打卡區塊標紅
 - ✅ 打卡 Q 欄「警示」：loadCompare 後依比對結果同步（overtimeAlert/overlapWarning 設 Y）；薪資計算前檢查 Q=Y 且 O≠Y 則阻擋並提示
-- ✅ CompareService：getPersonnelFromAttendance、readScheduleByConditions、readAttendanceByConditions（篩選有效）、compareScheduleAttendance、readCorrectionsValid、writeCorrection、**writeCorrectionToAttendance**
+- ✅ CompareService：getPersonnelFromAttendance、readScheduleByConditions、readAttendanceByConditions（篩選有效）、compareScheduleAttendance、readCorrectionsValid、writeCorrection、writeCorrectionToAttendance、**getSingleCompareItem**（校正後用 correctedStart/End 查詢）
 
 ### 12.10 測試與正式環境
 - ✅ 完整的環境分離（GAS + 前端）
@@ -465,27 +468,27 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ 前端 test/prod 分離（frontend/test/、frontend/prod/，入口頁選擇環境）
 - ✅ 獨立的 Google Sheets
 
+### 12.11 打卡上傳
+- ✅ 打卡 CSV 上傳：人員驗證、分店 mapping、去重、寫入「打卡」sheet；上傳時警示計算僅針對本次上傳新列（newRowsForMerge），避免 overlap 誤判
+
 ---
 
 ## 13. 待實作功能（未來擴充）
 
-### 13.1 打卡上傳
-- ✅ 打卡 CSV 上傳：人員驗證、分店 mapping、去重、寫入「打卡」sheet
-
-### 13.2 多格式支援
+### 13.1 多格式支援
 - ☐ 支援其他班表格式
 - ☐ 自動偵測班表類型
 
-### 13.3 進階功能
+### 13.2 進階功能
 - ☐ 支援人工調整班次、調整理由記錄
 - ☐ 歷史版本對比
 
-### 13.4 報表匯出
+### 13.3 報表匯出
 - ☐ 匯出為 Excel 格式
 - ☐ 匯出為 PDF 格式
 - ☐ 統計報表（員工工時統計、班別分布等）
 
-### 13.5 薪資計算（視需求）
+### 13.4 薪資計算（視需求）
 - ☐ 根據工時計算薪資
 - ☐ 套用不同費率規則
 - ☐ 處理加班費計算
@@ -527,6 +530,7 @@ A30: "* O 10:00-20:30"   (全日班)
 | **Excel 解析錯誤** | 確認 Excel 檔案格式為 .xlsx 或 .xls，且欄位名稱與預期一致。 |
 | **GAS 執行逾時** | GAS 單次執行限制 6 分鐘，若資料量大需考慮分批處理。 |
 | **比對同人同日同店只顯示一筆** | 若查詢可查到多筆打卡但比對只顯示一筆，代表線上 GAS 尚未部署新版 CompareService。請在 `gas-backend/test` 執行 `npx clasp push` 後再試。 |
+| **校正送出後卡片未更新** | 若校正送出後整頁 reload 而非只更新該卡片，代表前端或後端尚未部署局部更新版。getSingleCompareItem 須用校正後時間查詢，否則回傳 null 導致 fallback loadCompare。 |
 
 ---
 
@@ -553,8 +557,7 @@ A30: "* O 10:00-20:30"   (全日班)
 | 2026-02-07 | v0.6.61 | 測試 | 比對局部更新：送出校正、待確認、取消確認改為 ajax 局部更新，不再觸發 loadCompareBtn | AI |
 | 2026-02-07 | v0.6.60 | 測試 | 打卡上傳警示：只傳本次上傳的打卡（newRowsForMerge），不再合併舊打卡 | AI |
 | 2026-02-07 | v0.6.59 | 測試 | 組 key 時日期正規化（normalizeDateToDash）；新增「警示對應-日期除錯」log（keysWithBothCount、原始日期型別） | AI |
-| 2026-02-07 | v0.6.58 | 測試 | 警示邏輯：同一 lookupKey 不讓 false 覆寫 true；新增「有班表也有打卡的 key 原因」log（noSchedule/overlap/overtime/noAlert） | AI |
-| 2026-02-07 | v0.6.57 | 測試 | 警示邏輯：同一 lookupKey 不讓 false 覆寫 true；新增「有班表也有打卡的 key 原因」log（noSchedule/overlap/overtime/noAlert） | AI |
+| 2026-02-07 | v0.6.58 | 測試 | 警示邏輯：同一 lookupKey 不讓 false 覆寫 true；新增「有班表也有打卡的 key 原因」log | AI |
 | 2026-02-07 | v0.6.56 | 測試 | 打卡上傳警示 log：班表 key 樣本、打卡 key 樣本、有打卡無班表的 key、結果統計（alertY/alertN） | AI |
 | 2026-02-07 | v0.6.55 | 測試 | CompareService 班表 key 優先使用 K 欄 acc、人員表 mapping；警示判斷與 compareScheduleAttendance 一致 | AI |
 | 2026-02-07 | v0.6.54 | 測試 | 班表新增 K 欄員工帳號；Config SCHEDULE_COL.EMP_ACCOUNT、班表 11 欄；班表上傳時從人員 sheet 查帳號寫入 K 欄 | AI |
@@ -565,8 +568,7 @@ A30: "* O 10:00-20:30"   (全日班)
 | 2026-02-07 | v0.6.49 | 測試 | 上傳 Tab 預設、校正送出：doPost 防呆（postData/JSON）、handleSubmitCorrection 日期正規化、前端顯示後端 error | AI |
 | 2026-02-07 | v0.6.48 | 測試 | 比對：同人同日同店允許多筆、依開始時間 1-1 配對、時間重疊顯示警示（overlapWarning） | AI |
 | 2026-02-07 | v0.6.47 | 測試 | 還原：人員篩選改回 checkbox 列表+全選/清除；結果區預設展開 | AI |
-| 2026-02-07 | v0.6.46 | 測試 | 前端 UX：查詢與比對共用條件區塊、人員改為按鈕+彈窗多選、結果區預設收合 | AI |
-| 2026-02-07 | v0.6.46 | 測試 | 警示邏輯：同一 lookupKey 不讓 false 覆寫 true；新增「有班表也有打卡」key 原因 log（noSchedule/overlap/overtime/noAlert） | AI |
+| 2026-02-07 | v0.6.46 | 測試 | 前端 UX：查詢與比對共用條件區塊、人員改為按鈕+彈窗多選、結果區預設收合；警示邏輯：同一 lookupKey 不讓 false 覆寫 true | AI |
 | 2026-02-07 | v0.6.45 | 測試 | 人員名單來源改為該月份／日期區間＋分店的打卡資料（getPersonnelFromAttendance） | AI |
 | 2026-02-07 | v0.6.44 | 測試 | 人員選單改為該月份班表內的人員（getPersonnelFromSchedule）；分店＋日期條件後載入 | AI |
 | 2026-02-07 | v0.6.43 | 測試 | 比對：班表格式改為與打卡一致（\|）；OVERTIME_ALERT 加班警示（Script Property 分鐘、打卡區塊標紅） | AI |
@@ -728,18 +730,8 @@ for (員工) {
 - ✅ `REPLACEMENT_SUMMARY.md` - 替換完成報告
 
 #### 驗證狀態
-
-**✅ 本地驗證完成：**
-- 代碼掃描：找到 5 個代碼（A, A1, B, B1, O）
-- 資料結構定位：成功
-- 員工排班解析：3 位員工，9 筆記錄
-- 時間與日期格式化：正確
-
-**⏳ 待執行測試：**
-- [ ] GAS 編輯器內測試（`testParseQuanWeiSchedule()`）
-- [ ] 實際檔案上傳測試（11501, 11502）
-- [ ] Google Sheets 輸出驗證
-- [ ] Log 記錄檢查
+- 本地驗證、GAS 上傳、班表解析已通過實測
+- 班表與打卡比對、校正寫回、打卡上傳等流程已上線使用
 
 #### 測試方法
 
@@ -784,4 +776,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-07（§5 打卡 17 欄／班表 11 欄含 K 員工帳號；§12.9 校正寫回打卡、讀取僅有效列、ATTENDANCE_COL/SCHEDULE_COL；部署 v0.6.58）*
+*最後更新：2026-02-07（§5 打卡 17 欄／班表 11 欄含 K 員工帳號；§12.9 班表與打卡比對、校正寫回、局部 AJAX 更新、getSingleCompareItem；§12.11 打卡上傳；部署 v0.6.62）*
