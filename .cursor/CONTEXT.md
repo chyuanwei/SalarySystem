@@ -498,6 +498,8 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-06 | v0.6.21 | 測試 | 修正查詢區分店下拉無資料：loadBranches 改為執行時查詢 DOM，確保上傳與查詢區皆正確填入。 | AI |
+| 2026-02-06 | v0.6.20 | 測試 | UI 國安班表→班表；查詢區新增分店下拉篩選；loadSchedule 支援 branch 參數；readFromSheet 不建空白 sheet。 | AI |
 | 2026-02-06 | v0.6.19 | 測試 | 班表新增欄位 G「分店」；工作表改名為「班表」；上傳畫面分店下拉（來源「分店」sheet）；getBranches API；buildDedupKey 含分店。 | AI |
 | 2026-02-06 | v0.6.18 | 測試 | 前端 test/prod 分離：入口 index.html、frontend/test/、frontend/prod/；開發僅改 test，deploy-prod 同步至 prod。 | AI |
 | 2026-02-06 | v0.6.17 | 正式 | 從 test 同步至 prod：loadSchedule、uploadType、allRecordsWithFlag；Code/Config 設為正式環境。 | AI |
@@ -689,4 +691,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-06（v0.6.19 班表分店欄位）*
+*最後更新：2026-02-06（v0.6.21 查詢區分店下拉修正）*
