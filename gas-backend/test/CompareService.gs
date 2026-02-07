@@ -27,9 +27,7 @@ function getPersonnelByBranch(branchName) {
     dataRows.forEach(function(row) {
       var b = row[branchColIndex] ? String(row[branchColIndex]).trim() : '';
       if (b !== branchName.toString().trim()) return;
-      var scheduleName = row[1] ? String(row[1]).trim() : '';
       var attendanceName = row[2] ? String(row[2]).trim() : '';
-      if (scheduleName) nameSet[scheduleName] = true;
       if (attendanceName) nameSet[attendanceName] = true;
     });
     var names = Object.keys(nameSet).sort();
@@ -221,8 +219,21 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
     if (!mapping) {
       return { success: false, error: '讀取人員對應失敗' };
     }
-    var sResult = readScheduleByConditions(yearMonth, startDate, endDate, names, branchName);
-    var aResult = readAttendanceByConditions(yearMonth, startDate, endDate, names, branchName);
+    var namesForSchedule = [];
+    var namesForAttendance = names || [];
+    if (names && names.length > 0) {
+      names.forEach(function(n) {
+        var acc = mapping.attendanceNameToAccount[n];
+        if (acc && mapping.accountToScheduleName[acc]) {
+          namesForSchedule.push(mapping.accountToScheduleName[acc]);
+        } else if (mapping.scheduleNameToAccount[n]) {
+          namesForSchedule.push(n);
+        }
+      });
+    }
+    var sNames = names.length === 0 ? [] : (namesForSchedule.length > 0 ? namesForSchedule : names);
+    var sResult = readScheduleByConditions(yearMonth, startDate, endDate, sNames, branchName);
+    var aResult = readAttendanceByConditions(yearMonth, startDate, endDate, namesForAttendance, branchName);
     if (!sResult.success || !aResult.success) {
       return { success: false, error: sResult.error || aResult.error || '讀取失敗' };
     }
