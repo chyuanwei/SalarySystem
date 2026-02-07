@@ -484,8 +484,6 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
     }
     if (yearMonth && typeof determineAlertsForAttendanceRecords === 'function') {
       var sResult = readScheduleByConditions(yearMonth, null, null, null, branchName);
-      var aResult = readAttendanceByConditions(yearMonth, null, null, null, branchName);
-      var existingRecords = (aResult.success && aResult.records) ? aResult.records : [];
       var newRowsForMerge = dataRows.map(function(row) {
         var r = row.slice(0, 15);
         r[4] = (row[4] && typeof normalizeDateToDash === 'function') ? normalizeDateToDash(row[4]) : (row[4] || '');
@@ -493,8 +491,7 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
         r[6] = (row[6] && typeof normalizeTimeValue === 'function') ? normalizeTimeValue(row[6]) : (row[6] || '');
         return r;
       });
-      var mergedRecords = existingRecords.concat(newRowsForMerge);
-      var alertMap = determineAlertsForAttendanceRecords(sResult.records || [], mergedRecords, branchName);
+      var alertMap = determineAlertsForAttendanceRecords(sResult.records || [], newRowsForMerge, branchName);
       dataRows.forEach(function(row) {
         var branchVal = (row[0] || '').toString().trim();
         var accVal = (row[2] || '').toString().trim();
