@@ -83,7 +83,7 @@ document.querySelectorAll('input[name="dateFilterMode"]').forEach(radio => {
   if (radio) radio.addEventListener('change', toggleDateFilterMode);
 });
 
-// 查詢類型切換（班表／打卡）
+// 查詢類型切換（班表／打卡）：若已有載入結果則清除，避免標題與資料不符
 document.querySelectorAll('input[name="queryType"]').forEach(radio => {
   if (radio) radio.addEventListener('change', function() {
     const titleEl = document.getElementById('querySectionTitle');
@@ -94,6 +94,11 @@ document.querySelectorAll('input[name="queryType"]').forEach(radio => {
     } else {
       if (titleEl) titleEl.textContent = '📅 查詢班表';
       if (resultTitleEl) resultTitleEl.textContent = '班表資料';
+    }
+    if (scheduleResultSection && scheduleResultSection.classList.contains('show')) {
+      if (scheduleSummary) scheduleSummary.innerHTML = '';
+      if (scheduleList) scheduleList.innerHTML = '';
+      scheduleResultSection.classList.remove('show');
     }
   });
 });
