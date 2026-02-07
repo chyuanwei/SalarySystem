@@ -398,6 +398,7 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
   var config = getConfig();
   var overtimeAlertThreshold = (config.OVERTIME_ALERT !== undefined && config.OVERTIME_ALERT !== null) ? parseInt(config.OVERTIME_ALERT, 10) : 0;
   if (isNaN(overtimeAlertThreshold)) overtimeAlertThreshold = 0;
+  var keysWithBothReasons = [];
   Object.keys(allKeys).forEach(function(key) {
     var schedules = keyToSchedules[key] || [];
     var attendances = keyToAttendances[key] || [];
@@ -424,6 +425,8 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
       }
     }
     var maxLen = Math.max(schedules.length, attendances.length);
+    var hasBoth = schedules.length > 0 && attendances.length > 0;
+    var reasonCounts = { noSchedule: 0, overlap: 0, overtime: 0, noAlert: 0 };
     for (var idx = 0; idx < maxLen; idx++) {
       var s = idx < schedules.length ? schedules[idx] : null;
       var a = idx < attendances.length ? attendances[idx] : null;
@@ -432,12 +435,20 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
       var overtimeAlert = false;
       if (!s) {
         overtimeAlert = true;
+        reasonCounts.noSchedule++;
+      } else if (overlapWarning) {
+        reasonCounts.overlap++;
       } else if (overtimeAlertThreshold > 0) {
         var scheduleMins = timeRangeToMinutes(s.startTime, s.endTime) || hoursValueToMinutes(s.hours);
         var attendanceMins = timeRangeToMinutes(a.startTime, a.endTime) || hoursValueToMinutes(a.hours);
         if (scheduleMins !== null && attendanceMins !== null && (attendanceMins - scheduleMins) > overtimeAlertThreshold) {
           overtimeAlert = true;
+          reasonCounts.overtime++;
+        } else {
+          reasonCounts.noAlert++;
         }
+      } else {
+        reasonCounts.noAlert++;
       }
       var hasAlert = overlapWarning || overtimeAlert;
       var branchVal = (a.branch || branchName || '').toString().trim();
@@ -445,10 +456,20 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
       var dateVal = (a.date || '').toString().trim();
       var startVal = (a.startTime || '').toString().trim();
       var endVal = (a.endTime || '').toString().trim();
-      var lookupKey = [branchVal, accVal, dateVal, startVal, endVal].join('|');
-      alertMap[lookupKey] = hasAlert;
+      var lookupKeyStr = [branchVal, accVal, dateVal, startVal, endVal].join('|');
+      if (alertMap[lookupKeyStr] === undefined) {
+        alertMap[lookupKeyStr] = hasAlert;
+      } else {
+        alertMap[lookupKeyStr] = alertMap[lookupKeyStr] || hasAlert;
+      }
+    }
+    if (hasBoth && keysWithBothReasons.length < 10 && typeof logToSheet === 'function') {
+      keysWithBothReasons.push({ key: key, sCount: schedules.length, aCount: attendances.length, reasons: reasonCounts });
     }
   });
+  if (keysWithBothReasons.length > 0 && typeof logToSheet === 'function') {
+    logToSheet('警示對應-有班表也有打卡的 key 原因', 'OPERATION', { branchName: branchName, samples: keysWithBothReasons });
+  }
   var alertCount = 0;
   var noAlertCount = 0;
   for (var k in alertMap) { if (alertMap[k]) alertCount++; else noAlertCount++; }
