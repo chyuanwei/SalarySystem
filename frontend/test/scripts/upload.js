@@ -1092,8 +1092,10 @@ function renderCompareResults(items) {
     var correctedEnd = corr ? corr.correctedEnd : '';
     var isCorrected = !!(corr && correctedStart && correctedEnd);
 
-    var scheduleText = scheduleStart + '–' + scheduleEnd + '  ' + scheduleHours + 'h';
-    var attendanceText = attendanceStart + '–' + attendanceEnd + '  ' + attendanceHours + 'h  ' + attendanceStatus;
+    var scheduleText = scheduleStart + '–' + scheduleEnd + '  ' + formatHours(scheduleHours);
+    var hoursPart = formatHours(attendanceHours);
+    var attendanceText = attendanceStart + '–' + attendanceEnd + ' | ' + hoursPart +
+      (attendanceStatus && String(attendanceStatus).trim() ? ' | ' + String(attendanceStatus).trim() : '');
 
     var payload = JSON.stringify({
       branch: branch,
@@ -1144,9 +1146,21 @@ function renderCompareResults(items) {
   });
 }
 
+/**
+ * 格式化工作時數（避免重複單位如 7小時h）
+ * 若已有 小時 或 h，直接回傳；若為純數字則加 h
+ */
+function formatHours(val) {
+  if (val === undefined || val === null || String(val).trim() === '') return '—';
+  var s = String(val).trim();
+  if (s.indexOf('小時') >= 0 || /h$/i.test(s)) return s;
+  if (/^\d+(\.\d+)?$/.test(s)) return s + 'h';
+  return s;
+}
+
 function escapeHtml(s) {
   if (s === undefined || s === null) return '';
-  const t = String(s);
+  var t = String(s);
   return t.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
 }
 
@@ -1216,7 +1230,7 @@ async function doSubmitCorrection(payload) {
     const response = await fetch(CONFIG.GAS_URL, {
       method: 'POST',
       mode: 'cors',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
       body: JSON.stringify({
         action: 'submitCorrection',
         branch: payload.branch,
