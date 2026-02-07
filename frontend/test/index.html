@@ -103,6 +103,92 @@
             padding: 20px;
         }
 
+        .shared-condition-block {
+            background: #f0f7ff;
+            border: 1px solid #c5d9f0;
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 16px;
+        }
+
+        .person-select-btn {
+            width: 100%;
+            min-height: 44px;
+            padding: 10px 16px;
+            font-size: 15px;
+            border: 2px solid #667eea;
+            border-radius: 8px;
+            background: #fff;
+            color: #667eea;
+            cursor: pointer;
+            font-weight: 600;
+        }
+        .person-select-btn:hover {
+            background: #f0f0ff;
+        }
+
+        .person-select-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 200;
+            align-items: flex-end;
+            justify-content: center;
+        }
+        .person-select-modal.show {
+            display: flex;
+        }
+        .person-select-modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+        }
+        .person-select-modal-panel {
+            position: relative;
+            width: 100%;
+            max-width: 480px;
+            max-height: 70vh;
+            background: #fff;
+            border-radius: 16px 16px 0 0;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            box-shadow: 0 -4px 20px rgba(0,0,0,0.15);
+        }
+        .person-select-modal-title {
+            font-size: 18px;
+            margin-bottom: 12px;
+            color: #333;
+        }
+        .person-select-modal-list {
+            overflow-y: auto;
+            flex: 1;
+            min-height: 120px;
+            max-height: 40vh;
+            margin-bottom: 16px;
+            padding: 8px 0;
+        }
+        .person-select-modal-list label {
+            display: block;
+            padding: 10px 12px;
+            margin-bottom: 4px;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .person-select-modal-list label:hover {
+            background: #f0f0ff;
+        }
+        .person-select-modal-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+        .person-select-modal-actions .person-btn,
+        .person-select-modal-actions .load-schedule-btn {
+            flex: 1;
+            min-height: 44px;
+        }
+
         .schedule-query-section {
             background: #f8f9fa;
             border: 1px solid #e6e9ee;
@@ -1207,20 +1293,9 @@
             <button type="button" class="tab-nav-btn" role="tab" aria-selected="false" aria-controls="tab-pane-salary" id="tab-btn-salary" data-tab="salary">💰 計算</button>
         </nav>
 
-        <div class="tab-content">
-        <div id="tab-pane-query" class="tab-pane active" role="tabpanel" aria-labelledby="tab-btn-query">
-        <div class="schedule-query-section">
-            <div class="schedule-block schedule-block-query-type">
-                <div class="schedule-block-label">查詢類型</div>
-                <div class="schedule-date-modes">
-                    <label class="schedule-radio"><input type="radio" name="queryType" value="schedule" checked> 查詢班表</label>
-                    <label class="schedule-radio"><input type="radio" name="queryType" value="attendance"> 查詢打卡</label>
-                </div>
-            </div>
-            <h3 class="schedule-query-title" id="querySectionTitle">📅 查詢班表</h3>
-
+        <div id="sharedConditionBlock" class="shared-condition-block" style="display:none;">
             <div class="schedule-block schedule-block-date">
-                <div class="schedule-block-label">條件選擇 <span class="schedule-hint-small">（必選：月份或日期區間、分店）</span></div>
+                <div class="schedule-block-label">條件 <span class="schedule-hint-small">（月份或日期區間、分店）</span></div>
                 <div class="schedule-date-modes">
                     <label class="schedule-radio"><input type="radio" name="dateFilterMode" value="month" checked> 月份</label>
                     <label class="schedule-radio"><input type="radio" name="dateFilterMode" value="range"> 日期區間</label>
@@ -1232,33 +1307,48 @@
                     <span class="schedule-hint-small">例如：202601</span>
                 </div>
                 <div class="schedule-date-day-group hidden" id="dateRangeGroup">
-                    <label class="schedule-inline-label">開始日期</label>
+                    <label class="schedule-inline-label">開始</label>
                     <input type="date" id="queryStartDate" class="schedule-date-input">
-                    <label class="schedule-inline-label">結束日期</label>
+                    <label class="schedule-inline-label">結束</label>
                     <input type="date" id="queryEndDate" class="schedule-date-input">
                 </div>
             </div>
-
             <div class="schedule-block schedule-block-branch">
-                <div class="schedule-block-label">分店 <span class="schedule-hint-small">（必選）</span></div>
+                <div class="schedule-block-label">分店</div>
                 <select id="queryBranchSelect" class="schedule-select">
                     <option value="">請選擇分店</option>
                 </select>
             </div>
-
             <div class="schedule-block schedule-block-person">
-                <div class="schedule-block-label">人員篩選 <span class="schedule-hint-small">（選擇分店後載入，可複選）</span></div>
-                <div class="schedule-person-row">
-                    <div id="personCheckboxGroup" class="person-checkbox-group">
-                        <span class="person-placeholder">請先選擇分店</span>
-                    </div>
-                    <div class="schedule-person-actions">
-                        <button type="button" id="selectAllPersonsBtn" class="person-btn" disabled>全選</button>
-                        <button type="button" id="clearAllPersonsBtn" class="person-btn" disabled>清除</button>
-                    </div>
+                <div class="schedule-block-label">人員篩選</div>
+                <button type="button" id="personSelectBtn" class="person-select-btn">選擇人員</button>
+            </div>
+        </div>
+
+        <div id="personSelectModal" class="person-select-modal" role="dialog" aria-labelledby="personSelectModalTitle" aria-modal="true">
+            <div class="person-select-modal-overlay"></div>
+            <div class="person-select-modal-panel">
+                <h3 id="personSelectModalTitle" class="person-select-modal-title">選擇人員</h3>
+                <div id="personSelectModalList" class="person-select-modal-list"></div>
+                <div class="person-select-modal-actions">
+                    <button type="button" id="personSelectAllBtn" class="person-btn">全選</button>
+                    <button type="button" id="personSelectClearBtn" class="person-btn">清除</button>
+                    <button type="button" id="personSelectConfirmBtn" class="load-schedule-btn">確認</button>
                 </div>
             </div>
+        </div>
 
+        <div class="tab-content">
+        <div id="tab-pane-query" class="tab-pane active" role="tabpanel" aria-labelledby="tab-btn-query">
+        <div class="schedule-query-section">
+            <div class="schedule-block schedule-block-query-type">
+                <div class="schedule-block-label">查詢類型</div>
+                <div class="schedule-date-modes">
+                    <label class="schedule-radio"><input type="radio" name="queryType" value="schedule" checked> 查詢班表</label>
+                    <label class="schedule-radio"><input type="radio" name="queryType" value="attendance"> 查詢打卡</label>
+                </div>
+            </div>
+            <h3 class="schedule-query-title" id="querySectionTitle">📅 查詢班表</h3>
             <div class="schedule-block schedule-block-action">
                 <button type="button" id="loadScheduleBtn" class="load-schedule-btn">載入</button>
             </div>
@@ -1266,9 +1356,9 @@
             <div id="scheduleResultSection" class="result-section">
                 <div class="result-section-header">
                     <h2 class="result-title" id="queryResultTitle">班表資料</h2>
-                    <button type="button" class="collapse-toggle-btn" data-target="scheduleResultBody" title="收合/展開">▼</button>
+                    <button type="button" class="collapse-toggle-btn collapsed" data-target="scheduleResultBody" title="收合/展開">▶</button>
                 </div>
-                <div id="scheduleResultBody" class="result-section-body">
+                <div id="scheduleResultBody" class="result-section-body collapsed">
                     <div id="scheduleSummary" class="result-summary"></div>
                     <div id="scheduleList" class="result-list"></div>
                 </div>
@@ -1280,51 +1370,14 @@
         <div class="compare-section" id="compareSection">
             <h3 class="schedule-query-title">🔄 班表與打卡比對</h3>
             <div class="schedule-block">
-                <div class="schedule-block-label">條件選擇 <span class="schedule-hint-small">（必選：月份或日期區間、分店）</span></div>
-                <div class="schedule-date-modes">
-                    <label class="schedule-radio"><input type="radio" name="compareDateMode" value="month" checked> 月份</label>
-                    <label class="schedule-radio"><input type="radio" name="compareDateMode" value="range"> 日期區間</label>
-                </div>
-                <div class="schedule-date-month-group" id="compareMonthGroup">
-                    <label class="schedule-inline-label">年月</label>
-                    <select id="compareYearMonthSelect" class="schedule-yearmonth-select"></select>
-                    <input type="text" id="compareYearMonthInput" class="schedule-yearmonth-input" placeholder="或輸入 202601" maxlength="6">
-                    <span class="schedule-hint-small">例如：202601</span>
-                </div>
-                <div class="schedule-date-day-group hidden" id="compareRangeGroup">
-                    <label class="schedule-inline-label">開始日期</label>
-                    <input type="date" id="compareStartDate" class="schedule-date-input">
-                    <label class="schedule-inline-label">結束日期</label>
-                    <input type="date" id="compareEndDate" class="schedule-date-input">
-                </div>
-            </div>
-            <div class="schedule-block">
-                <div class="schedule-block-label">分店 <span class="schedule-hint-small">（必選）</span></div>
-                <select id="compareBranchSelect" class="schedule-select">
-                    <option value="">請選擇分店</option>
-                </select>
-            </div>
-            <div class="schedule-block">
-                <div class="schedule-block-label">人員篩選 <span class="schedule-hint-small">（選擇分店後載入，可複選）</span></div>
-                <div class="schedule-person-row">
-                    <div id="comparePersonCheckboxGroup" class="person-checkbox-group">
-                        <span class="person-placeholder">請先選擇分店</span>
-                    </div>
-                    <div class="schedule-person-actions">
-                        <button type="button" id="selectAllComparePersonsBtn" class="person-btn" disabled>全選</button>
-                        <button type="button" id="clearAllComparePersonsBtn" class="person-btn" disabled>清除</button>
-                    </div>
-                </div>
-            </div>
-            <div class="schedule-block">
                 <button type="button" id="loadCompareBtn" class="load-schedule-btn">載入比對</button>
             </div>
             <div id="compareResultSection" class="result-section">
                 <div class="result-section-header">
                     <h2 class="result-title">比對結果</h2>
-                    <button type="button" class="collapse-toggle-btn" data-target="compareResultBody" title="收合/展開">▼</button>
+                    <button type="button" class="collapse-toggle-btn collapsed" data-target="compareResultBody" title="收合/展開">▶</button>
                 </div>
-                <div id="compareResultBody" class="result-section-body">
+                <div id="compareResultBody" class="result-section-body collapsed">
                     <div id="compareList" class="result-list compare-list"></div>
             </div>
         </div>
@@ -1384,9 +1437,9 @@
         <div id="resultSection" class="result-section">
             <div class="result-section-header">
                 <h2 class="result-title">✅ 處理結果</h2>
-                <button type="button" class="collapse-toggle-btn" data-target="resultSectionBody" title="收合/展開">▼</button>
+                <button type="button" class="collapse-toggle-btn collapsed" data-target="resultSectionBody" title="收合/展開">▶</button>
             </div>
-            <div id="resultSectionBody" class="result-section-body">
+            <div id="resultSectionBody" class="result-section-body collapsed">
                 <div id="resultSummary" class="result-summary"></div>
                 <div id="resultList" class="result-list"></div>
             </div>
