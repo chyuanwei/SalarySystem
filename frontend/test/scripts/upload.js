@@ -548,7 +548,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
-        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatMinutes(hours)}</span></div>
+        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatHoursWithMinutes(hours, start, end)}</span></div>
         <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${status || '—'}</span></div>
       </div>
     `;
@@ -569,7 +569,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
-        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatMinutes(hours)}</span></div>
+        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatHoursWithMinutes(hours, start, end)}</span></div>
       </div>
     `;
   }).join('');
@@ -902,7 +902,7 @@ function renderScheduleResults(result) {
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${escapeHtml(branch || '—')}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${escapeHtml(start || '—')}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${escapeHtml(end || '—')}</span></div>
-        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatMinutes(hours)}</span></div>
+        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatHoursWithMinutes(hours, start, end)}</span></div>
       </div>
     `;
   }).join('');
@@ -954,7 +954,7 @@ function renderAttendanceResults(result) {
         <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${formatDateWithWeekday(date)}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${escapeHtml(start || '—')}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${escapeHtml(end || '—')}</span></div>
-        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatMinutes(hours)}</span></div>
+        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatHoursWithMinutes(hours, start, end)}</span></div>
         <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${escapeHtml(status || '—')}</span></div>
       </div>
     `;
@@ -1175,8 +1175,8 @@ function renderCompareResults(items) {
     var correctedEnd = corr ? corr.correctedEnd : '';
     var isCorrected = !!(corr && correctedStart && correctedEnd);
 
-    var scheduleText = scheduleStart + '–' + scheduleEnd + '  ' + formatMinutes(scheduleHours);
-    var hoursPart = formatMinutes(attendanceHours);
+    var scheduleText = scheduleStart + '–' + scheduleEnd + '  ' + formatHoursWithMinutes(scheduleHours, scheduleStart, scheduleEnd);
+    var hoursPart = formatHoursWithMinutes(attendanceHours, attendanceStart, attendanceEnd);
     var attendanceText = attendanceStart + '–' + attendanceEnd + ' | ' + hoursPart +
       (attendanceStatus && String(attendanceStatus).trim() ? ' | ' + String(attendanceStatus).trim() : '');
 
@@ -1266,19 +1266,55 @@ function formatDateWithWeekday(dateStr) {
 }
 
 /**
- * 格式化工作時數為「n.m 小時 (iii 分)」（後端為小時，7.5 → 7.5 小時 (450 分)）
- * 從 7、7.0、7小時、10.5 等抽取數字
+ * 將時間字串（HH:mm 或 HHmm）或 Date 轉為當日分鐘數（0–1439），失敗回傳 null
  */
-function formatMinutes(val) {
-  if (val === undefined || val === null || String(val).trim() === '') return '—';
+function parseTimeToMinutes(val) {
+  if (val === undefined || val === null) return null;
+  if (val instanceof Date) {
+    var h = val.getHours();
+    var m = val.getMinutes();
+    return h * 60 + m;
+  }
   var s = String(val).trim();
-  var m = s.match(/[\d.]+/);
-  if (!m) return s;
-  var num = parseFloat(m[0]);
-  if (isNaN(num)) return s;
-  var minutes = Math.round(num * 60);
-  var hoursStr = num % 1 === 0 ? String(Math.round(num)) : String(num);
-  return hoursStr + ' 小時 (' + minutes + ' 分)';
+  if (!s) return null;
+  var parts = s.match(/^(\d{1,2}):(\d{2})$/) || (s.match(/^(\d{4})$/) ? [null, s.substring(0, 2), s.substring(2, 4)] : null);
+  if (!parts) return null;
+  var h = parseInt(parts[1], 10);
+  var m = parseInt(parts[2], 10);
+  if (isNaN(h) || isNaN(m) || h < 0 || h > 23 || m < 0 || m > 59) return null;
+  return h * 60 + m;
+}
+
+/**
+ * 從 start、end 計算實際分鐘數，跨日處理。失敗回傳 null。
+ */
+function calcMinutesFromTimeRange(startStr, endStr) {
+  var startMins = parseTimeToMinutes(startStr);
+  var endMins = parseTimeToMinutes(endStr);
+  if (startMins === null || endMins === null) return null;
+  var diff = endMins - startMins;
+  if (diff < 0) diff += 24 * 60;
+  return diff;
+}
+
+/**
+ * 格式化工作時數為「n.m 小時 (iii 分)」，分鐘依 start/end 實際計算（方案 B）。
+ * 無 start/end 時退回 hours * 60。
+ */
+function formatHoursWithMinutes(hours, start, end) {
+  var actualMinutes = (start && end) ? calcMinutesFromTimeRange(start, end) : null;
+  if (actualMinutes === null) {
+    if (hours === undefined || hours === null || String(hours).trim() === '') return '—';
+    var s = String(hours).trim();
+    var m = s.match(/[\d.]+/);
+    if (!m) return s;
+    var num = parseFloat(m[0]);
+    if (isNaN(num)) return s;
+    actualMinutes = Math.round(num * 60);
+  }
+  var hoursVal = actualMinutes / 60;
+  var hoursStr = hoursVal % 1 === 0 ? String(Math.round(hoursVal)) : (Math.round(hoursVal * 10) / 10).toString();
+  return hoursStr + ' 小時 (' + actualMinutes + ' 分)';
 }
 
 function escapeHtml(s) {
