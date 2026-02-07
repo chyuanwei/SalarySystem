@@ -352,7 +352,8 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
         if (!acc) { for (var k in accToAttendance) { if (accToAttendance[k] === sName) { acc = k; break; } } }
       }
     }
-    var date = row[1] || '';
+    var dateRaw = row[1];
+    var date = normalizeDateToDash(dateRaw || '') || (dateRaw ? String(dateRaw).trim() : '');
     var start = row[2] || '';
     var end = row[3] || '';
     var branch = row[6] ? String(row[6]).trim() : '';
@@ -371,7 +372,8 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
   attendanceRecords.forEach(function(row) {
     var acc = row[2] ? String(row[2]).trim() : '';
     var aName = row[3] ? String(row[3]).trim() : '';
-    var date = row[4] || '';
+    var dateRaw = row[4];
+    var date = normalizeDateToDash(dateRaw || '') || (dateRaw ? String(dateRaw).trim() : '');
     var start = row[5] || '';
     var end = row[6] || '';
     var branch = row[0] ? String(row[0]).trim() : '';
@@ -387,11 +389,26 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
     logToSheet('警示對應-打卡 key 樣本', 'OPERATION', { branchName: branchName, attendanceCount: attendanceRecords.length, samples: attendanceKeySamples });
   }
   var keysWithAttendanceNoSchedule = [];
+  var keysWithBothCount = 0;
   Object.keys(allKeys).forEach(function(key) {
     var schedules = keyToSchedules[key] || [];
     var attendances = keyToAttendances[key] || [];
     if (attendances.length > 0 && schedules.length === 0) keysWithAttendanceNoSchedule.push(key);
+    if (schedules.length > 0 && attendances.length > 0) keysWithBothCount++;
   });
+  if (typeof logToSheet === 'function') {
+    var firstScheduleDate = (scheduleRecords && scheduleRecords[0]) ? scheduleRecords[0][1] : null;
+    var firstAttendanceDate = (attendanceRecords && attendanceRecords[0]) ? attendanceRecords[0][4] : null;
+    logToSheet('警示對應-日期除錯', 'OPERATION', {
+      branchName: branchName,
+      scheduleDateRawType: firstScheduleDate !== null && firstScheduleDate !== undefined ? typeof firstScheduleDate : 'n/a',
+      scheduleDateRawValue: firstScheduleDate !== null && firstScheduleDate !== undefined ? String(firstScheduleDate).substring(0, 50) : 'n/a',
+      attendanceDateRawType: firstAttendanceDate !== null && firstAttendanceDate !== undefined ? typeof firstAttendanceDate : 'n/a',
+      attendanceDateRawValue: firstAttendanceDate !== null && firstAttendanceDate !== undefined ? String(firstAttendanceDate).substring(0, 50) : 'n/a',
+      keysWithBothCount: keysWithBothCount,
+      keysWithNoScheduleCount: keysWithAttendanceNoSchedule.length
+    });
+  }
   if (keysWithAttendanceNoSchedule.length > 0 && typeof logToSheet === 'function') {
     logToSheet('警示對應-有打卡無班表的 key（會全部標警示）', 'OPERATION', { branchName: branchName, count: keysWithAttendanceNoSchedule.length, keys: keysWithAttendanceNoSchedule.slice(0, 15) });
   }
@@ -527,7 +544,8 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
           if (!acc) { for (var k in accToAttendance) { if (accToAttendance[k] === sName) { acc = k; break; } } }
         }
       }
-      var date = row[1] || '';
+      var dateRaw = row[1];
+      var date = normalizeDateToDash(dateRaw || '') || (dateRaw ? String(dateRaw).trim() : '');
       var start = row[2] || '';
       var end = row[3] || '';
       var branch = row[6] ? String(row[6]).trim() : '';
@@ -539,7 +557,8 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
     attendanceRecords.forEach(function(row) {
       var acc = row[2] ? String(row[2]).trim() : '';
       var aName = row[3] ? String(row[3]).trim() : '';
-      var date = row[4] || '';
+      var dateRaw = row[4];
+      var date = normalizeDateToDash(dateRaw || '') || (dateRaw ? String(dateRaw).trim() : '');
       var start = row[5] || '';
       var end = row[6] || '';
       var branch = row[0] ? String(row[0]).trim() : '';
