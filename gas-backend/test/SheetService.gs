@@ -564,7 +564,7 @@ function appendAttendanceToSheet(data, targetSheetName) {
     var rowCount = rowsToWrite.length;
     var colCount = rowsToWrite[0].length;
     
-    sheet.getRange(startRow, 1, startRow + rowCount - 1, colCount).setValues(rowsToWrite);
+    sheet.getRange(startRow, 1, rowCount, colCount).setValues(rowsToWrite);
     
     if (isFirstWrite && data.length > 0) {
       formatHeaderRow(sheet, colCount);
