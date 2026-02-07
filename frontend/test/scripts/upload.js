@@ -76,8 +76,8 @@ document.querySelectorAll('input[name="uploadType"]').forEach(function(radio) {
   });
 });
 
-// 載入按鈕（班表／打卡共用）
-if (loadScheduleBtn) loadScheduleBtn.addEventListener('click', handleLoadQuery);
+// 載入按鈕（班表／打卡共用，preventDefault 避免頁面導向）
+if (loadScheduleBtn) loadScheduleBtn.addEventListener('click', function(e) { e.preventDefault(); handleLoadQuery(); });
 
 // 日期篩選模式切換
 document.querySelectorAll('input[name="dateFilterMode"]').forEach(radio => {
@@ -113,9 +113,9 @@ var clearAllPersonsBtn = document.getElementById('clearAllPersonsBtn');
 if (selectAllPersonsBtn) selectAllPersonsBtn.addEventListener('click', selectAllPersons);
 if (clearAllPersonsBtn) clearAllPersonsBtn.addEventListener('click', clearAllPersons);
 
-// 載入比對按鈕
+// 載入比對按鈕（preventDefault 避免表單提交／頁面導向）
 const loadCompareBtn = document.getElementById('loadCompareBtn');
-if (loadCompareBtn) loadCompareBtn.addEventListener('click', handleLoadCompare);
+if (loadCompareBtn) loadCompareBtn.addEventListener('click', function(e) { e.preventDefault(); handleLoadCompare(); });
 
 // 結果區收合鈕
 document.addEventListener('click', function(e) {
@@ -1385,6 +1385,7 @@ function renderCompareResults(items) {
  * 處理打卡警示確認按鈕點擊（待確認）
  */
 function handleConfirmIgnoreClick(e) {
+  e.preventDefault();
   var btn = e.target;
   var card = btn.closest('.compare-card');
   if (!card) return;
@@ -1410,6 +1411,7 @@ function handleConfirmIgnoreClick(e) {
  * 處理取消確認按鈕點擊
  */
 function handleUnconfirmIgnoreClick(e) {
+  e.preventDefault();
   var btn = e.target;
   var card = btn.closest('.compare-card');
   if (!card) return;
@@ -1534,6 +1536,7 @@ function escapeHtmlAttr(s) {
  * 處理備註儲存按鈕點擊
  */
 function handleSaveRemarkClick(e) {
+  e.preventDefault();
   var btn = e.target;
   var row = btn.closest('.result-row-remark') || btn.closest('.compare-card-remark-row');
   var textarea = row ? row.querySelector('.remark-input') : null;
@@ -1588,6 +1591,7 @@ function handleSaveRemarkClick(e) {
  * 處理校正送出按鈕點擊
  */
 function handleSubmitCorrectionClick(e) {
+  e.preventDefault();
   const btn = e.target;
   const card = btn.closest('.compare-card');
   if (!card) return;
@@ -1621,6 +1625,7 @@ function handleSubmitCorrectionClick(e) {
  * 處理編輯按鈕點擊（已校正狀態下切換為可編輯）
  */
 function handleEditCorrectionClick(e) {
+  e.preventDefault();
   var btn = e.target;
   var card = btn.closest('.compare-card');
   if (!card) return;
