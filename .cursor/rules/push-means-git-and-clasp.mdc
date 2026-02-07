@@ -17,3 +17,5 @@ alwaysRun: false
    - 使用 `--force` 避免互動提示導致失敗
 
 **不可只做 git push 而漏掉 clasp push。** 兩者都完成才算完成使用者的「push」要求。
+
+**clasp push 後回覆必附：** 在回覆結尾必須提供「## Comment for deploy」區塊（格式：`v版本號：簡短描述`），供使用者貼到 GAS 管理版本→說明。漏附視為未完成。

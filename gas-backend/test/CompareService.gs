@@ -109,15 +109,21 @@ function readPersonnelMapping() {
 
 /**
  * 正規化日期為 YYYY-MM-DD
+ * 支援：字串、Date、Google 試算表序列數字
  */
 function normalizeDateToDash(value) {
-  if (!value) return '';
-  var s = value.toString().trim();
-  if (s.indexOf('/') >= 0) s = s.replace(/\//g, '-');
-  if (s.length === 10 && s.indexOf('-') >= 0) return s;
+  if (value === undefined || value === null || value === '') return '';
   if (value instanceof Date && !isNaN(value)) {
     return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
   }
+  if (typeof value === 'number' && !isNaN(value)) {
+    var d = new Date((value - 25569) * 86400 * 1000);
+    if (!isNaN(d)) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  var s = value.toString().trim();
+  if (!s) return '';
+  if (s.indexOf('/') >= 0) s = s.replace(/\//g, '-');
+  if (s.length === 10 && s.indexOf('-') >= 0) return s;
   var parsed = new Date(s);
   if (!isNaN(parsed)) {
     return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy-MM-dd');
@@ -338,6 +344,8 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
         var k = buildCompareKey(c.empAccount, c.date, c.scheduleStart, c.scheduleEnd, c.branch);
         correctionMap[k] = c;
       });
+      var sampleKeys = Object.keys(correctionMap).slice(0, 5);
+      logOperation('比對-校正 key 除錯', { correctionCount: corrections.length, correctionMapKeys: sampleKeys });
     }
     var keyToSchedules = {};
     var keyToAttendances = {};
@@ -396,6 +404,7 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
         }
       }
       var maxLen = Math.max(schedules.length, attendances.length);
+      var loggedLookup = false;
       for (var idx = 0; idx < maxLen; idx++) {
         var s = idx < schedules.length ? schedules[idx] : null;
         var a = idx < attendances.length ? attendances[idx] : null;
@@ -410,6 +419,10 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
         var scheduleEndForKey = s ? s.endTime : '';
         var corrKey = buildCompareKey(empAcc, dateNorm, scheduleStartForKey, scheduleEndForKey, branch);
         var corr = correctionMap[corrKey] || null;
+        if (!loggedLookup && !s && a && corrections && corrections.length > 0) {
+          logOperation('比對-僅打卡項目查詢校正 key', { lookupKey: corrKey, found: !!corr, empAccount: empAcc, dateNorm: dateNorm, branch: branch });
+          loggedLookup = true;
+        }
         var displayName = (a && a.name) ? a.name : (mapping.accountToAttendanceName[empAcc] || (s && s.name) || (a && a.name) || '');
         var overlapWarning = (s && idx < scheduleOverlap.length && scheduleOverlap[idx]) || (a && idx < attendanceOverlap.length && attendanceOverlap[idx]);
         var item = { key: key, schedule: s, attendance: a, correction: corr, displayName: displayName, overlapWarning: overlapWarning };
