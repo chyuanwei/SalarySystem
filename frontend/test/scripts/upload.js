@@ -16,7 +16,7 @@ const submitBtn = document.getElementById('submitBtn');
 const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
 const progressText = document.getElementById('progressText');
-const alertBox = document.getElementById('alert');
+const alertModal = document.getElementById('alertModal');
 const resultSection = document.getElementById('resultSection');
 const resultSummary = document.getElementById('resultSummary');
 const resultList = document.getElementById('resultList');
@@ -135,8 +135,18 @@ document.addEventListener('click', function(e) {
   btn.textContent = body.classList.contains('collapsed') ? '▶' : '▼';
 });
 
+// 結果區收合鈕：點擊 overlay 或關閉按鈕關閉 modal
+if (alertModal) {
+  alertModal.addEventListener('click', function(e) {
+    if (e.target.classList.contains('alert-modal-overlay') || e.target.classList.contains('alert-modal-close')) {
+      hideAlert();
+    }
+  });
+}
+
 // 頁面載入時初始化
 document.addEventListener('DOMContentLoaded', function() {
+  initYearMonthSelects();
   toggleDateFilterMode();
   toggleCompareDateMode();
   loadBranches();
@@ -438,18 +448,34 @@ function updateProgress(percent, text) {
 }
 
 /**
- * 顯示提示訊息
+ * 顯示提示訊息（跳出視窗）
  * @param {string} type - success | error | warning
  * @param {string} message - 訊息內容
- * @param {Object} options - { scrollTo: Element } 成功時要捲動到的區塊
+ * @param {Object} options - { scrollTo: Element } 成功時要捲動到的區塊（modal 時仍可捲動）
  */
+var alertAutoCloseTimer = null;
+
 function showAlert(type, message, options) {
-  alertBox.className = `alert alert-${type} show`;
-  alertBox.textContent = message;
-  if (type === 'error' || type === 'warning') {
-    alertBox.scrollIntoView({ behavior: 'auto', block: 'start' });
-  } else if (type === 'success' && options && options.scrollTo) {
+  if (!alertModal) return;
+  if (alertAutoCloseTimer) {
+    clearTimeout(alertAutoCloseTimer);
+    alertAutoCloseTimer = null;
+  }
+  var content = alertModal.querySelector('.alert-modal-content');
+  var msgEl = alertModal.querySelector('.alert-modal-message');
+  if (content) {
+    content.className = 'alert-modal-content alert-' + type;
+  }
+  if (msgEl) msgEl.textContent = message;
+  alertModal.classList.add('show');
+  if (type === 'success' && options && options.scrollTo) {
     options.scrollTo.scrollIntoView({ behavior: 'auto', block: 'start' });
+  }
+  if (type === 'success') {
+    alertAutoCloseTimer = setTimeout(function() {
+      hideAlert();
+      alertAutoCloseTimer = null;
+    }, 3000);
   }
 }
 
@@ -457,8 +483,11 @@ function showAlert(type, message, options) {
  * 隱藏提示訊息
  */
 function hideAlert() {
-  alertBox.className = 'alert';
-  alertBox.textContent = '';
+  if (alertAutoCloseTimer) {
+    clearTimeout(alertAutoCloseTimer);
+    alertAutoCloseTimer = null;
+  }
+  if (alertModal) alertModal.classList.remove('show');
 }
 
 /**
@@ -586,11 +615,60 @@ function clearResults() {
   resultSection.classList.remove('show');
 }
 
+/**
+ * 產生上月、本月、下月 YYYYMM 選項，預設本月
+ */
+function getYearMonthOptions() {
+  var now = new Date();
+  var y = now.getFullYear();
+  var m = now.getMonth();
+  var items = [];
+  for (var i = -1; i <= 1; i++) {
+    var d = new Date(y, m + i, 1);
+    var ym = d.getFullYear() * 100 + (d.getMonth() + 1);
+    var label = i === -1 ? '上月' : (i === 0 ? '本月' : '下月');
+    items.push({ label: label, value: String(ym) });
+  }
+  return items;
+}
+
+/**
+ * 初始化年月下拉（上月/本月/下月），預設本月
+ */
+function initYearMonthSelects() {
+  var opts = getYearMonthOptions();
+  var currentYm = opts[1].value;
+  var querySel = document.getElementById('queryYearMonthSelect');
+  var compareSel = document.getElementById('compareYearMonthSelect');
+  function fillSelect(sel) {
+    if (!sel) return;
+    sel.innerHTML = opts.map(function(o) {
+      return '<option value="' + o.value + '"' + (o.value === currentYm ? ' selected' : '') + '>' + o.label + ' (' + o.value + ')</option>';
+    }).join('');
+  }
+  fillSelect(querySel);
+  fillSelect(compareSel);
+  if (queryYearMonthInput) queryYearMonthInput.value = currentYm;
+  if (document.getElementById('compareYearMonthInput')) {
+    document.getElementById('compareYearMonthInput').value = currentYm;
+  }
+  function onSelectChange(sel, input) {
+    if (!sel || !input) return;
+    sel.addEventListener('change', function() {
+      input.value = sel.value;
+    });
+  }
+  onSelectChange(querySel, queryYearMonthInput);
+  onSelectChange(compareSel, document.getElementById('compareYearMonthInput'));
+}
+
 function toggleDateFilterMode() {
   const mode = document.querySelector('input[name="dateFilterMode"]:checked');
   const isMonth = mode && mode.value === 'month';
   const dateMonthGroup = document.getElementById('dateMonthGroup');
   const dateRangeGroup = document.getElementById('dateRangeGroup');
+  var querySel = document.getElementById('queryYearMonthSelect');
+  if (querySel) querySel.disabled = !isMonth;
   if (queryYearMonthInput) queryYearMonthInput.disabled = !isMonth;
   if (queryStartDate) queryStartDate.disabled = isMonth;
   if (queryEndDate) queryEndDate.disabled = isMonth;
@@ -658,11 +736,13 @@ function toggleCompareDateMode() {
   const isMonth = mode && mode.value === 'month';
   const compareMonthGroup = document.getElementById('compareMonthGroup');
   const compareRangeGroup = document.getElementById('compareRangeGroup');
+  const compareYearMonthSelect = document.getElementById('compareYearMonthSelect');
   const compareYearMonthInput = document.getElementById('compareYearMonthInput');
   const compareStartDate = document.getElementById('compareStartDate');
   const compareEndDate = document.getElementById('compareEndDate');
   if (compareMonthGroup) compareMonthGroup.classList.toggle('hidden', !isMonth);
   if (compareRangeGroup) compareRangeGroup.classList.toggle('hidden', isMonth);
+  if (compareYearMonthSelect) compareYearMonthSelect.disabled = !isMonth;
   if (compareYearMonthInput) compareYearMonthInput.disabled = !isMonth;
   if (compareStartDate) compareStartDate.disabled = isMonth;
   if (compareEndDate) compareEndDate.disabled = isMonth;

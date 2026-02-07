@@ -695,15 +695,63 @@
             resize: vertical;
         }
 
-        .alert {
-            padding: 15px;
-            border-radius: 8px;
-            margin-bottom: 20px;
-            display: none;
+        .schedule-yearmonth-select {
+            width: auto;
+            min-width: 90px;
+            padding: 6px 10px;
+            font-size: 14px;
+            border: 1px solid #ced4da;
+            border-radius: 4px;
         }
 
-        .alert.show {
-            display: block;
+        .alert-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9999;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .alert-modal.show {
+            display: flex;
+        }
+
+        .alert-modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+        }
+
+        .alert-modal-content {
+            position: relative;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            min-width: 280px;
+            max-width: 90vw;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .alert-modal-message {
+            margin: 0 0 16px 0;
+            font-size: 15px;
+        }
+
+        .alert-modal-content.alert-success { background: #d4edda; border: 1px solid #c3e6cb; }
+        .alert-modal-content.alert-success .alert-modal-message { color: #155724; }
+        .alert-modal-content.alert-error { background: #f8d7da; border: 1px solid #f5c6cb; }
+        .alert-modal-content.alert-error .alert-modal-message { color: #721c24; }
+        .alert-modal-content.alert-warning { background: #fff3cd; border: 1px solid #ffeaa7; }
+        .alert-modal-content.alert-warning .alert-modal-message { color: #856404; }
+
+        .alert-modal-close {
+            width: 100%;
+        }
+
+        .alert {
+            display: none;
         }
 
         .alert-success {
@@ -1067,7 +1115,13 @@
         <h1>💰 薪資計算系統</h1>
         <p class="subtitle">班表查詢與上傳 <span class="env-badge">測試環境</span></p>
 
-        <div id="alert" class="alert"></div>
+        <div id="alertModal" class="alert-modal" role="dialog" aria-labelledby="alertModalTitle" aria-modal="true">
+            <div class="alert-modal-overlay"></div>
+            <div class="alert-modal-content">
+                <p id="alertModalTitle" class="alert-modal-message"></p>
+                <button type="button" class="alert-modal-close person-btn">關閉</button>
+            </div>
+        </div>
 
         <div class="schedule-query-section">
             <div class="schedule-block schedule-block-query-type">
@@ -1087,7 +1141,8 @@
                 </div>
                 <div class="schedule-date-month-group" id="dateMonthGroup">
                     <label class="schedule-inline-label">年月</label>
-                    <input type="text" id="queryYearMonthInput" class="schedule-yearmonth-input" placeholder="" maxlength="6" value="">
+                    <select id="queryYearMonthSelect" class="schedule-yearmonth-select"></select>
+                    <input type="text" id="queryYearMonthInput" class="schedule-yearmonth-input" placeholder="或輸入 202601" maxlength="6">
                     <span class="schedule-hint-small">例如：202601</span>
                 </div>
                 <div class="schedule-date-day-group hidden" id="dateRangeGroup">
@@ -1144,7 +1199,8 @@
                 </div>
                 <div class="schedule-date-month-group" id="compareMonthGroup">
                     <label class="schedule-inline-label">年月</label>
-                    <input type="text" id="compareYearMonthInput" class="schedule-yearmonth-input" maxlength="6" value="">
+                    <select id="compareYearMonthSelect" class="schedule-yearmonth-select"></select>
+                    <input type="text" id="compareYearMonthInput" class="schedule-yearmonth-input" placeholder="或輸入 202601" maxlength="6">
                     <span class="schedule-hint-small">例如：202601</span>
                 </div>
                 <div class="schedule-date-day-group hidden" id="compareRangeGroup">
