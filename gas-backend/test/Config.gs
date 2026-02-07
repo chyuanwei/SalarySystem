@@ -4,14 +4,41 @@
  */
 
 /**
- * 打卡 sheet 欄位 index（0-based），共 14 欄
- * A-K: 分店,員工編號,員工帳號,員工姓名,打卡日期,上班,下班,時數,狀態,備註,是否有效,校正備註,建立時間,校正時間
+ * 打卡 sheet 欄位 index（0-based），共 16 欄
+ * A-P: 分店,員工編號,員工帳號,員工姓名,打卡日期,上班,下班,時數,狀態,備註,是否有效,校正備註,建立時間,校正時間,已確認並忽略,確認忽略時間
  */
 var ATTENDANCE_COL = {
   BRANCH: 0, EMP_NO: 1, EMP_ACCOUNT: 2, NAME: 3, DATE: 4,
   START: 5, END: 6, HOURS: 7, STATUS: 8, REMARK: 9,
-  VALID: 10, CORRECTION_REMARK: 11, CREATED_AT: 12, CORRECTED_AT: 13
+  VALID: 10, CORRECTION_REMARK: 11, CREATED_AT: 12, CORRECTED_AT: 13,
+  CONFIRMED_IGNORE: 14, CONFIRM_IGNORE_AT: 15
 };
+
+/**
+ * 將時數轉為 sheet 儲存格式「n小時m分」
+ * @param {number|string} hoursVal - 小數小時（如 8.5）
+ * @param {number} totalMinutes - 若提供則優先使用（從 start/end 計算）
+ * @return {string}
+ */
+function formatHoursForSheet(hoursVal, totalMinutes) {
+  if (totalMinutes !== undefined && totalMinutes !== null && !isNaN(totalMinutes)) {
+    var m = Math.round(totalMinutes);
+    var h = Math.floor(m / 60);
+    var mins = m % 60;
+    return h + '小時' + mins + '分';
+  }
+  if (hoursVal === undefined || hoursVal === null || hoursVal === '') return '';
+  var s = String(hoursVal).trim();
+  if (!s) return '';
+  if (/^\d+小時\d+分$/.test(s)) return s;
+  var num = parseFloat(s.replace(/[^\d.]/g, ''));
+  if (isNaN(num)) return s;
+  var totalMins = Math.round(num * 60);
+  if (totalMins < 0) totalMins = 0;
+  var h = Math.floor(totalMins / 60);
+  var mins = totalMins % 60;
+  return h + '小時' + mins + '分';
+}
 
 /**
  * 班表 sheet 欄位 index（0-based），共 10 欄

@@ -305,6 +305,49 @@
         .compare-card.overlap-warning {
             border-left: 4px solid #f0ad4e;
         }
+        .compare-card.overtime-warning {
+            border-left: 4px solid #f0ad4e;
+        }
+        .compare-card-overtime-badge {
+            display: block;
+            background: #f0ad4e;
+            color: #333;
+            padding: 6px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 8px;
+        }
+        .compare-card-confirmed-badge {
+            display: inline-block;
+            background: #5bc0de;
+            color: #333;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 600;
+            margin-left: 8px;
+        }
+        .loading-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 9998;
+            background: rgba(0,0,0,0.4);
+            align-items: center;
+            justify-content: center;
+        }
+        .loading-overlay.show {
+            display: flex;
+        }
+        .loading-overlay-content {
+            background: #fff;
+            padding: 24px 40px;
+            border-radius: 12px;
+            font-size: 16px;
+            font-weight: 600;
+            color: #333;
+        }
 
         .compare-card-actions {
             margin-top: 14px;
@@ -1204,6 +1247,9 @@
         <h1>💰 薪資計算系統</h1>
         <p class="subtitle">班表查詢與上傳 <span class="env-badge">測試環境</span></p>
 
+        <div id="loadingOverlay" class="loading-overlay" aria-hidden="true">
+            <div class="loading-overlay-content">執行中...</div>
+        </div>
         <div id="alertModal" class="alert-modal" role="dialog" aria-labelledby="alertModalTitle" aria-modal="true">
             <div class="alert-modal-overlay"></div>
             <div class="alert-modal-content">
@@ -1375,8 +1421,8 @@
         </div>
     </div>
 
-    <script src="config.js?v=20260209"></script>
+    <script src="config.js?v=20260210"></script>
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
-    <script src="scripts/upload.js?v=20260209"></script>
+    <script src="scripts/upload.js?v=20260210"></script>
 </body>
 </html>

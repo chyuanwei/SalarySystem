@@ -4,7 +4,7 @@
  */
 
 // 部署標記：每次 clasp push 後可更新此版號，Log 工作表會寫入此值，用以確認程式是否成功部署
-var DEPLOY_MARKER_VERSION = 'v0.6.51';
+var DEPLOY_MARKER_VERSION = 'v0.6.53';
 
 /**
  * 處理 GET 請求
@@ -185,6 +185,9 @@ function doPost(e) {
       case 'updateAttendanceRemark':
         return handleUpdateAttendanceRemark(requestData);
       
+      case 'confirmIgnoreAttendance':
+        return handleConfirmIgnoreAttendance(requestData);
+      
       case 'calculate':
         return handleCalculate(requestData);
       
@@ -277,6 +280,7 @@ function handleUpload(requestData) {
       var acc = scheduleNameToAccount[scheduleName];
       var attendanceName = acc && accountToAttendanceName[acc] ? accountToAttendanceName[acc] : scheduleName;
       r[0] = attendanceName || scheduleName;
+      r[4] = formatHoursForSheet(r[4]);
       return r.concat([branchName, '', scheduleNowStr, '']);
     });
     const transformedData = [headerRow].concat(dataWithBranch);
@@ -424,7 +428,12 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
       if (branchNameFromMapping !== branchName) {
         return createJsonResponse({ success: false, error: '打卡地點與所選分店不符（' + location + ' 對應 ' + branchNameFromMapping + '）' });
       }
-      
+      var hoursFormatted = formatHoursForSheet(r.workHours);
+      if (!hoursFormatted && r.startTime && r.endTime && typeof timeRangeToMinutes === 'function') {
+        var mins = timeRangeToMinutes(r.startTime, r.endTime);
+        if (mins !== null) hoursFormatted = formatHoursForSheet(null, mins);
+      }
+      if (!hoursFormatted) hoursFormatted = formatHoursForSheet(r.workHours || '');
       dataRows.push([
         branchNameFromMapping,
         r.empNo || '',
@@ -433,19 +442,21 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
         r.punchDate || '',
         r.startTime || '',
         r.endTime || '',
-        r.workHours || '',
+        hoursFormatted,
         r.status || '',
         r.remark || '',
         '是',
         '',
         Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'),
+        '',
+        '',
         ''
       ]);
     }
     
     var config = getConfig();
     var targetSheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
-    var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態', '備註', '是否有效', '校正備註', '建立時間', '校正時間'];
+    var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態', '備註', '是否有效', '校正備註', '建立時間', '校正時間', '已確認並忽略', '確認忽略時間'];
     var dataToWrite = [headerRow].concat(dataRows);
     
     // 以「月份＋分店」覆蓋：先刪除既有該月份該分店資料
@@ -617,6 +628,27 @@ function handleUpdateAttendanceRemark(requestData) {
     return createJsonResponse(result.success ? { success: true, message: '備註已更新' } : { success: false, error: result.error });
   } catch (err) {
     return createJsonResponse({ success: false, error: '更新打卡備註失敗: ' + err.message });
+  }
+}
+
+/**
+ * 打卡警示確認
+ */
+function handleConfirmIgnoreAttendance(requestData) {
+  try {
+    var branch = (requestData.branch || '').toString().trim();
+    var empAccount = (requestData.empAccount || '').toString().trim();
+    var date = (requestData.date || '').toString().trim();
+    if (date && typeof normalizeDateToDash === 'function') date = normalizeDateToDash(date);
+    var start = (requestData.attendanceStart || requestData.start || '').toString().trim();
+    var end = (requestData.attendanceEnd || requestData.end || '').toString().trim();
+    if (!branch || !empAccount || !date || !start || !end) {
+      return createJsonResponse({ success: false, error: '分店、員工帳號、日期、上班、下班為必填' });
+    }
+    var result = confirmIgnoreAttendance(branch, empAccount, date, start, end);
+    return createJsonResponse(result.success ? { success: true, message: '已確認' } : { success: false, error: result.error });
+  } catch (err) {
+    return createJsonResponse({ success: false, error: '確認失敗: ' + err.message });
   }
 }
 

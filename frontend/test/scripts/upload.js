@@ -205,6 +205,7 @@ async function loadBranches() {
   const compareBranchEl = document.getElementById('compareBranchSelect');
   if (!branchEl && !queryBranchEl && !compareBranchEl) return;
   try {
+    showLoadingOverlay();
     const response = await fetch(CONFIG.GAS_URL + '?action=getBranches', { method: 'GET', mode: 'cors' });
     const result = await response.json();
     const options = result && result.success && Array.isArray(result.names) && result.names.length > 0
@@ -243,6 +244,8 @@ async function loadBranches() {
     if (branchEl) branchEl.innerHTML = '<option value="">載入失敗，請重整頁面</option>';
     if (queryBranchEl) queryBranchEl.innerHTML = '<option value="">載入失敗</option>';
     if (compareBranchEl) compareBranchEl.innerHTML = '<option value="">載入失敗</option>';
+  } finally {
+    hideLoadingOverlay();
   }
 }
 
@@ -401,8 +404,9 @@ async function handleSubmit() {
   submitBtn.textContent = '處理中...';
   sheetNameInput.disabled = true;
   
-  // 顯示進度條
+  // 顯示進度條與 overlay
   progressContainer.classList.add('show');
+  showLoadingOverlay();
   updateProgress(0, '正在連線到伺服器...');
   clearResults();
   
@@ -467,6 +471,8 @@ async function handleSubmit() {
     submitBtn.textContent = '開始上傳並處理';
     sheetNameInput.disabled = false;
     progressContainer.classList.remove('show');
+  } finally {
+    hideLoadingOverlay();
   }
 }
 
@@ -522,6 +528,22 @@ function showAlert(type, message, options) {
       alertAutoCloseTimer = null;
     }, 3000);
   }
+}
+
+/**
+ * 顯示執行中 overlay
+ */
+function showLoadingOverlay() {
+  var el = document.getElementById('loadingOverlay');
+  if (el) { el.classList.add('show'); el.setAttribute('aria-hidden', 'false'); }
+}
+
+/**
+ * 隱藏執行中 overlay
+ */
+function hideLoadingOverlay() {
+  var el = document.getElementById('loadingOverlay');
+  if (el) { el.classList.remove('show'); el.setAttribute('aria-hidden', 'true'); }
 }
 
 /**
@@ -759,6 +781,7 @@ async function loadQueryPersonnel() {
   if (selectAllBtn) selectAllBtn.disabled = true;
   if (clearBtn) clearBtn.disabled = true;
   try {
+    showLoadingOverlay();
     var params = 'action=getPersonnelFromSchedule&branch=' + encodeURIComponent(branchVal);
     if (yearMonth) params += '&yearMonth=' + encodeURIComponent(yearMonth); else { params += '&startDate=' + encodeURIComponent(startDate); params += '&endDate=' + encodeURIComponent(endDate); }
     var response = await fetch(CONFIG.GAS_URL + '?' + params, { method: 'GET', mode: 'cors' });
@@ -771,6 +794,8 @@ async function loadQueryPersonnel() {
     personCheckboxGroup.innerHTML = '<span class="person-placeholder">載入失敗，請重整頁面</span>';
     if (selectAllBtn) selectAllBtn.disabled = true;
     if (clearBtn) clearBtn.disabled = true;
+  } finally {
+    hideLoadingOverlay();
   }
 }
 
@@ -868,6 +893,7 @@ async function handleLoadSchedule() {
   loadScheduleBtn.textContent = '載入中...';
   hideAlert();
   scheduleResultSection.classList.remove('show');
+  showLoadingOverlay();
 
   const names = getSelectedPersonNames();
   let url = `${CONFIG.GAS_URL}?action=loadSchedule&branch=${encodeURIComponent(branchVal)}`;
@@ -891,6 +917,7 @@ async function handleLoadSchedule() {
   } finally {
     loadScheduleBtn.disabled = false;
     loadScheduleBtn.textContent = '載入';
+    hideLoadingOverlay();
   }
 }
 
@@ -933,6 +960,7 @@ async function handleLoadAttendance() {
   loadScheduleBtn.textContent = '載入中...';
   hideAlert();
   scheduleResultSection.classList.remove('show');
+  showLoadingOverlay();
 
   const names = getSelectedPersonNames();
   let url = `${CONFIG.GAS_URL}?action=loadAttendance&branch=${encodeURIComponent(branchVal)}`;
@@ -956,6 +984,7 @@ async function handleLoadAttendance() {
   } finally {
     loadScheduleBtn.disabled = false;
     loadScheduleBtn.textContent = '載入';
+    hideLoadingOverlay();
   }
 }
 
@@ -1123,6 +1152,7 @@ async function handleLoadCompare() {
   loadCompareBtn.textContent = '載入中...';
   hideAlert();
   if (compareResultSection) compareResultSection.classList.remove('show');
+  showLoadingOverlay();
   var url = CONFIG.GAS_URL + '?action=loadCompare&branch=' + encodeURIComponent(branchVal);
   if (yearMonth) url += '&yearMonth=' + encodeURIComponent(yearMonth);
   if (startDate) url += '&startDate=' + encodeURIComponent(startDate);
@@ -1139,6 +1169,7 @@ async function handleLoadCompare() {
     showAlert('error', '載入比對失敗：' + error.message);
   } finally {
     if (loadCompareBtn) { loadCompareBtn.disabled = false; loadCompareBtn.textContent = '載入比對'; }
+    hideLoadingOverlay();
   }
 }
 
@@ -1237,6 +1268,9 @@ function renderCompareResults(items) {
       (statusStr && statusStr !== '—' ? ' | ' + statusStr : '');
     var overtimeAlert = !!(item.overtimeAlert);
     var overlapWarning = !!(item.overlapWarning);
+    var confirmedIgnore = !!(item.confirmedIgnore);
+    var hasAlert = overtimeAlert || overlapWarning;
+    var showConfirmBtn = hasAlert && a && !confirmedIgnore;
 
     var payload = JSON.stringify({
       branch: branch,
@@ -1256,10 +1290,12 @@ function renderCompareResults(items) {
     });
 
     return (
-      '<div class="compare-card' + (isCorrected ? ' corrected' : '') + (overlapWarning ? ' overlap-warning' : '') + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
+      '<div class="compare-card' + (isCorrected ? ' corrected' : '') + (overlapWarning ? ' overlap-warning' : '') + (overtimeAlert ? ' overtime-warning' : '') + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
         (overlapWarning ? '<div class="compare-card-overlap-badge">⚠ 時間重疊</div>' : '') +
+        (overtimeAlert ? '<div class="compare-card-overtime-badge">⚠ 加班警示</div>' : '') +
         '<div class="compare-card-header">' +
           escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(formatDateWithWeekday(date)) + '</span>' +
+          (confirmedIgnore ? '<span class="compare-card-confirmed-badge">已確認</span>' : '') +
           (branch ? '<div class="compare-card-row-label" style="margin-top:4px">' + escapeHtml(branch) + (empAccount ? ' · ' + escapeHtml(empAccount) : '') + '</div>' : '') +
         '</div>' +
         '<div class="compare-card-block">' +
@@ -1271,6 +1307,7 @@ function renderCompareResults(items) {
           '<div class="compare-card-block-title">打卡</div>' +
           '<div class="compare-card-block-content' + (overtimeAlert ? ' overtime-alert' : '') + '">' + escapeHtml(attendanceText) + '</div>' +
           (a ? '<div class="compare-card-remark-row"><span class="compare-card-row-label">備註</span><textarea class="attendance-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(attendanceRemark) + '</textarea><button type="button" class="person-btn save-remark-btn" data-type="attendance">儲存</button></div>' : '') +
+          (showConfirmBtn ? '<div style="margin-top:10px"><button type="button" class="person-btn confirm-ignore-btn">確認</button></div>' : '') +
         '</div>' +
         '<div class="compare-card-actions">' +
           '<div class="compare-card-actions-row">' +
@@ -1280,7 +1317,7 @@ function renderCompareResults(items) {
           '<div class="compare-card-remark-row"><span class="compare-card-row-label">校正備註</span><textarea class="correction-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(correctionRemark) + '</textarea></div>' +
           (isCorrected
             ? '<div style="display:flex;gap:10px;align-items:center"><span class="compare-card-badge">已校正</span><button type="button" class="person-btn edit-correction-btn">編輯</button></div>'
-            : '<button type="button" class="load-schedule-btn submit-correction-btn">校正送出</button>') +
+            : '<button type="button" class="load-schedule-btn submit-correction-btn">送出校正</button>') +
         '</div>' +
       '</div>'
     );
@@ -1295,6 +1332,32 @@ function renderCompareResults(items) {
   compareList.querySelectorAll('.save-remark-btn').forEach(function(btn) {
     btn.addEventListener('click', handleSaveRemarkClick);
   });
+  compareList.querySelectorAll('.confirm-ignore-btn').forEach(function(btn) {
+    btn.addEventListener('click', handleConfirmIgnoreClick);
+  });
+}
+
+/**
+ * 處理打卡警示確認按鈕點擊
+ */
+function handleConfirmIgnoreClick(e) {
+  var btn = e.target;
+  var card = btn.closest('.compare-card');
+  if (!card) return;
+  var payloadStr = card.getAttribute('data-payload');
+  if (!payloadStr) return;
+  try {
+    var payload = JSON.parse(payloadStr);
+    doConfirmIgnoreAttendance({
+      branch: payload.branch,
+      empAccount: payload.empAccount,
+      date: payload.date,
+      attendanceStart: payload.attendanceStart,
+      attendanceEnd: payload.attendanceEnd
+    });
+  } catch (err) {
+    showAlert('error', '資料格式錯誤');
+  }
 }
 
 /**
@@ -1382,7 +1445,7 @@ function formatHoursWithMinutes(hours, start, end) {
   }
   var hoursVal = actualMinutes / 60;
   var hoursStr = hoursVal % 1 === 0 ? String(Math.round(hoursVal)) : (Math.round(hoursVal * 10) / 10).toString();
-  return hoursStr + ' 小時 (' + actualMinutes + ' 分)';
+  return hoursStr + '小時(' + actualMinutes + '分)';
 }
 
 function escapeHtml(s) {
@@ -1498,7 +1561,7 @@ function handleEditCorrectionClick(e) {
   var newBtn = document.createElement('button');
   newBtn.type = 'button';
   newBtn.className = 'load-schedule-btn submit-correction-btn';
-  newBtn.textContent = '校正送出';
+  newBtn.textContent = '送出校正';
   newBtn.addEventListener('click', handleSubmitCorrectionClick);
   if (btnRow && btnRow.parentNode) {
     btnRow.replaceWith(newBtn);
@@ -1512,6 +1575,7 @@ function handleEditCorrectionClick(e) {
  */
 async function doSubmitCorrection(payload) {
   try {
+    showLoadingOverlay();
     const response = await fetch(CONFIG.GAS_URL, {
       method: 'POST',
       mode: 'cors',
@@ -1556,6 +1620,8 @@ async function doSubmitCorrection(payload) {
     if (loadCompareBtn) loadCompareBtn.click();
   } catch (error) {
     showAlert('error', '校正送出失敗：' + (error.message || '網路或連線錯誤'));
+  } finally {
+    hideLoadingOverlay();
   }
 }
 
@@ -1564,6 +1630,7 @@ async function doSubmitCorrection(payload) {
  */
 async function doUpdateScheduleRemark(payload) {
   try {
+    showLoadingOverlay();
     var response = await fetch(CONFIG.GAS_URL, {
       method: 'POST',
       mode: 'cors',
@@ -1585,6 +1652,8 @@ async function doUpdateScheduleRemark(payload) {
     showAlert('success', '備註已更新');
   } catch (error) {
     showAlert('error', '更新班表備註失敗：' + error.message);
+  } finally {
+    hideLoadingOverlay();
   }
 }
 
@@ -1593,6 +1662,7 @@ async function doUpdateScheduleRemark(payload) {
  */
 async function doUpdateAttendanceRemark(payload) {
   try {
+    showLoadingOverlay();
     var response = await fetch(CONFIG.GAS_URL, {
       method: 'POST',
       mode: 'cors',
@@ -1614,5 +1684,40 @@ async function doUpdateAttendanceRemark(payload) {
     showAlert('success', '備註已更新');
   } catch (error) {
     showAlert('error', '更新打卡備註失敗：' + error.message);
+  } finally {
+    hideLoadingOverlay();
+  }
+}
+
+/**
+ * 打卡警示確認到 API
+ */
+async function doConfirmIgnoreAttendance(payload) {
+  try {
+    showLoadingOverlay();
+    var response = await fetch(CONFIG.GAS_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: JSON.stringify({
+        action: 'confirmIgnoreAttendance',
+        branch: payload.branch,
+        empAccount: payload.empAccount,
+        date: payload.date,
+        attendanceStart: payload.attendanceStart,
+        attendanceEnd: payload.attendanceEnd
+      })
+    });
+    var result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '確認失敗');
+    }
+    showAlert('success', '已確認');
+    var loadCompareBtn = document.getElementById('loadCompareBtn');
+    if (loadCompareBtn) loadCompareBtn.click();
+  } catch (error) {
+    showAlert('error', '確認失敗：' + error.message);
+  } finally {
+    hideLoadingOverlay();
   }
 }

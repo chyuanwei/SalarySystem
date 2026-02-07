@@ -282,11 +282,16 @@ function timeRangeToMinutes(startStr, endStr) {
 }
 
 /**
- * 時數欄位（數字或 "7.5"）轉為分鐘數，失敗回傳 null
+ * 時數欄位（數字、"7.5"、"8小時30分"）轉為分鐘數，失敗回傳 null
  */
 function hoursValueToMinutes(hours) {
   if (hours === undefined || hours === null || hours === '') return null;
-  var n = parseFloat(String(hours).replace(/[^\d.]/g, ''));
+  var s = String(hours).trim();
+  var match = s.match(/^(\d+)小時(\d+)分$/);
+  if (match) {
+    return parseInt(match[1], 10) * 60 + parseInt(match[2], 10);
+  }
+  var n = parseFloat(s.replace(/[^\d.]/g, ''));
   if (isNaN(n)) return null;
   return Math.round(n * 60);
 }
@@ -375,7 +380,14 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       var branch = row[0] ? String(row[0]).trim() : '';
       var key = buildMatchKey(acc || aName, date, branch);
       if (!keyToAttendances[key]) keyToAttendances[key] = [];
-      keyToAttendances[key].push({ empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], status: row[8], branch: branch, remark: (row[9] !== undefined && row[9] !== null) ? String(row[9]).trim() : '' });
+      var confirmedVal = (row[ATTENDANCE_COL.CONFIRMED_IGNORE] !== undefined && row[ATTENDANCE_COL.CONFIRMED_IGNORE] !== null) ? String(row[ATTENDANCE_COL.CONFIRMED_IGNORE]).trim() : '';
+      var confirmedIgnore = (confirmedVal === 'Y' || confirmedVal === '是' || confirmedVal === '1');
+      keyToAttendances[key].push({
+        empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], status: row[8], branch: branch,
+        remark: (row[9] !== undefined && row[9] !== null) ? String(row[9]).trim() : '',
+        confirmedIgnore: confirmedIgnore,
+        confirmIgnoreAt: (row[ATTENDANCE_COL.CONFIRM_IGNORE_AT] !== undefined && row[ATTENDANCE_COL.CONFIRM_IGNORE_AT] !== null) ? String(row[ATTENDANCE_COL.CONFIRM_IGNORE_AT]).trim() : ''
+      });
       allKeys[key] = true;
     });
     var config = getConfig();
@@ -429,14 +441,17 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
         }
         var displayName = (a && a.name) ? a.name : (mapping.accountToAttendanceName[empAcc] || (s && s.name) || (a && a.name) || '');
         var overlapWarning = (s && idx < scheduleOverlap.length && scheduleOverlap[idx]) || (a && idx < attendanceOverlap.length && attendanceOverlap[idx]);
-        var item = { key: key, schedule: s, attendance: a, correction: corr, displayName: displayName, overlapWarning: overlapWarning };
-        if (s && a && overtimeAlertThreshold > 0) {
-          var scheduleMins = timeRangeToMinutes(s.startTime, s.endTime);
-          if (scheduleMins === null) scheduleMins = hoursValueToMinutes(s.hours);
-          var attendanceMins = timeRangeToMinutes(a.startTime, a.endTime);
-          if (attendanceMins === null) attendanceMins = hoursValueToMinutes(a.hours);
-          if (scheduleMins !== null && attendanceMins !== null && (attendanceMins - scheduleMins) > overtimeAlertThreshold) {
+        var confirmedIgnore = (a && a.confirmedIgnore);
+        var item = { key: key, schedule: s, attendance: a, correction: corr, displayName: displayName, overlapWarning: overlapWarning, confirmedIgnore: !!confirmedIgnore };
+        if (a) {
+          if (!s) {
             item.overtimeAlert = true;
+          } else if (overtimeAlertThreshold > 0) {
+            var scheduleMins = timeRangeToMinutes(s.startTime, s.endTime) || hoursValueToMinutes(s.hours);
+            var attendanceMins = timeRangeToMinutes(a.startTime, a.endTime) || hoursValueToMinutes(a.hours);
+            if (scheduleMins !== null && attendanceMins !== null && (attendanceMins - scheduleMins) > overtimeAlertThreshold) {
+              item.overtimeAlert = true;
+            }
           }
         }
         items.push(item);
@@ -607,7 +622,7 @@ function writeCorrectionToAttendance(data) {
     }
     var firstRow = dataRows[matchingIndices[0]];
     var mins = timeRangeToMinutes(data.correctedStart || '', data.correctedEnd || '');
-    var hoursVal = (mins !== null) ? (Math.round(mins / 60 * 100) / 100).toString() : (firstRow[ATTENDANCE_COL.HOURS] || '');
+    var hoursVal = (mins !== null) ? formatHoursForSheet(null, mins) : (firstRow[ATTENDANCE_COL.HOURS] || '');
     var createdAt = (firstRow.length > ATTENDANCE_COL.CREATED_AT && firstRow[ATTENDANCE_COL.CREATED_AT]) ? String(firstRow[ATTENDANCE_COL.CREATED_AT]).trim() : '';
     var newRow = [
       firstRow[ATTENDANCE_COL.BRANCH] || '',
@@ -623,7 +638,9 @@ function writeCorrectionToAttendance(data) {
       '是',
       (data.remark || data.correctionRemark || '').toString().trim(),
       createdAt,
-      nowStr
+      nowStr,
+      '',
+      ''
     ];
     sheet.appendRow(newRow);
     logToSheet('校正寫回打卡成功', 'OPERATION', {
