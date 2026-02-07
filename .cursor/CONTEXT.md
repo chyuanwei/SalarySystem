@@ -102,7 +102,8 @@ SalarySystem/
 │   ├── API.md                  # API 端點說明
 │   ├── FIELD_MAPPING.md        # 欄位映射說明
 │   ├── LOG_SYSTEM.md           # Log 系統說明
-│   └── NO_CORS_ISSUE.md        # CORS 問題說明
+│   ├── NO_CORS_ISSUE.md        # CORS 問題說明
+│   └── SCHEMA_NEW_COLUMNS_ANALYSIS.md  # 打卡 14 欄／班表 10 欄分析與實作對照
 │
 ├── REPLACEMENT_SUMMARY.md      # 解析器替換完成報告
 ├── TEST_REPORT.md              # 測試報告模板
@@ -199,17 +200,18 @@ A30: "* O 10:00-20:30"   (全日班)
 
 ## 5. Google Sheets 表結構
 
-專案使用一個 Google Sheets 檔案，**目前已實作**的工作表：
+專案使用一個 Google Sheets 檔案，**目前已實作**的工作表。欄位 index 以 Config.gs 的 `ATTENDANCE_COL`、`SCHEDULE_COL` 常數為準。
 
-| 工作表名稱 | 說明 | 主要欄位 |
-|------------|------|----------|
-| **班表** | 上傳的班表解析結果、loadSchedule 查詢來源 | 員工姓名、排班日期、上班時間、下班時間、工作時數、班別、分店 |
-| **打卡** | 上傳的打卡 CSV 結果 | 分店、員工編號、員工帳號、員工姓名、打卡日期、上班、下班、時數、狀態 |
+| 工作表名稱 | 說明 | 主要欄位（欄數） |
+|------------|------|------------------|
+| **班表** | 上傳的班表解析結果、loadSchedule 查詢來源 | 員工姓名、排班日期、上班、下班、時數、班別、分店、備註、**建立時間**、**修改時間**（10 欄） |
+| **打卡** | 上傳的打卡 CSV、校正寫回後之有效列為算薪依據 | 分店、員工編號、員工帳號、員工姓名、打卡日期、上班、下班、時數、狀態、備註、**是否有效**、**校正備註**、**建立時間**、**校正時間**（14 欄） |
 | **人員** | 班表名稱／打卡名稱 ↔ 員工帳號對應 | 員工帳號、班表名稱、打卡名稱、分店 |
-| **校正** | 班表與打卡校正紀錄 | 分店、員工帳號、姓名、日期、班表上下班、打卡上下班、校正上下班、是否有效、建立時間 |
+| **校正** | 校正紀錄（供比對「已校正」顯示；實際算薪以打卡 sheet 有效列為準） | 分店、員工帳號、姓名、日期、班表上下班、打卡上下班、校正上下班、是否有效、建立時間 |
 | **Log** | 系統 Log | 時間、等級、訊息、環境、詳細資訊 |
 | **處理記錄** | 上傳處理記錄 | 時間、檔案名稱、來源/目標工作表、筆數、狀態、訊息 |
 
+*讀取打卡（比對／算薪）時僅取「是否有效=是」的列。校正送出會寫回打卡：原列設為無效、新增一列校正後資料（是否有效=是、校正備註、校正時間）。*
 *其他工作表（計算結果、調整記錄等）為未來薪資計算功能預留。*
 
 ---
@@ -441,10 +443,12 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ 時間重疊警示：同一 key 內若班表之間或打卡之間時間區間重疊，該 item 設 overlapWarning，前端顯示「⚠ 時間重疊」標示
 - ✅ 比對結果卡片：班表 vs 打卡（分店、員工帳號、姓名、日期、上班/下班/時數/狀態）；可僅班表或僅打卡（另一側—）
 - ✅ 校正：校正上班/下班輸入、校正送出、已校正顯示唯讀+編輯按鈕
-- ✅ submitCorrection API：寫入校正 sheet，再次校正時舊筆設為無效
+- ✅ submitCorrection API：**校正寫回打卡**（writeCorrectionToAttendance）— 原列設為無效、新增一列校正後資料（是否有效=是、校正備註、校正時間）；並寫入校正 sheet 供「已校正」顯示
+- ✅ 讀取打卡（readAttendanceByConditions）僅取「是否有效=是」的列；算薪以打卡 sheet 有效列為準
+- ✅ Config.gs：ATTENDANCE_COL、SCHEDULE_COL 固定打卡 14 欄／班表 10 欄 index，避免對錯欄
 - ✅ 人員選單以該月份／日期區間＋分店的打卡資料為來源（getPersonnelFromSchedule）；載入比對後可合併結果人員補足選單
 - ✅ 比對卡片：手機優先排版、44px 觸控目標；加班警示（OVERTIME_ALERT）時打卡區塊標紅
-- ✅ CompareService：getPersonnelFromAttendance、readScheduleByConditions、readAttendanceByConditions、compareScheduleAttendance（timeRangesOverlap、sortByStartTime）、readCorrectionsValid、writeCorrection
+- ✅ CompareService：getPersonnelFromAttendance、readScheduleByConditions、readAttendanceByConditions（篩選有效）、compareScheduleAttendance、readCorrectionsValid、writeCorrection、**writeCorrectionToAttendance**
 
 ### 12.10 測試與正式環境
 - ✅ 完整的環境分離（GAS + 前端）
@@ -536,6 +540,9 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.53 | 測試 | 工作時數 Sheet 寫入 n小時m分；前端顯示去空格；按鈕改為「送出校正」；執行中 loading overlay；overtime 警示 badge+邊框+紅字；無班表有打卡比照 overtime 警示；打卡警示確認（O/P 欄、確認按鈕、已確認標示） | AI |
+| 2026-02-07 | v0.6.52 | 測試 | 打卡 14 欄（是否有效、建立時間、校正備註、校正時間）、班表 10 欄（建立時間、修改時間）、讀取僅有效列、校正寫回打卡 | AI |
+| 2026-02-07 | v0.6.51 | 測試 | DEPLOY_MARKER v0.6.51、校正寫入列號/spreadsheetId log；normalizeDateToDash 支援序列數字、校正 key 除錯 log | AI |
 | 2026-02-07 | v0.6.50 | 測試 | 校正 key 修正（無班表用空字串）、DEPLOY_MARKER_VERSION、每次 POST 寫 Log、校正送出記錄前端傳入 requestData | AI |
 | 2026-02-07 | v0.6.49 | 測試 | 上傳 Tab 預設、校正送出：doPost 防呆（postData/JSON）、handleSubmitCorrection 日期正規化、前端顯示後端 error | AI |
 | 2026-02-07 | v0.6.48 | 測試 | 比對：同人同日同店允許多筆、依開始時間 1-1 配對、時間重疊顯示警示（overlapWarning） | AI |
@@ -758,4 +765,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-07（12.9 比對邏輯：同人同日同店多筆、依開始時間 1-1 配對、時間重疊警示；曾遇問題：比對只顯示一筆需 clasp push）*
+*最後更新：2026-02-07（§5 打卡 14 欄／班表 10 欄；§12.9 校正寫回打卡、讀取僅有效列、ATTENDANCE_COL/SCHEDULE_COL；部署 v0.6.52）*
