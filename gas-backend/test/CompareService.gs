@@ -546,11 +546,12 @@ function writeCorrection(data) {
       }
     }
     var now = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
+    var dateNorm = (data.date ? normalizeDateToDash(data.date) : '');
     var newRow = [
       data.branch || '',
       data.empAccount || '',
       data.name || '',
-      data.date || '',
+      dateNorm,
       data.scheduleStart || '',
       data.scheduleEnd || '',
       data.scheduleHours || '',
@@ -624,12 +625,13 @@ function writeCorrectionToAttendance(data) {
     var mins = timeRangeToMinutes(data.correctedStart || '', data.correctedEnd || '');
     var hoursVal = (mins !== null) ? formatHoursForSheet(null, mins) : (firstRow[ATTENDANCE_COL.HOURS] || '');
     var createdAt = (firstRow.length > ATTENDANCE_COL.CREATED_AT && firstRow[ATTENDANCE_COL.CREATED_AT]) ? String(firstRow[ATTENDANCE_COL.CREATED_AT]).trim() : '';
+    var dateNorm = (data.date ? normalizeDateToDash(data.date) : (firstRow[ATTENDANCE_COL.DATE] ? normalizeDateToDash(firstRow[ATTENDANCE_COL.DATE]) : ''));
     var newRow = [
       firstRow[ATTENDANCE_COL.BRANCH] || '',
       firstRow[ATTENDANCE_COL.EMP_NO] || '',
       firstRow[ATTENDANCE_COL.EMP_ACCOUNT] || '',
       firstRow[ATTENDANCE_COL.NAME] || '',
-      firstRow[ATTENDANCE_COL.DATE] || '',
+      dateNorm,
       data.correctedStart || '',
       data.correctedEnd || '',
       hoursVal,

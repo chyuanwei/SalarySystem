@@ -16,6 +16,7 @@ const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
 const progressText = document.getElementById('progressText');
 const alertModal = document.getElementById('alertModal');
+const confirmModal = document.getElementById('confirmModal');
 const resultSection = document.getElementById('resultSection');
 const resultSummary = document.getElementById('resultSummary');
 const resultList = document.getElementById('resultList');
@@ -134,6 +135,21 @@ if (alertModal) {
   alertModal.addEventListener('click', function(e) {
     if (e.target.classList.contains('alert-modal-overlay') || e.target.classList.contains('alert-modal-close')) {
       hideAlert();
+    }
+  });
+}
+
+var confirmModalCallback = null;
+if (confirmModal) {
+  confirmModal.addEventListener('click', function(e) {
+    if (e.target.classList.contains('confirm-modal-overlay') || e.target.classList.contains('confirm-modal-cancel')) {
+      hideConfirm();
+      confirmModalCallback = null;
+    } else if (e.target.classList.contains('confirm-modal-ok')) {
+      var cb = confirmModalCallback;
+      hideConfirm();
+      confirmModalCallback = null;
+      if (cb) cb();
     }
   });
 }
@@ -549,6 +565,26 @@ function showLoadingOverlay() {
 function hideLoadingOverlay() {
   var el = document.getElementById('loadingOverlay');
   if (el) { el.classList.remove('show'); el.setAttribute('aria-hidden', 'true'); }
+}
+
+/**
+ * 顯示確認視窗（自訂 modal，不顯示 domain）
+ * @param {string} message - 訊息內容
+ * @param {function} onConfirm - 按下「確定」時執行
+ */
+function showConfirm(message, onConfirm) {
+  if (!confirmModal) return;
+  var msgEl = confirmModal.querySelector('.confirm-modal-message');
+  if (msgEl) msgEl.textContent = message;
+  confirmModalCallback = onConfirm;
+  confirmModal.classList.add('show');
+}
+
+/**
+ * 隱藏確認視窗
+ */
+function hideConfirm() {
+  if (confirmModal) confirmModal.classList.remove('show');
 }
 
 /**
@@ -1353,7 +1389,7 @@ function handleConfirmIgnoreClick(e) {
   if (!card) return;
   var payloadStr = card.getAttribute('data-payload');
   if (!payloadStr) return;
-  if (!confirm('確定要將此筆打卡警示標記為已確認？')) return;
+  showConfirm('確定要將此筆打卡警示標記為已確認？', function() {
   try {
     var payload = JSON.parse(payloadStr);
     doConfirmIgnoreAttendance({
@@ -1366,6 +1402,7 @@ function handleConfirmIgnoreClick(e) {
   } catch (err) {
     showAlert('error', '資料格式錯誤');
   }
+  });
 }
 
 /**
@@ -1377,7 +1414,7 @@ function handleUnconfirmIgnoreClick(e) {
   if (!card) return;
   var payloadStr = card.getAttribute('data-payload');
   if (!payloadStr) return;
-  if (!confirm('確定要取消確認？將還原為待確認狀態。')) return;
+  showConfirm('確定要取消確認？將還原為待確認狀態。', function() {
   try {
     var payload = JSON.parse(payloadStr);
     doUnconfirmIgnoreAttendance({
@@ -1390,6 +1427,7 @@ function handleUnconfirmIgnoreClick(e) {
   } catch (err) {
     showAlert('error', '資料格式錯誤');
   }
+  });
 }
 
 /**

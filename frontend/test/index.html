@@ -930,6 +930,51 @@
             width: 100%;
         }
 
+        .confirm-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 10000;
+            align-items: center;
+            justify-content: center;
+            padding: 20px;
+        }
+
+        .confirm-modal.show {
+            display: flex;
+        }
+
+        .confirm-modal-overlay {
+            position: absolute;
+            inset: 0;
+            background: rgba(0,0,0,0.4);
+        }
+
+        .confirm-modal-content {
+            position: relative;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px 24px;
+            min-width: 280px;
+            max-width: 90vw;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+        }
+
+        .confirm-modal-message {
+            margin: 0 0 16px 0;
+            font-size: 15px;
+        }
+
+        .confirm-modal-actions {
+            display: flex;
+            gap: 10px;
+            justify-content: flex-end;
+            margin-top: 16px;
+        }
+
+        .confirm-modal-ok { flex: 1; }
+        .confirm-modal-cancel { flex: 1; }
+
         .alert {
             display: none;
         }
@@ -1287,6 +1332,16 @@
             <div class="alert-modal-content">
                 <p id="alertModalTitle" class="alert-modal-message"></p>
                 <button type="button" class="alert-modal-close person-btn">關閉</button>
+            </div>
+        </div>
+        <div id="confirmModal" class="confirm-modal" role="dialog" aria-modal="true">
+            <div class="confirm-modal-overlay"></div>
+            <div class="confirm-modal-content">
+                <p class="confirm-modal-message"></p>
+                <div class="confirm-modal-actions">
+                    <button type="button" class="confirm-modal-ok load-schedule-btn">確定</button>
+                    <button type="button" class="confirm-modal-cancel person-btn">取消</button>
+                </div>
             </div>
         </div>
 

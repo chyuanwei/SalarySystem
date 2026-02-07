@@ -1053,6 +1053,7 @@ function confirmIgnoreAttendance(branch, empAccount, date, start, end) {
 
 /**
  * 取消打卡警示確認：清空 O、P 欄（已確認並忽略、確認忽略時間）
+ * 僅處理「是否有效=是」的列（與 confirmIgnoreAttendance 一致）
  */
 function unconfirmIgnoreAttendance(branch, empAccount, date, start, end) {
   try {
@@ -1068,6 +1069,8 @@ function unconfirmIgnoreAttendance(branch, empAccount, date, start, end) {
     var sheet = getOrCreateSheet(sheetName);
     for (var i = 0; i < dataRows.length; i++) {
       var row = dataRows[i];
+      var validVal = (row.length > ATTENDANCE_COL.VALID) ? String(row[ATTENDANCE_COL.VALID] || '').trim() : '';
+      if (validVal === '否' || validVal === 'N' || validVal === '0') continue;
       var rDate = normalizeDateToCompare(row[4]);
       var rStart = row[5] ? normalizeTimeValue(row[5]) : '';
       var rEnd = row[6] ? normalizeTimeValue(row[6]) : '';
