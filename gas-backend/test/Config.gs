@@ -46,18 +46,22 @@ function getSpreadsheet() {
 }
 
 /**
- * 取得或建立指定名稱的工作表
+ * 取得工作表（若不存在則回傳 null，不建立新工作表）
+ */
+function getSheet(sheetName) {
+  const ss = getSpreadsheet();
+  return ss.getSheetByName(sheetName);
+}
+
+/**
+ * 取得或建立指定名稱的工作表（僅用於寫入情境）
  */
 function getOrCreateSheet(sheetName) {
+  const sheet = getSheet(sheetName);
+  if (sheet) return sheet;
   const ss = getSpreadsheet();
-  let sheet = ss.getSheetByName(sheetName);
-  
-  if (!sheet) {
-    Logger.log('建立新工作表: ' + sheetName);
-    sheet = ss.insertSheet(sheetName);
-  }
-  
-  return sheet;
+  Logger.log('建立新工作表: ' + sheetName);
+  return ss.insertSheet(sheetName);
 }
 
 /**

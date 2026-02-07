@@ -428,13 +428,17 @@ function readScheduleByYearMonth(sheetName, yearMonth, date, names) {
 }
 
 /**
- * 讀取工作表的所有資料
+ * 讀取工作表的所有資料（若工作表不存在則回傳空陣列，不建立新工作表）
  * @param {string} sheetName - 工作表名稱
  * @return {Array} 二維陣列資料
  */
 function readFromSheet(sheetName) {
   try {
-    const sheet = getOrCreateSheet(sheetName);
+    const sheet = getSheet(sheetName);
+    if (!sheet) {
+      logDebug(`工作表不存在: ${sheetName}，回傳空陣列`, { sheetName: sheetName });
+      return [];
+    }
     const lastRow = sheet.getLastRow();
     const lastCol = sheet.getLastColumn();
     
