@@ -42,11 +42,21 @@ if (fileSelectBtn) fileSelectBtn.addEventListener('click', function() { fileInpu
 // 提交按鈕事件
 submitBtn.addEventListener('click', handleSubmit);
 
-// 上傳類型切換（分店、工作表區塊顯示）
+// 依上傳類型設定 file input accept
+// 打卡：Line / 部分 WebView 對 accept 支援差，改不限制類型，改由選檔後 JS 驗證副檔名為 .csv
+function setFileInputAccept() {
+  if (!fileInput) return;
+  var uploadType = document.querySelector('input[name="uploadType"]:checked');
+  var isAttendance = uploadType && uploadType.value === 'attendance';
+  fileInput.accept = isAttendance ? '' : '.xlsx,.xls';
+}
+
+// 上傳類型切換（分店、工作表區塊顯示、file accept）
 document.querySelectorAll('input[name="uploadType"]').forEach(function(radio) {
   radio.addEventListener('change', function() {
-    const isSchedule = this.value === 'schedule';
-    const isAttendance = this.value === 'attendance';
+    var isSchedule = this.value === 'schedule';
+    var isAttendance = this.value === 'attendance';
+    setFileInputAccept();
     if (sheetNameHint) sheetNameHint.textContent = isSchedule ? '選檔後自動帶入工作表清單' : '打卡上傳 CSV 不需選擇工作表';
     if (sheetNameGroup) sheetNameGroup.style.display = isSchedule ? 'block' : 'none';
     if (branchGroup) branchGroup.style.display = (isSchedule || isAttendance) ? 'block' : 'none';
@@ -179,10 +189,11 @@ document.addEventListener('DOMContentLoaded', function() {
   if (qymInp) { qymInp.addEventListener('input', loadQueryPersonnel); qymInp.addEventListener('change', loadQueryPersonnel); }
   if (queryStartDate) queryStartDate.addEventListener('change', loadQueryPersonnel);
   if (queryEndDate) queryEndDate.addEventListener('change', loadQueryPersonnel);
-  // 初始顯示分店、工作表區塊（依上傳類型）
+  // 初始顯示分店、工作表區塊與 file accept（依上傳類型）
   var mode = document.querySelector('input[name="uploadType"]:checked');
   if (branchGroup) branchGroup.style.display = mode && (mode.value === 'schedule' || mode.value === 'attendance') ? 'block' : 'none';
   if (sheetNameGroup) sheetNameGroup.style.display = mode && mode.value === 'schedule' ? 'block' : 'none';
+  setFileInputAccept();
 });
 
 /**
