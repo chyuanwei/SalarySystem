@@ -116,6 +116,25 @@ if (loadCompareBtn) loadCompareBtn.addEventListener('click', handleLoadCompare);
 const compareBranchSelect = document.getElementById('compareBranchSelect');
 if (compareBranchSelect) compareBranchSelect.addEventListener('change', handleCompareBranchChange);
 
+// 比對區人員篩選按鈕
+const selectAllComparePersonsBtn = document.getElementById('selectAllComparePersonsBtn');
+const clearAllComparePersonsBtn = document.getElementById('clearAllComparePersonsBtn');
+if (selectAllComparePersonsBtn) selectAllComparePersonsBtn.addEventListener('click', selectAllComparePersons);
+if (clearAllComparePersonsBtn) clearAllComparePersonsBtn.addEventListener('click', clearAllComparePersons);
+
+// 結果區收合鈕
+document.addEventListener('click', function(e) {
+  var btn = e.target && e.target.closest && e.target.closest('.collapse-toggle-btn');
+  if (!btn) return;
+  var targetId = btn.getAttribute('data-target');
+  if (!targetId) return;
+  var body = document.getElementById(targetId);
+  if (!body) return;
+  body.classList.toggle('collapsed');
+  btn.classList.toggle('collapsed');
+  btn.textContent = body.classList.contains('collapsed') ? '▶' : '▼';
+});
+
 // 頁面載入時初始化
 document.addEventListener('DOMContentLoaded', function() {
   toggleDateFilterMode();
@@ -659,6 +678,18 @@ function clearAllPersons() {
   personCheckboxGroup.querySelectorAll('input[type="checkbox"]').forEach(cb => { cb.checked = false; });
 }
 
+function selectAllComparePersons() {
+  var el = document.getElementById('comparePersonCheckboxGroup');
+  if (!el) return;
+  el.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = true; });
+}
+
+function clearAllComparePersons() {
+  var el = document.getElementById('comparePersonCheckboxGroup');
+  if (!el) return;
+  el.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
+}
+
 function getSelectedPersonNames() {
   if (!personCheckboxGroup) return [];
   const names = [];
@@ -1022,13 +1053,21 @@ async function handleLoadCompare() {
  */
 async function loadComparePersonnel(branchVal) {
   const comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
+  const selectAllComparePersonsBtn = document.getElementById('selectAllComparePersonsBtn');
+  const clearAllComparePersonsBtn = document.getElementById('clearAllComparePersonsBtn');
+  function disableCompareButtons() {
+    if (selectAllComparePersonsBtn) selectAllComparePersonsBtn.disabled = true;
+    if (clearAllComparePersonsBtn) clearAllComparePersonsBtn.disabled = true;
+  }
   if (!comparePersonCheckboxGroup || !branchVal) {
     if (comparePersonCheckboxGroup && !branchVal) {
       comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">請先選擇分店</span>';
+      disableCompareButtons();
     }
     return;
   }
   comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">載入中...</span>';
+  disableCompareButtons();
   try {
     const url = CONFIG.GAS_URL + '?action=getPersonnelByBranch&branch=' + encodeURIComponent(branchVal);
     const response = await fetch(url, { method: 'GET', mode: 'cors' });
@@ -1038,6 +1077,7 @@ async function loadComparePersonnel(branchVal) {
   } catch (error) {
     console.error('載入分店人員失敗:', error);
     comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">載入失敗，請重整頁面</span>';
+    disableCompareButtons();
   }
 }
 
@@ -1084,6 +1124,8 @@ function renderComparePersonCheckboxes(names, opts) {
   if (opts && Array.isArray(opts.checked)) opts.checked.forEach(function(n) { checkedSet[n] = true; });
   comparePersonCheckboxGroup.innerHTML = '';
   if (names.length > 0) {
+    if (selectAllComparePersonsBtn) selectAllComparePersonsBtn.disabled = false;
+    if (clearAllComparePersonsBtn) clearAllComparePersonsBtn.disabled = false;
     names.forEach(function(n) {
       const label = document.createElement('label');
       const cb = document.createElement('input');
@@ -1096,6 +1138,8 @@ function renderComparePersonCheckboxes(names, opts) {
     });
   } else {
     comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">此分店無人員資料</span>';
+    if (selectAllComparePersonsBtn) selectAllComparePersonsBtn.disabled = true;
+    if (clearAllComparePersonsBtn) clearAllComparePersonsBtn.disabled = true;
   }
 }
 
