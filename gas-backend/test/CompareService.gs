@@ -547,7 +547,16 @@ function writeCorrection(data) {
       now
     ];
     sheet.appendRow(newRow);
-    logInfo('校正紀錄寫入成功', { branch: data.branch, empAccount: data.empAccount, date: data.date });
+    var writtenRowNum = sheet.getLastRow();
+    var spreadsheetId = sheet.getParent() ? sheet.getParent().getId() : '';
+    logToSheet('校正紀錄寫入成功-已寫入列', 'OPERATION', {
+      branch: data.branch,
+      empAccount: data.empAccount,
+      date: data.date,
+      sheetName: sheetName,
+      writtenRow: writtenRowNum,
+      spreadsheetId: spreadsheetId
+    });
     return { success: true };
   } catch (error) {
     logError('寫入校正紀錄失敗: ' + error.message, { error: error.toString() });
