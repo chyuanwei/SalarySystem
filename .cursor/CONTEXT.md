@@ -307,9 +307,15 @@ A30: "* O 10:00-20:30"   (全日班)
 
 ## 9. 開發與部署
 
-### 9.1 GitHub
+### 9.1 GitHub 與 GitHub Pages
+
 - **遠端**：`origin` → https://github.com/chyuanwei/SalarySystem.git
 - **分支**：`master`
+- **GitHub Pages**：`.github/workflows/deploy-pages.yml` 部署**整個 repo**（`path: '.'`），使 URL 保留完整路徑：
+  - **測試環境**：`https://chyuanwei.github.io/SalarySystem/frontend/test/index.html`
+  - **正式環境**：`https://chyuanwei.github.io/SalarySystem/frontend/prod/index.html`
+  - **入口**：`https://chyuanwei.github.io/SalarySystem/`（導向 frontend/）
+  - ⚠️ **不可**改為 `path: 'frontend'`，否則會變成 `/test/` 而非 `/frontend/test/`，網址將失效
 
 ### 9.2 GAS（clasp）
 - **測試環境**：
