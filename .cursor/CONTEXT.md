@@ -205,7 +205,7 @@ A30: "* O 10:00-20:30"   (全日班)
 | 工作表名稱 | 說明 | 主要欄位（欄數） |
 |------------|------|------------------|
 | **班表** | 上傳的班表解析結果、loadSchedule 查詢來源 | 員工姓名、排班日期、上班、下班、時數、班別、分店、備註、**建立時間**、**修改時間**（10 欄） |
-| **打卡** | 上傳的打卡 CSV、校正寫回後之有效列為算薪依據 | 分店、員工編號、員工帳號、員工姓名、打卡日期、上班、下班、時數、狀態、備註、**是否有效**、**校正備註**、**建立時間**、**校正時間**（14 欄） |
+| **打卡** | 上傳的打卡 CSV、校正寫回後之有效列為算薪依據 | 分店、員工編號、員工帳號、員工姓名、打卡日期、上班、下班、時數、狀態、備註、**是否有效**、**校正備註**、**建立時間**、**校正時間**、**已確認並忽略**、**確認忽略時間**、**警示**（17 欄） |
 | **人員** | 班表名稱／打卡名稱 ↔ 員工帳號對應 | 員工帳號、班表名稱、打卡名稱、分店 |
 | **校正** | 校正紀錄（供比對「已校正」顯示；實際算薪以打卡 sheet 有效列為準） | 分店、員工帳號、姓名、日期、班表上下班、打卡上下班、校正上下班、是否有效、建立時間 |
 | **Log** | 系統 Log | 時間、等級、訊息、環境、詳細資訊 |
@@ -453,9 +453,10 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ 校正：校正上班/下班輸入、校正送出、已校正顯示唯讀+編輯按鈕
 - ✅ submitCorrection API：**校正寫回打卡**（writeCorrectionToAttendance）— 原列設為無效、新增一列校正後資料（是否有效=是、校正備註、校正時間）；並寫入校正 sheet 供「已校正」顯示
 - ✅ 讀取打卡（readAttendanceByConditions）僅取「是否有效=是」的列；算薪以打卡 sheet 有效列為準
-- ✅ Config.gs：ATTENDANCE_COL、SCHEDULE_COL 固定打卡 14 欄／班表 10 欄 index，避免對錯欄
+- ✅ Config.gs：ATTENDANCE_COL、SCHEDULE_COL 固定打卡 17 欄／班表 10 欄 index，避免對錯欄
 - ✅ 人員選單以該月份／日期區間＋分店的打卡資料為來源（getPersonnelFromSchedule）；載入比對後可合併結果人員補足選單
 - ✅ 比對卡片：手機優先排版、44px 觸控目標；加班警示（OVERTIME_ALERT）時打卡區塊標紅
+- ✅ 打卡 Q 欄「警示」：loadCompare 後依比對結果同步（overtimeAlert/overlapWarning 設 Y）；薪資計算前檢查 Q=Y 且 O≠Y 則阻擋並提示
 - ✅ CompareService：getPersonnelFromAttendance、readScheduleByConditions、readAttendanceByConditions（篩選有效）、compareScheduleAttendance、readCorrectionsValid、writeCorrection、**writeCorrectionToAttendance**
 
 ### 12.10 測試與正式環境

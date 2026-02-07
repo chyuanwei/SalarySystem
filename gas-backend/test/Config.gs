@@ -4,14 +4,14 @@
  */
 
 /**
- * 打卡 sheet 欄位 index（0-based），共 16 欄
- * A-P: 分店,員工編號,員工帳號,員工姓名,打卡日期,上班,下班,時數,狀態,備註,是否有效,校正備註,建立時間,校正時間,已確認並忽略,確認忽略時間
+ * 打卡 sheet 欄位 index（0-based），共 17 欄
+ * A-Q: 分店,員工編號,員工帳號,員工姓名,打卡日期,上班,下班,時數,狀態,備註,是否有效,校正備註,建立時間,校正時間,已確認並忽略,確認忽略時間,警示
  */
 var ATTENDANCE_COL = {
   BRANCH: 0, EMP_NO: 1, EMP_ACCOUNT: 2, NAME: 3, DATE: 4,
   START: 5, END: 6, HOURS: 7, STATUS: 8, REMARK: 9,
   VALID: 10, CORRECTION_REMARK: 11, CREATED_AT: 12, CORRECTED_AT: 13,
-  CONFIRMED_IGNORE: 14, CONFIRM_IGNORE_AT: 15
+  CONFIRMED_IGNORE: 14, CONFIRM_IGNORE_AT: 15, ALERT: 16
 };
 
 /**

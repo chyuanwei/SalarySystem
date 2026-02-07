@@ -1089,6 +1089,112 @@ function unconfirmIgnoreAttendance(branch, empAccount, date, start, end) {
 }
 
 /**
+ * 確保打卡 sheet 有「警示」欄位（Q 欄）
+ */
+function ensureAttendanceSheetHasAlertColumn() {
+  try {
+    var sheetName = getConfig().SHEET_NAMES.ATTENDANCE || '打卡';
+    var sheet = getSheet(sheetName);
+    if (!sheet) return;
+    var lastCol = sheet.getLastColumn();
+    if (lastCol >= ATTENDANCE_COL.ALERT + 1) return;
+    sheet.getRange(1, ATTENDANCE_COL.ALERT + 1).setValue('警示');
+  } catch (err) {
+    logError('確保警示欄失敗: ' + err.message, { error: err.toString() });
+  }
+}
+
+/**
+ * 依比對結果同步「警示」欄位到打卡 sheet
+ * 比對後若為警示（overtimeAlert 或 overlapWarning），設 Q=Y；否則清空
+ * @param {Array} items - compareScheduleAttendance 回傳的 items
+ */
+function syncAlertsToAttendance(items) {
+  try {
+    if (!items || items.length === 0) return { success: true, updatedCount: 0 };
+    ensureAttendanceSheetHasAlertColumn();
+    var sheetName = getConfig().SHEET_NAMES.ATTENDANCE || '打卡';
+    var allData = readFromSheet(sheetName);
+    if (!allData || allData.length < 2) return { success: true, updatedCount: 0 };
+    var dataRows = allData.slice(1);
+    var sheet = getOrCreateSheet(sheetName);
+    var updatedCount = 0;
+    items.forEach(function(item) {
+      var a = item.attendance;
+      if (!a) return;
+      var hasAlert = !!(item.overtimeAlert || item.overlapWarning);
+      var branchStr = (a.branch || '').toString().trim();
+      var accStr = (a.empAccount || '').toString().trim();
+      var dateStr = (a.date && typeof normalizeDateToCompare === 'function') ? normalizeDateToCompare(a.date) : (a.date || '').toString().trim();
+      var startStr = (a.startTime && typeof normalizeTimeValue === 'function') ? normalizeTimeValue(a.startTime) : (a.startTime || '').toString().trim();
+      var endStr = (a.endTime && typeof normalizeTimeValue === 'function') ? normalizeTimeValue(a.endTime) : (a.endTime || '').toString().trim();
+      for (var i = 0; i < dataRows.length; i++) {
+        var row = dataRows[i];
+        var validVal = (row.length > ATTENDANCE_COL.VALID) ? String(row[ATTENDANCE_COL.VALID] || '').trim() : '';
+        if (validVal === '否' || validVal === 'N' || validVal === '0') continue;
+        var rDate = normalizeDateToCompare(row[4]);
+        var rStart = row[5] ? normalizeTimeValue(row[5]) : '';
+        var rEnd = row[6] ? normalizeTimeValue(row[6]) : '';
+        var rAcc = row[2] ? String(row[2]).trim() : '';
+        var rBranch = row[0] ? String(row[0]).trim() : '';
+        if (rBranch === branchStr && rAcc === accStr && rDate === dateStr && rStart === startStr && rEnd === endStr) {
+          var valToSet = hasAlert ? 'Y' : '';
+          sheet.getRange(i + 2, ATTENDANCE_COL.ALERT + 1).setValue(valToSet);
+          updatedCount++;
+          break;
+        }
+      }
+    });
+    if (updatedCount > 0) {
+      logInfo('同步警示欄位', { updatedCount: updatedCount });
+    }
+    return { success: true, updatedCount: updatedCount };
+  } catch (err) {
+    logError('同步警示欄位失敗: ' + err.message, { error: err.toString() });
+    return { success: false, updatedCount: 0 };
+  }
+}
+
+/**
+ * 檢查是否有未確認的警示（Q=Y 且 O!=Y），若有則不可計算薪資
+ * @param {string} yearMonth - YYYYMM
+ * @param {string} startDate - YYYY-MM-DD
+ * @param {string} endDate - YYYY-MM-DD
+ * @param {string} branchName - 分店
+ * @return {Object} { canCalculate: boolean, unconfirmedAlerts: [{branch,empAccount,date,name}], error? }
+ */
+function checkUnconfirmedAlerts(yearMonth, startDate, endDate, branchName) {
+  try {
+    var aResult = readAttendanceByConditions(yearMonth, startDate, endDate, null, branchName);
+    if (!aResult.success || !aResult.records || aResult.records.length === 0) {
+      return { canCalculate: true, unconfirmedAlerts: [] };
+    }
+    var unconfirmedAlerts = [];
+    aResult.records.forEach(function(row) {
+      var alertVal = (row.length > ATTENDANCE_COL.ALERT) ? String(row[ATTENDANCE_COL.ALERT] || '').trim() : '';
+      var confirmedVal = (row.length > ATTENDANCE_COL.CONFIRMED_IGNORE) ? String(row[ATTENDANCE_COL.CONFIRMED_IGNORE] || '').trim() : '';
+      var isAlert = (alertVal === 'Y' || alertVal === '是' || alertVal === '1');
+      var isConfirmed = (confirmedVal === 'Y' || confirmedVal === '是' || confirmedVal === '1');
+      if (isAlert && !isConfirmed) {
+        unconfirmedAlerts.push({
+          branch: row[0] || '',
+          empAccount: row[2] || '',
+          date: row[4] || '',
+          name: row[3] || ''
+        });
+      }
+    });
+    return {
+      canCalculate: unconfirmedAlerts.length === 0,
+      unconfirmedAlerts: unconfirmedAlerts
+    };
+  } catch (err) {
+    logError('檢查未確認警示失敗: ' + err.message, { error: err.toString() });
+    return { canCalculate: false, unconfirmedAlerts: [], error: err.message };
+  }
+}
+
+/**
  * 建立處理記錄
  * @param {Object} info - 處理資訊
  */

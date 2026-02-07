@@ -138,9 +138,13 @@ function doGet(e) {
         if (!result.success) {
           return createJsonResponse({ success: false, error: result.error });
         }
+        var items = result.items || [];
+        if (items.length > 0 && typeof syncAlertsToAttendance === 'function') {
+          syncAlertsToAttendance(items);
+        }
         return createJsonResponse({
           success: true,
-          items: result.items || []
+          items: items
         });
       }
       
@@ -453,13 +457,14 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
         Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss'),
         '',
         '',
+        '',
         ''
       ]);
     }
     
     var config = getConfig();
     var targetSheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
-    var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態', '備註', '是否有效', '校正備註', '建立時間', '校正時間', '已確認並忽略', '確認忽略時間'];
+    var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態', '備註', '是否有效', '校正備註', '建立時間', '校正時間', '已確認並忽略', '確認忽略時間', '警示'];
     var dataToWrite = [headerRow].concat(dataRows);
     
     // 以「月份＋分店」覆蓋：先刪除既有該月份該分店資料
@@ -678,12 +683,38 @@ function handleUnconfirmIgnoreAttendance(requestData) {
 
 /**
  * 處理薪資計算（未來實作）
+ * 若有未確認的警示（Q=Y 且 O!=Y），則阻擋計算並回傳警告
  */
 function handleCalculate(requestData) {
-  return createJsonResponse({
-    success: false,
-    error: '薪資計算功能尚未實作'
-  });
+  try {
+    var yearMonth = (requestData.yearMonth || '').toString().trim() || null;
+    var startDate = (requestData.startDate || '').toString().trim() || null;
+    var endDate = (requestData.endDate || '').toString().trim() || null;
+    var branchName = (requestData.branch || '').toString().trim() || null;
+    if ((!yearMonth || yearMonth.length !== 6) && (!startDate || startDate.length !== 10)) {
+      return createJsonResponse({ success: false, error: '請提供年月（YYYYMM）或日期區間' });
+    }
+    if (!branchName) {
+      return createJsonResponse({ success: false, error: '請選擇分店' });
+    }
+    var checkResult = checkUnconfirmedAlerts(yearMonth, startDate, endDate, branchName);
+    if (!checkResult.canCalculate) {
+      var msg = '尚有未確認的警示資料，請先完成確認後再計算薪資。';
+      if (checkResult.unconfirmedAlerts && checkResult.unconfirmedAlerts.length > 0) {
+        var samples = checkResult.unconfirmedAlerts.slice(0, 3).map(function(a) {
+          return (a.name || a.empAccount) + ' ' + (a.date || '');
+        }).join('、');
+        msg += ' 未確認：' + samples + (checkResult.unconfirmedAlerts.length > 3 ? ' 等' + checkResult.unconfirmedAlerts.length + '筆' : '');
+      }
+      return createJsonResponse({ success: false, error: msg });
+    }
+    return createJsonResponse({
+      success: false,
+      error: '薪資計算功能尚未實作'
+    });
+  } catch (err) {
+    return createJsonResponse({ success: false, error: '檢查失敗: ' + err.message });
+  }
 }
 
 /**

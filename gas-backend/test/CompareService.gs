@@ -642,6 +642,7 @@ function writeCorrectionToAttendance(data) {
       createdAt,
       nowStr,
       '',
+      '',
       ''
     ];
     sheet.appendRow(newRow);
