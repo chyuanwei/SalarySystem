@@ -177,6 +177,7 @@ A30: "* O 10:00-20:30"   (全日班)
 |------|---------------|------|
 | GET | `test` | 連線測試 |
 | GET | `getBranches` | 取得分店清單（來源「分店」sheet） |
+| GET | `getPersonnelByBranch` | 依分店取得人員名單（班表名稱、打卡名稱聯集） |
 | GET | `loadSchedule` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
 | GET | `loadAttendance` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
 | GET | `loadCompare` | `yearMonth`(YYYYMM) 或 `startDate`+`endDate`、`names`(逗號分隔)、`branch`(必填)；回傳班表與打卡一對一比對 items |
@@ -422,7 +423,9 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ 比對結果卡片：班表 vs 打卡（分店、員工帳號、姓名、日期、上班/下班/時數/狀態）
 - ✅ 校正：校正上班/下班輸入、校正送出、已校正顯示唯讀+編輯按鈕
 - ✅ submitCorrection API：寫入校正 sheet，再次校正時舊筆設為無效
-- ✅ CompareService：readPersonnelMapping、readScheduleByConditions、readAttendanceByConditions、compareScheduleAttendance、readCorrectionsValid、writeCorrection
+- ✅ getPersonnelByBranch：選擇分店時載入該分店人員（方案 C：載入比對後合併結果人員）
+- ✅ 比對卡片：手機優先排版（姓名+日期主標題、班表/打卡分塊、校正區垂直排列、44px 觸控目標）
+- ✅ CompareService：getPersonnelByBranch、readPersonnelMapping、readScheduleByConditions、readAttendanceByConditions、compareScheduleAttendance、readCorrectionsValid、writeCorrection
 
 ### 12.10 測試與正式環境
 - ✅ 完整的環境分離（GAS + 前端）
@@ -512,6 +515,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.26 | 測試 | getPersonnelByBranch（選分店載入人員）；比對卡片手機優先排版 | AI |
 | 2026-02-07 | v0.6.25 | 測試 | 班表與打卡比對：loadCompare、submitCorrection、CompareService；前端比對區塊、校正卡片、已校正/編輯狀態 | AI |
 | 2026-02-07 | v0.6.24 | 測試 | 查詢打卡功能（loadAttendance）；打卡 sheet 欄位順序調整為 分店,員工編號,員工帳號,員工姓名,... | AI |
 | 2026-02-07 | v0.6.23 | 測試 | 修正 appendAttendance getRange 列數不符；檔案輸入 accept 加入 .csv。 | AI |
@@ -709,4 +713,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-07（v0.6.25 班表與打卡比對、校正功能）*
+*最後更新：2026-02-07（v0.6.26 getPersonnelByBranch、比對卡片手機優先）*
