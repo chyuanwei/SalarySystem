@@ -1213,9 +1213,9 @@
         </div>
 
         <nav class="tab-nav" role="tablist" aria-label="主功能">
-            <button type="button" class="tab-nav-btn active" role="tab" aria-selected="true" aria-controls="tab-pane-query" id="tab-btn-query" data-tab="query">📅 查詢</button>
+            <button type="button" class="tab-nav-btn active" role="tab" aria-selected="true" aria-controls="tab-pane-upload" id="tab-btn-upload" data-tab="upload">📄 上傳</button>
+            <button type="button" class="tab-nav-btn" role="tab" aria-selected="false" aria-controls="tab-pane-query" id="tab-btn-query" data-tab="query">📅 查詢</button>
             <button type="button" class="tab-nav-btn" role="tab" aria-selected="false" aria-controls="tab-pane-compare" id="tab-btn-compare" data-tab="compare">🔄 比對</button>
-            <button type="button" class="tab-nav-btn" role="tab" aria-selected="false" aria-controls="tab-pane-upload" id="tab-btn-upload" data-tab="upload">📄 上傳</button>
             <button type="button" class="tab-nav-btn" role="tab" aria-selected="false" aria-controls="tab-pane-salary" id="tab-btn-salary" data-tab="salary">💰 計算</button>
         </nav>
 
@@ -1256,7 +1256,7 @@
         </div>
 
         <div class="tab-content">
-        <div id="tab-pane-query" class="tab-pane active" role="tabpanel" aria-labelledby="tab-btn-query">
+        <div id="tab-pane-query" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-query" hidden>
         <div class="schedule-query-section">
             <div class="schedule-block schedule-block-query-type">
                 <div class="schedule-block-label">查詢類型</div>
@@ -1301,7 +1301,7 @@
         </div>
         </div>
 
-        <div id="tab-pane-upload" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-upload" hidden>
+        <div id="tab-pane-upload" class="tab-pane active" role="tabpanel" aria-labelledby="tab-btn-upload">
         <div class="input-group upload-type-group">
             <label>上傳類型</label>
             <div class="upload-type-radios">

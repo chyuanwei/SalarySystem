@@ -190,7 +190,7 @@ A30: "* O 10:00-20:30"   (全日班)
 | GET | `getPersonnelFromSchedule` | 依該月份／日期區間＋分店，從打卡資料取得人員名單（後端 getPersonnelFromAttendance） |
 | GET | `loadSchedule` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
 | GET | `loadAttendance` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
-| GET | `loadCompare` | `yearMonth`(YYYYMM) 或 `startDate`+`endDate`、`names`(逗號分隔)、`branch`(必填)；回傳班表與打卡一對一比對 items |
+| GET | `loadCompare` | `yearMonth`(YYYYMM) 或 `startDate`+`endDate`、`names`(逗號分隔)、`branch`(必填)；回傳班表與打卡比對 items（同人同日同店可多筆，依開始時間 1-1 配對；時間重疊時 item 含 overlapWarning） |
 | POST | `upload` | `uploadType`(schedule/attendance)、`fileName`、`fileData`(base64)、`targetSheetName`、`targetGoogleSheetTab`、`branchName`(班表必填) |
 | POST | `submitCorrection` | `branch`、`empAccount`、`name`、`date`、`scheduleStart`、`scheduleEnd`、`scheduleHours`、`attendanceStart`、`attendanceEnd`、`attendanceHours`、`attendanceStatus`、`correctedStart`、`correctedEnd` |
 | POST | `calculate` | 薪資計算（尚未實作） |
@@ -434,14 +434,16 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ 測試指南文件（HOW_TO_TEST.md）
 
 ### 12.9 班表與打卡比對
-- ✅ 條件選擇：與查詢共用條件區塊（月份／區間、分店、人員按鈕＋彈窗）
-- ✅ loadCompare API：一對一比對班表與打卡；配對 key 為 empAccount|date|branch（同一人同日同分店合併為一筆）
-- ✅ 比對結果卡片：班表 vs 打卡（分店、員工帳號、姓名、日期、上班/下班/時數/狀態）
+- ✅ 條件選擇：與查詢共用條件區塊（月份／區間、分店、人員 checkbox＋全選/清除）
+- ✅ loadCompare API：同人同日同店可多筆；依開始時間排序後 1-1 配對（班表 i 對 打卡 i）；筆數不同時多出的一側為 null
+- ✅ 配對 key 分組：empAccount|date|branch；同一 key 內多筆班表／多筆打卡各自排序後依序配對，產出多個 item
+- ✅ 時間重疊警示：同一 key 內若班表之間或打卡之間時間區間重疊，該 item 設 overlapWarning，前端顯示「⚠ 時間重疊」標示
+- ✅ 比對結果卡片：班表 vs 打卡（分店、員工帳號、姓名、日期、上班/下班/時數/狀態）；可僅班表或僅打卡（另一側—）
 - ✅ 校正：校正上班/下班輸入、校正送出、已校正顯示唯讀+編輯按鈕
 - ✅ submitCorrection API：寫入校正 sheet，再次校正時舊筆設為無效
-- ✅ 人員選單以該月份／日期區間＋分店的打卡資料為來源：getPersonnelFromAttendance（API 仍為 getPersonnelFromSchedule）；查詢區與比對區皆在選好分店與日期條件後載入人員；載入比對後仍可合併結果人員補足選單
-- ✅ 比對卡片：手機優先排版（姓名+日期主標題、班表/打卡分塊、校正區垂直排列、44px 觸控目標）
-- ✅ CompareService：getPersonnelFromAttendance、getPersonnelByBranch、readPersonnelMapping、readScheduleByConditions、readAttendanceByConditions、compareScheduleAttendance、readCorrectionsValid、writeCorrection
+- ✅ 人員選單以該月份／日期區間＋分店的打卡資料為來源（getPersonnelFromSchedule）；載入比對後可合併結果人員補足選單
+- ✅ 比對卡片：手機優先排版、44px 觸控目標；加班警示（OVERTIME_ALERT）時打卡區塊標紅
+- ✅ CompareService：getPersonnelFromAttendance、readScheduleByConditions、readAttendanceByConditions、compareScheduleAttendance（timeRangesOverlap、sortByStartTime）、readCorrectionsValid、writeCorrection
 
 ### 12.10 測試與正式環境
 - ✅ 完整的環境分離（GAS + 前端）
@@ -510,6 +512,7 @@ A30: "* O 10:00-20:30"   (全日班)
 | **測試與正式環境混淆** | 務必確認當前操作的是 `gas-backend/test/` 還是 `gas-backend/prod/`，避免誤推。 |
 | **Excel 解析錯誤** | 確認 Excel 檔案格式為 .xlsx 或 .xls，且欄位名稱與預期一致。 |
 | **GAS 執行逾時** | GAS 單次執行限制 6 分鐘，若資料量大需考慮分批處理。 |
+| **比對同人同日同店只顯示一筆** | 若查詢可查到多筆打卡但比對只顯示一筆，代表線上 GAS 尚未部署新版 CompareService。請在 `gas-backend/test` 執行 `npx clasp push` 後再試。 |
 
 ---
 
@@ -532,6 +535,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.48 | 測試 | 比對：同人同日同店允許多筆、依開始時間 1-1 配對、時間重疊顯示警示（overlapWarning） | AI |
 | 2026-02-07 | v0.6.47 | 測試 | 還原：人員篩選改回 checkbox 列表+全選/清除；結果區預設展開 | AI |
 | 2026-02-07 | v0.6.46 | 測試 | 前端 UX：查詢與比對共用條件區塊、人員改為按鈕+彈窗多選、結果區預設收合 | AI |
 | 2026-02-07 | v0.6.45 | 測試 | 人員名單來源改為該月份／日期區間＋分店的打卡資料（getPersonnelFromAttendance） | AI |
@@ -751,4 +755,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-07（曾遇問題新增：前端 push 後未生效多為快取，強制重新整理或 bump ?v=）*
+*最後更新：2026-02-07（12.9 比對邏輯：同人同日同店多筆、依開始時間 1-1 配對、時間重疊警示；曾遇問題：比對只顯示一筆需 clasp push）*

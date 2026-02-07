@@ -154,8 +154,15 @@ function doGet(e) {
  */
 function doPost(e) {
   try {
-    // 解析請求內容
-    const requestData = JSON.parse(e.postData.contents);
+    if (!e || !e.postData || e.postData.contents === undefined || e.postData.contents === null) {
+      return createJsonResponse({ success: false, error: '請求內容為空' });
+    }
+    var requestData;
+    try {
+      requestData = JSON.parse(e.postData.contents);
+    } catch (parseErr) {
+      return createJsonResponse({ success: false, error: '請求格式錯誤（非 JSON）' });
+    }
     const action = requestData.action;
     
     logDebug(`收到 POST 請求: ${action}`, { 
@@ -520,6 +527,7 @@ function handleSubmitCorrection(requestData) {
     var empAccount = (requestData.empAccount || '').toString().trim();
     var name = (requestData.name || '').toString().trim();
     var date = (requestData.date || '').toString().trim();
+    if (date && typeof normalizeDateToDash === 'function') date = normalizeDateToDash(date);
     var scheduleStart = (requestData.scheduleStart || '').toString().trim();
     var scheduleEnd = (requestData.scheduleEnd || '').toString().trim();
     var scheduleHours = (requestData.scheduleHours || '').toString().trim();

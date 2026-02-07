@@ -163,7 +163,7 @@ function initTabNav() {
     updateSharedConditionVisibility(tabId);
     if (tabId === 'query' || tabId === 'compare') loadQueryPersonnel();
   });
-  updateSharedConditionVisibility('query');
+  updateSharedConditionVisibility('upload');
 }
 
 function selectAllPersons() {
@@ -1535,15 +1535,27 @@ async function doSubmitCorrection(payload) {
         correctionRemark: payload.remark || payload.correctionRemark || ''
       })
     });
-    const result = await response.json();
+    var result;
+    var text = await response.text();
+    try {
+      result = text ? JSON.parse(text) : {};
+    } catch (parseErr) {
+      if (!response.ok) {
+        showAlert('error', '校正送出失敗：伺服器回傳錯誤 (HTTP ' + response.status + ')');
+      } else {
+        showAlert('error', '校正送出失敗：伺服器未回傳有效資料');
+      }
+      return;
+    }
     if (!response.ok || !result.success) {
-      throw new Error(result.error || '校正送出失敗');
+      showAlert('error', '校正送出失敗：' + (result.error || '未知錯誤'));
+      return;
     }
     showAlert('success', '校正紀錄已送出');
     const loadCompareBtn = document.getElementById('loadCompareBtn');
     if (loadCompareBtn) loadCompareBtn.click();
   } catch (error) {
-    showAlert('error', '校正送出失敗：' + error.message);
+    showAlert('error', '校正送出失敗：' + (error.message || '網路或連線錯誤'));
   }
 }
 
