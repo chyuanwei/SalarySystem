@@ -549,6 +549,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.62 | 測試 | 送出校正 getSingleCompareItem 改為用校正後時間查詢，避免回傳 null 導致 fallback loadCompare | AI |
 | 2026-02-07 | v0.6.61 | 測試 | 比對局部更新：送出校正、待確認、取消確認改為 ajax 局部更新，不再觸發 loadCompareBtn | AI |
 | 2026-02-07 | v0.6.60 | 測試 | 打卡上傳警示：只傳本次上傳的打卡（newRowsForMerge），不再合併舊打卡 | AI |
 | 2026-02-07 | v0.6.59 | 測試 | 組 key 時日期正規化（normalizeDateToDash）；新增「警示對應-日期除錯」log（keysWithBothCount、原始日期型別） | AI |

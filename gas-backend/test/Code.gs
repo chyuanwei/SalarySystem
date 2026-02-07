@@ -4,7 +4,7 @@
  */
 
 // 部署標記：每次 clasp push 後可更新此版號，Log 工作表會寫入此值，用以確認程式是否成功部署
-var DEPLOY_MARKER_VERSION = 'v0.6.61';
+var DEPLOY_MARKER_VERSION = 'v0.6.62';
 
 /**
  * 處理 GET 請求
@@ -632,8 +632,8 @@ function handleSubmitCorrection(requestData) {
         date: date,
         scheduleStart: scheduleStart,
         scheduleEnd: scheduleEnd,
-        attendanceStart: attendanceStart,
-        attendanceEnd: attendanceEnd
+        attendanceStart: correctedStart,
+        attendanceEnd: correctedEnd
       });
     }
     return createJsonResponse({ success: true, message: '校正紀錄已送出（已寫回打卡）', item: item });
