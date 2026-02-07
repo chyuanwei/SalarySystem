@@ -150,7 +150,7 @@ function removeScheduleRowsByYearMonthAndBranch(sheetName, yearMonth, branchName
       var dateVal = row[1];
       var branchVal = (row[6] !== undefined && row[6] !== null) ? String(row[6]).trim() : '';
       if (branchVal !== branchName) continue;
-      var dateStr = dateVal ? String(dateVal).trim() : '';
+      var dateStr = normalizeDateValue(dateVal);
       if (!dateStr) continue;
       var match = dateStr.indexOf(prefix1) === 0 || dateStr.indexOf(prefix2) === 0;
       if (match) toDelete.push(i + 2);
@@ -193,7 +193,7 @@ function removeAttendanceRowsByYearMonthAndBranch(sheetName, yearMonth, branchNa
       var branchVal = (row[0] !== undefined && row[0] !== null) ? String(row[0]).trim() : '';
       if (branchVal !== branchName) continue;
       var dateVal = row[4];
-      var dateStr = dateVal ? String(dateVal).trim() : '';
+      var dateStr = normalizeDateValue(dateVal);
       if (!dateStr) continue;
       var match = dateStr.indexOf(prefix1) === 0 || dateStr.indexOf(prefix2) === 0;
       if (match) toDelete.push(i + 2);
