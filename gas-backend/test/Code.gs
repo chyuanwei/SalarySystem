@@ -195,11 +195,19 @@ function handleUpload(requestData) {
       logWarning(`資料警告`, { warnings: validation.warnings });
     }
     
-    // 準備轉換後的資料（parseResult.data 已經是解析好的格式，每列加 分店）
+    // 準備轉換後的資料：每列加 分店；員工姓名透過人員 sheet 轉成打卡名稱寫入
     logDebug('準備寫入資料');
+    var mapping = readPersonnelMapping();
+    var scheduleNameToAccount = mapping ? mapping.scheduleNameToAccount : {};
+    var accountToAttendanceName = mapping ? mapping.accountToAttendanceName : {};
     const headerRow = ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店'];
     const dataWithBranch = parseResult.data.map(function(row) {
-      return row.concat([branchName]);
+      var r = row.slice();
+      var scheduleName = r[0] ? String(r[0]).trim() : '';
+      var acc = scheduleNameToAccount[scheduleName];
+      var attendanceName = acc && accountToAttendanceName[acc] ? accountToAttendanceName[acc] : scheduleName;
+      r[0] = attendanceName || scheduleName;
+      return r.concat([branchName]);
     });
     const transformedData = [headerRow].concat(dataWithBranch);
     logDebug(`共 ${parseResult.data.length} 列資料`);
