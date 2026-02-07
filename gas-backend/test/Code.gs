@@ -4,7 +4,7 @@
  */
 
 // 部署標記：每次 clasp push 後可更新此版號，Log 工作表會寫入此值，用以確認程式是否成功部署
-var DEPLOY_MARKER_VERSION = 'v0.6.57';
+var DEPLOY_MARKER_VERSION = 'v0.6.58';
 
 /**
  * 處理 GET 請求
@@ -287,18 +287,18 @@ function handleUpload(requestData) {
     var scheduleNameToAccount = mapping ? mapping.scheduleNameToAccount : {};
     var accountToAttendanceName = mapping ? mapping.accountToAttendanceName : {};
     var scheduleNowStr = Utilities.formatDate(new Date(), Session.getScriptTimeZone(), 'yyyy-MM-dd HH:mm:ss');
-    const headerRow = ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店', '備註', '建立時間', '修改時間'];
+    const headerRow = ['員工姓名', '排班日期', '上班時間', '下班時間', '工作時數', '班別', '分店', '備註', '建立時間', '修改時間', '員工帳號'];
     const dataWithBranch = parseResult.data.map(function(row) {
       var r = row.slice();
       var scheduleName = r[0] ? String(r[0]).trim() : '';
-      var acc = scheduleNameToAccount[scheduleName];
+      var acc = scheduleNameToAccount[scheduleName] || (mapping && mapping.attendanceNameToAccount ? mapping.attendanceNameToAccount[scheduleName] : '') || '';
       var attendanceName = acc && accountToAttendanceName[acc] ? accountToAttendanceName[acc] : scheduleName;
       r[0] = attendanceName || scheduleName;
       if (r[1] && typeof normalizeDateToDash === 'function') {
         r[1] = normalizeDateToDash(r[1]);
       }
       r[4] = formatHoursForSheet(r[4]);
-      return r.concat([branchName, '', scheduleNowStr, '']);
+      return r.concat([branchName, '', scheduleNowStr, '', acc || '']);
     });
     const transformedData = [headerRow].concat(dataWithBranch);
     logDebug(`共 ${parseResult.data.length} 列資料`);

@@ -340,12 +340,15 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
   var allKeys = {};
   (scheduleRecords || []).forEach(function(row) {
     var sName = row[0] ? String(row[0]).trim() : '';
-    var acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
-    if (!acc && sName) {
-      var accToSchedule = mapping.accountToScheduleName || {};
-      var accToAttendance = mapping.accountToAttendanceName || {};
-      for (var k in accToSchedule) { if (accToSchedule[k] === sName) { acc = k; break; } }
-      if (!acc) { for (var k in accToAttendance) { if (accToAttendance[k] === sName) { acc = k; break; } } }
+    var acc = (row.length > SCHEDULE_COL.EMP_ACCOUNT && row[SCHEDULE_COL.EMP_ACCOUNT]) ? String(row[SCHEDULE_COL.EMP_ACCOUNT]).trim() : '';
+    if (!acc) {
+      acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
+      if (!acc && sName) {
+        var accToSchedule = mapping.accountToScheduleName || {};
+        var accToAttendance = mapping.accountToAttendanceName || {};
+        for (var k in accToSchedule) { if (accToSchedule[k] === sName) { acc = k; break; } }
+        if (!acc) { for (var k in accToAttendance) { if (accToAttendance[k] === sName) { acc = k; break; } } }
+      }
     }
     var date = row[1] || '';
     var start = row[2] || '';
@@ -463,12 +466,15 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
     var allKeys = {};
     scheduleRecords.forEach(function(row) {
       var sName = row[0] ? String(row[0]).trim() : '';
-      var acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
-      if (!acc && sName) {
-        var accToSchedule = mapping.accountToScheduleName || {};
-        var accToAttendance = mapping.accountToAttendanceName || {};
-        for (var k in accToSchedule) { if (accToSchedule[k] === sName) { acc = k; break; } }
-        if (!acc) { for (var k in accToAttendance) { if (accToAttendance[k] === sName) { acc = k; break; } } }
+      var acc = (row.length > SCHEDULE_COL.EMP_ACCOUNT && row[SCHEDULE_COL.EMP_ACCOUNT]) ? String(row[SCHEDULE_COL.EMP_ACCOUNT]).trim() : '';
+      if (!acc) {
+        acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
+        if (!acc && sName) {
+          var accToSchedule = mapping.accountToScheduleName || {};
+          var accToAttendance = mapping.accountToAttendanceName || {};
+          for (var k in accToSchedule) { if (accToSchedule[k] === sName) { acc = k; break; } }
+          if (!acc) { for (var k in accToAttendance) { if (accToAttendance[k] === sName) { acc = k; break; } } }
+        }
       }
       var date = row[1] || '';
       var start = row[2] || '';

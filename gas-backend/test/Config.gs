@@ -41,12 +41,12 @@ function formatHoursForSheet(hoursVal, totalMinutes) {
 }
 
 /**
- * 班表 sheet 欄位 index（0-based），共 10 欄
- * A-J: 員工姓名,排班日期,上班,下班,時數,班別,分店,備註,建立時間,修改時間
+ * 班表 sheet 欄位 index（0-based），共 11 欄
+ * A-K: 員工姓名,排班日期,上班,下班,時數,班別,分店,備註,建立時間,修改時間,員工帳號
  */
 var SCHEDULE_COL = {
   NAME: 0, DATE: 1, START: 2, END: 3, HOURS: 4, SHIFT: 5,
-  BRANCH: 6, REMARK: 7, CREATED_AT: 8, MODIFIED_AT: 9
+  BRANCH: 6, REMARK: 7, CREATED_AT: 8, MODIFIED_AT: 9, EMP_ACCOUNT: 10
 };
 
 // 從 Script Properties 讀取設定
