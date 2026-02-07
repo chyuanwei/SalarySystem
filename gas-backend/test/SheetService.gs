@@ -399,6 +399,32 @@ function normalizeDateValue(value) {
 }
 
 /**
+ * 將日期正規化為 YYYY-MM-DD（用於比對，避免 2026/1/20 與 2026-01-20 格式不一致）
+ * 支援：Date、數字(Excel 序列)、字串 2026-02-07、2026/1/20、2026/01/20
+ * @param {*} value
+ * @return {string}
+ */
+function normalizeDateToCompare(value) {
+  if (value === undefined || value === null || value === '') return '';
+  if (Object.prototype.toString.call(value) === '[object Date]' && !isNaN(value)) {
+    return Utilities.formatDate(value, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  if (typeof value === 'number' && !isNaN(value)) {
+    var d = new Date((value - 25569) * 86400 * 1000);
+    if (!isNaN(d)) return Utilities.formatDate(d, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  var s = value.toString().trim();
+  if (!s) return '';
+  if (s.indexOf('/') >= 0) s = s.replace(/\//g, '-');
+  if (s.length === 10 && s.indexOf('-') >= 0) return s;
+  var parsed = new Date(s);
+  if (!isNaN(parsed)) {
+    return Utilities.formatDate(parsed, Session.getScriptTimeZone(), 'yyyy-MM-dd');
+  }
+  return s;
+}
+
+/**
  * 將時間欄位統一為 HH:mm
  * @param {*} value - Date 物件、數字（日的小數，0.41667=10:00）、或字串
  * @return {string}
@@ -997,7 +1023,7 @@ function confirmIgnoreAttendance(branch, empAccount, date, start, end) {
     var allData = readFromSheet(sheetName);
     if (!allData || allData.length < 2) return { success: false, error: '打卡無資料' };
     var dataRows = allData.slice(1);
-    var dateStr = normalizeDateValue(date);
+    var dateStr = normalizeDateToCompare(date);
     var startStr = start ? normalizeTimeValue(start) : '';
     var endStr = end ? normalizeTimeValue(end) : '';
     var accStr = empAccount ? String(empAccount).trim() : '';
@@ -1008,7 +1034,7 @@ function confirmIgnoreAttendance(branch, empAccount, date, start, end) {
       var row = dataRows[i];
       var validVal = (row.length > ATTENDANCE_COL.VALID) ? String(row[ATTENDANCE_COL.VALID] || '').trim() : '';
       if (validVal === '否' || validVal === 'N' || validVal === '0') continue;
-      var rDate = normalizeDateValue(row[4]);
+      var rDate = normalizeDateToCompare(row[4]);
       var rStart = row[5] ? normalizeTimeValue(row[5]) : '';
       var rEnd = row[6] ? normalizeTimeValue(row[6]) : '';
       var rAcc = row[2] ? String(row[2]).trim() : '';
@@ -1034,7 +1060,7 @@ function unconfirmIgnoreAttendance(branch, empAccount, date, start, end) {
     var allData = readFromSheet(sheetName);
     if (!allData || allData.length < 2) return { success: false, error: '打卡無資料' };
     var dataRows = allData.slice(1);
-    var dateStr = normalizeDateValue(date);
+    var dateStr = normalizeDateToCompare(date);
     var startStr = start ? normalizeTimeValue(start) : '';
     var endStr = end ? normalizeTimeValue(end) : '';
     var accStr = empAccount ? String(empAccount).trim() : '';
@@ -1042,7 +1068,7 @@ function unconfirmIgnoreAttendance(branch, empAccount, date, start, end) {
     var sheet = getOrCreateSheet(sheetName);
     for (var i = 0; i < dataRows.length; i++) {
       var row = dataRows[i];
-      var rDate = normalizeDateValue(row[4]);
+      var rDate = normalizeDateToCompare(row[4]);
       var rStart = row[5] ? normalizeTimeValue(row[5]) : '';
       var rEnd = row[6] ? normalizeTimeValue(row[6]) : '';
       var rAcc = row[2] ? String(row[2]).trim() : '';
