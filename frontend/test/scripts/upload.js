@@ -1300,7 +1300,7 @@ function renderCompareResults(items) {
         (overtimeAlert ? '<div class="compare-card-overtime-badge">⚠ 加班警示</div>' : '') +
         '<div class="compare-card-header">' +
           escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(formatDateWithWeekday(date)) + '</span>' +
-          (confirmedIgnore ? '<span class="compare-card-confirmed-badge">已確認</span>' : '') +
+          (confirmedIgnore ? '<span class="compare-card-confirmed-badge">已確認</span><button type="button" class="unconfirm-btn">取消確認</button>' : (showConfirmBtn ? '<button type="button" class="confirm-pending-btn">待確認</button>' : '')) +
           (branch ? '<div class="compare-card-row-label" style="margin-top:4px">' + escapeHtml(branch) + (empAccount ? ' · ' + escapeHtml(empAccount) : '') + '</div>' : '') +
         '</div>' +
         '<div class="compare-card-block">' +
@@ -1312,7 +1312,6 @@ function renderCompareResults(items) {
           '<div class="compare-card-block-title">打卡</div>' +
           '<div class="compare-card-block-content' + (overtimeAlert ? ' overtime-alert' : '') + '">' + escapeHtml(attendanceText) + '</div>' +
           (a ? '<div class="compare-card-remark-row"><span class="compare-card-row-label">備註</span><textarea class="attendance-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(attendanceRemark) + '</textarea><button type="button" class="person-btn save-remark-btn" data-type="attendance">儲存</button></div>' : '') +
-          (showConfirmBtn ? '<div style="margin-top:10px"><button type="button" class="person-btn confirm-ignore-btn">確認</button></div>' : '') +
         '</div>' +
         '<div class="compare-card-actions">' +
           '<div class="compare-card-actions-row">' +
@@ -1337,13 +1336,16 @@ function renderCompareResults(items) {
   compareList.querySelectorAll('.save-remark-btn').forEach(function(btn) {
     btn.addEventListener('click', handleSaveRemarkClick);
   });
-  compareList.querySelectorAll('.confirm-ignore-btn').forEach(function(btn) {
+  compareList.querySelectorAll('.confirm-pending-btn').forEach(function(btn) {
     btn.addEventListener('click', handleConfirmIgnoreClick);
+  });
+  compareList.querySelectorAll('.unconfirm-btn').forEach(function(btn) {
+    btn.addEventListener('click', handleUnconfirmIgnoreClick);
   });
 }
 
 /**
- * 處理打卡警示確認按鈕點擊
+ * 處理打卡警示確認按鈕點擊（待確認）
  */
 function handleConfirmIgnoreClick(e) {
   var btn = e.target;
@@ -1354,6 +1356,29 @@ function handleConfirmIgnoreClick(e) {
   try {
     var payload = JSON.parse(payloadStr);
     doConfirmIgnoreAttendance({
+      branch: payload.branch,
+      empAccount: payload.empAccount,
+      date: payload.date,
+      attendanceStart: payload.attendanceStart,
+      attendanceEnd: payload.attendanceEnd
+    });
+  } catch (err) {
+    showAlert('error', '資料格式錯誤');
+  }
+}
+
+/**
+ * 處理取消確認按鈕點擊
+ */
+function handleUnconfirmIgnoreClick(e) {
+  var btn = e.target;
+  var card = btn.closest('.compare-card');
+  if (!card) return;
+  var payloadStr = card.getAttribute('data-payload');
+  if (!payloadStr) return;
+  try {
+    var payload = JSON.parse(payloadStr);
+    doUnconfirmIgnoreAttendance({
       branch: payload.branch,
       empAccount: payload.empAccount,
       date: payload.date,
@@ -1722,6 +1747,39 @@ async function doConfirmIgnoreAttendance(payload) {
     if (loadCompareBtn) loadCompareBtn.click();
   } catch (error) {
     showAlert('error', '確認失敗：' + error.message);
+  } finally {
+    hideLoadingOverlay();
+  }
+}
+
+/**
+ * 取消打卡警示確認到 API
+ */
+async function doUnconfirmIgnoreAttendance(payload) {
+  try {
+    showLoadingOverlay();
+    var response = await fetch(CONFIG.GAS_URL, {
+      method: 'POST',
+      mode: 'cors',
+      headers: { 'Content-Type': 'text/plain; charset=utf-8' },
+      body: JSON.stringify({
+        action: 'unconfirmIgnoreAttendance',
+        branch: payload.branch,
+        empAccount: payload.empAccount,
+        date: payload.date,
+        attendanceStart: payload.attendanceStart,
+        attendanceEnd: payload.attendanceEnd
+      })
+    });
+    var result = await response.json();
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '取消確認失敗');
+    }
+    showAlert('success', '已取消確認');
+    var loadCompareBtn = document.getElementById('loadCompareBtn');
+    if (loadCompareBtn) loadCompareBtn.click();
+  } catch (error) {
+    showAlert('error', '取消確認失敗：' + error.message);
   } finally {
     hideLoadingOverlay();
   }

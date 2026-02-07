@@ -188,6 +188,9 @@ function doPost(e) {
       case 'confirmIgnoreAttendance':
         return handleConfirmIgnoreAttendance(requestData);
       
+      case 'unconfirmIgnoreAttendance':
+        return handleUnconfirmIgnoreAttendance(requestData);
+      
       case 'calculate':
         return handleCalculate(requestData);
       
@@ -649,6 +652,27 @@ function handleConfirmIgnoreAttendance(requestData) {
     return createJsonResponse(result.success ? { success: true, message: '已確認' } : { success: false, error: result.error });
   } catch (err) {
     return createJsonResponse({ success: false, error: '確認失敗: ' + err.message });
+  }
+}
+
+/**
+ * 取消打卡警示確認
+ */
+function handleUnconfirmIgnoreAttendance(requestData) {
+  try {
+    var branch = (requestData.branch || '').toString().trim();
+    var empAccount = (requestData.empAccount || '').toString().trim();
+    var date = (requestData.date || '').toString().trim();
+    if (date && typeof normalizeDateToDash === 'function') date = normalizeDateToDash(date);
+    var start = (requestData.attendanceStart || requestData.start || '').toString().trim();
+    var end = (requestData.attendanceEnd || requestData.end || '').toString().trim();
+    if (!branch || !empAccount || !date || !start || !end) {
+      return createJsonResponse({ success: false, error: '分店、員工帳號、日期、上班、下班為必填' });
+    }
+    var result = unconfirmIgnoreAttendance(branch, empAccount, date, start, end);
+    return createJsonResponse(result.success ? { success: true, message: '已取消確認' } : { success: false, error: result.error });
+  } catch (err) {
+    return createJsonResponse({ success: false, error: '取消確認失敗: ' + err.message });
   }
 }
 
