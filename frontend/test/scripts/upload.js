@@ -545,7 +545,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
-        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${hours || '—'}</span></div>
+        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatHours(hours)}</span></div>
         <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${status || '—'}</span></div>
       </div>
     `;
@@ -566,7 +566,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
-        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${hours || '—'}</span></div>
+        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatHours(hours)}</span></div>
       </div>
     `;
   }).join('');
@@ -813,7 +813,7 @@ function renderScheduleResults(result) {
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
-        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${hours || '—'}</span></div>
+        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatHours(hours)}</span></div>
       </div>
     `;
   }).join('');
@@ -885,7 +885,7 @@ function renderAttendanceResults(result) {
         <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${date || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
-        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${hours || '—'}</span></div>
+        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatHours(hours)}</span></div>
         <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${status || '—'}</span></div>
       </div>
     `;
@@ -1158,15 +1158,17 @@ function normalizeTimeInput(val) {
 }
 
 /**
- * 格式化工作時數（避免重複單位如 7小時h）
- * 若已有 小時 或 h，直接回傳；若為純數字則加 h
+ * 格式化工作時數為統一格式 Xh 或 X.Xh（例如 7h、10.5h）
+ * 從 7、7.0、7小時、10.5 等抽取數字後加 h
  */
 function formatHours(val) {
   if (val === undefined || val === null || String(val).trim() === '') return '—';
   var s = String(val).trim();
-  if (s.indexOf('小時') >= 0 || /h$/i.test(s)) return s;
-  if (/^\d+(\.\d+)?$/.test(s)) return s + 'h';
-  return s;
+  var m = s.match(/[\d.]+/);
+  if (!m) return s;
+  var num = parseFloat(m[0]);
+  if (isNaN(num)) return s;
+  return (num % 1 === 0 ? String(Math.round(num)) : num) + 'h';
 }
 
 function escapeHtml(s) {
