@@ -990,6 +990,7 @@ async function loadComparePersonnel(branchVal) {
     }
     return;
   }
+  comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">載入中...</span>';
   try {
     const url = CONFIG.GAS_URL + '?action=getPersonnelByBranch&branch=' + encodeURIComponent(branchVal);
     const response = await fetch(url, { method: 'GET', mode: 'cors' });
@@ -1147,6 +1148,16 @@ function renderCompareResults(items) {
 }
 
 /**
+ * 將 HHMM 轉為 HH:mm（相容 0530、05:30）
+ */
+function normalizeTimeInput(val) {
+  if (!val || typeof val !== 'string') return val;
+  var s = val.trim();
+  if (/^\d{4}$/.test(s)) return s.substring(0, 2) + ':' + s.substring(2);
+  return s;
+}
+
+/**
  * 格式化工作時數（避免重複單位如 7小時h）
  * 若已有 小時 或 h，直接回傳；若為純數字則加 h
  */
@@ -1187,14 +1198,14 @@ function handleSubmitCorrectionClick(e) {
   }
   const correctedStartInput = card.querySelector('.corrected-start-input');
   const correctedEndInput = card.querySelector('.corrected-end-input');
-  const correctedStart = correctedStartInput ? correctedStartInput.value.trim() : '';
-  const correctedEnd = correctedEndInput ? correctedEndInput.value.trim() : '';
+  var correctedStart = correctedStartInput ? correctedStartInput.value.trim() : '';
+  var correctedEnd = correctedEndInput ? correctedEndInput.value.trim() : '';
   if (!correctedStart || !correctedEnd) {
     showAlert('error', '請填寫校正上班時間與校正下班時間');
     return;
   }
-  payload.correctedStart = correctedStart;
-  payload.correctedEnd = correctedEnd;
+  payload.correctedStart = normalizeTimeInput(correctedStart);
+  payload.correctedEnd = normalizeTimeInput(correctedEnd);
   doSubmitCorrection(payload);
 }
 
