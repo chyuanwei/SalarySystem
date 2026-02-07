@@ -1,0 +1,14 @@
+---
+description: 正式環境（prod）禁止在無明確指令下變更
+globs: ["**/*"]
+alwaysRun: true
+---
+
+# 正式環境（prod）— 禁止擅自變更
+
+- **沒有使用者明確指令時，不得修改、更新或部署正式環境。**
+- **Go 僅限測試環境（test）。** 執行 go 時：
+  - 只可操作：`gas-backend/test/`、`frontend/test/`、GitHub commit/push、測試環境 clasp push。
+  - **禁止**：修改 `gas-backend/prod/` 或 `frontend/prod/`、對正式環境做 clasp push、或任何會影響正式環境的動作。
+- 正式環境（prod）**僅**在使用者**明確指示**（例如「deploy-prod」「部署到正式」）時才可執行同步或部署。
+- **不確定時：只動 test，不碰 prod。**
