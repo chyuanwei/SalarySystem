@@ -31,6 +31,18 @@ function doGet(e) {
         }
         return createJsonResponse({ success: true, names: result.names || [] });
       }
+
+      case 'getPersonnelFromSchedule': {
+        const yearMonth = (e.parameter.yearMonth || '').toString().trim() || null;
+        const startDate = (e.parameter.startDate || '').toString().trim() || null;
+        const endDate = (e.parameter.endDate || '').toString().trim() || null;
+        const branchName = (e.parameter.branch || '').toString().trim() || null;
+        const result = getPersonnelFromSchedule(yearMonth, startDate, endDate, branchName);
+        if (!result.success) {
+          return createJsonResponse({ success: false, error: result.error });
+        }
+        return createJsonResponse({ success: true, names: result.names || [] });
+      }
       
       case 'loadSchedule': {
         const config = getConfig();

@@ -150,6 +150,22 @@ document.addEventListener('DOMContentLoaded', function() {
   toggleDateFilterMode();
   toggleCompareDateMode();
   loadBranches();
+  // 查詢區：年月／日期變更時重新載入人員（該月份班表）
+  var qymSel = document.getElementById('queryYearMonthSelect');
+  var qymInp = document.getElementById('queryYearMonthInput');
+  if (qymSel) qymSel.addEventListener('change', loadQueryPersonnel);
+  if (qymInp) { qymInp.addEventListener('input', loadQueryPersonnel); qymInp.addEventListener('change', loadQueryPersonnel); }
+  if (queryStartDate) queryStartDate.addEventListener('change', loadQueryPersonnel);
+  if (queryEndDate) queryEndDate.addEventListener('change', loadQueryPersonnel);
+  // 比對區：年月／日期變更時重新載入人員（該月份班表）
+  var cymSel = document.getElementById('compareYearMonthSelect');
+  var cymInp = document.getElementById('compareYearMonthInput');
+  var cStart = document.getElementById('compareStartDate');
+  var cEnd = document.getElementById('compareEndDate');
+  if (cymSel) cymSel.addEventListener('change', loadComparePersonnel);
+  if (cymInp) { cymInp.addEventListener('input', loadComparePersonnel); cymInp.addEventListener('change', loadComparePersonnel); }
+  if (cStart) cStart.addEventListener('change', loadComparePersonnel);
+  if (cEnd) cEnd.addEventListener('change', loadComparePersonnel);
   // 初始顯示分店區塊（班表為預設）
   if (branchGroup) {
     const mode = document.querySelector('input[name="uploadType"]:checked');
@@ -198,11 +214,8 @@ async function loadBranches() {
         compareBranchEl.appendChild(opt);
       });
     }
-    // 若比對區塊已有選定分店（非「請選擇分店」），載入該分店人員
-    var compareBranchVal = compareBranchEl ? compareBranchEl.value : '';
-    if (compareBranchEl && compareBranchVal && compareBranchVal.trim()) {
-      loadComparePersonnel(compareBranchVal.trim());
-    }
+    // 若比對區塊已有分店與日期條件，載入該月份班表人員
+    loadComparePersonnel();
   } catch (error) {
     console.error('載入分店清單失敗:', error);
     if (branchEl) branchEl.innerHTML = '<option value="">載入失敗，請重整頁面</option>';
@@ -674,15 +687,39 @@ function toggleDateFilterMode() {
   if (queryEndDate) queryEndDate.disabled = isMonth;
   if (dateMonthGroup) dateMonthGroup.classList.toggle('hidden', !isMonth);
   if (dateRangeGroup) dateRangeGroup.classList.toggle('hidden', isMonth);
+  loadQueryPersonnel();
 }
 
 /**
- * 載入查詢區該分店人員（getPersonnelByBranch）
+ * 載入查詢區人員（以該月份班表內的人員為來源，getPersonnelFromSchedule）
+ * 需同時有分店與月份／日期區間才呼叫 API
  */
-async function loadQueryPersonnel(branchVal) {
+async function loadQueryPersonnel() {
   if (!personCheckboxGroup) return;
-  if (!branchVal || !branchVal.trim()) {
+  var branchVal = (document.getElementById('queryBranchSelect') && document.getElementById('queryBranchSelect').value) ? document.getElementById('queryBranchSelect').value.trim() : '';
+  var mode = document.querySelector('input[name="dateFilterMode"]:checked');
+  var isMonth = mode && mode.value === 'month';
+  var yearMonth = '';
+  var startDate = '';
+  var endDate = '';
+  if (isMonth) {
+    var sel = document.getElementById('queryYearMonthSelect');
+    var inp = document.getElementById('queryYearMonthInput');
+    yearMonth = (inp && inp.value && inp.value.trim().match(/^\d{6}$/)) ? inp.value.trim() : (sel && sel.value ? sel.value : '');
+  } else {
+    var qStart = document.getElementById('queryStartDate');
+    var qEnd = document.getElementById('queryEndDate');
+    startDate = qStart && qStart.value ? qStart.value.trim() : '';
+    endDate = (qEnd && qEnd.value ? qEnd.value.trim() : '') || startDate;
+  }
+  if (!branchVal) {
     personCheckboxGroup.innerHTML = '<span class="person-placeholder">請先選擇分店</span>';
+    if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
+    if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
+    return;
+  }
+  if (!yearMonth && !startDate) {
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">請選擇月份或日期區間以載入人員</span>';
     if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
     if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
     return;
@@ -691,26 +728,27 @@ async function loadQueryPersonnel(branchVal) {
   if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
   if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
   try {
-    const url = CONFIG.GAS_URL + '?action=getPersonnelByBranch&branch=' + encodeURIComponent(branchVal);
-    const response = await fetch(url, { method: 'GET', mode: 'cors' });
-    const result = await response.json();
-    const names = (result.success && Array.isArray(result.names)) ? result.names : [];
-    renderQueryPersonCheckboxes(names, {});
+    var params = 'action=getPersonnelFromSchedule&branch=' + encodeURIComponent(branchVal);
+    if (yearMonth) params += '&yearMonth=' + encodeURIComponent(yearMonth); else { params += '&startDate=' + encodeURIComponent(startDate); params += '&endDate=' + encodeURIComponent(endDate); }
+    var response = await fetch(CONFIG.GAS_URL + '?' + params, { method: 'GET', mode: 'cors' });
+    var result = await response.json();
+    var names = (result.success && Array.isArray(result.names)) ? result.names : [];
+    renderQueryPersonCheckboxes(names, {}, true);
   } catch (error) {
-    console.error('載入分店人員失敗:', error);
+    console.error('載入人員失敗:', error);
     personCheckboxGroup.innerHTML = '<span class="person-placeholder">載入失敗，請重整頁面</span>';
   }
 }
 
-function renderQueryPersonCheckboxes(names, opts) {
+function renderQueryPersonCheckboxes(names, opts, fromSchedule) {
   if (!personCheckboxGroup) return;
-  const checkedSet = {};
+  var checkedSet = {};
   if (opts && Array.isArray(opts.checked)) opts.checked.forEach(function(n) { checkedSet[n] = true; });
   personCheckboxGroup.innerHTML = '';
   if (names.length > 0) {
     names.forEach(function(n) {
-      const label = document.createElement('label');
-      const cb = document.createElement('input');
+      var label = document.createElement('label');
+      var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.value = n;
       if (checkedSet[n]) cb.checked = true;
@@ -721,14 +759,14 @@ function renderQueryPersonCheckboxes(names, opts) {
     if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = false;
     if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = false;
   } else {
-    personCheckboxGroup.innerHTML = '<span class="person-placeholder">此分店無人員資料</span>';
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此月份班表無人員' : '此分店無人員資料') + '</span>';
+    if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
+    if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
   }
 }
 
 function handleQueryBranchChange() {
-  const qb = document.getElementById('queryBranchSelect');
-  const branchVal = qb && qb.value ? qb.value.trim() : '';
-  loadQueryPersonnel(branchVal);
+  loadQueryPersonnel();
 }
 
 function toggleCompareDateMode() {
@@ -746,6 +784,7 @@ function toggleCompareDateMode() {
   if (compareYearMonthInput) compareYearMonthInput.disabled = !isMonth;
   if (compareStartDate) compareStartDate.disabled = isMonth;
   if (compareEndDate) compareEndDate.disabled = isMonth;
+  loadComparePersonnel();
 }
 
 function selectAllPersons() {
@@ -1139,33 +1178,55 @@ async function handleLoadCompare() {
 }
 
 /**
- * 選擇分店時載入該分店人員（方案 C 第一步）
+ * 載入比對區人員（以該月份班表內的人員為來源，getPersonnelFromSchedule）
+ * 需同時有分店與月份／日期區間才呼叫 API
  */
-async function loadComparePersonnel(branchVal) {
-  const comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
-  const selectAllComparePersonsBtn = document.getElementById('selectAllComparePersonsBtn');
-  const clearAllComparePersonsBtn = document.getElementById('clearAllComparePersonsBtn');
+async function loadComparePersonnel() {
+  var comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
+  var selectAllComparePersonsBtn = document.getElementById('selectAllComparePersonsBtn');
+  var clearAllComparePersonsBtn = document.getElementById('clearAllComparePersonsBtn');
   function disableCompareButtons() {
     if (selectAllComparePersonsBtn) selectAllComparePersonsBtn.disabled = true;
     if (clearAllComparePersonsBtn) clearAllComparePersonsBtn.disabled = true;
   }
-  if (!comparePersonCheckboxGroup || !branchVal) {
-    if (comparePersonCheckboxGroup && !branchVal) {
-      comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">請先選擇分店</span>';
-      disableCompareButtons();
-    }
+  if (!comparePersonCheckboxGroup) return;
+  var branchVal = (document.getElementById('compareBranchSelect') && document.getElementById('compareBranchSelect').value) ? document.getElementById('compareBranchSelect').value.trim() : '';
+  var mode = document.querySelector('input[name="compareDateMode"]:checked');
+  var isMonth = mode && mode.value === 'month';
+  var yearMonth = '';
+  var startDate = '';
+  var endDate = '';
+  if (isMonth) {
+    var cSel = document.getElementById('compareYearMonthSelect');
+    var cInp = document.getElementById('compareYearMonthInput');
+    yearMonth = (cInp && cInp.value && cInp.value.trim().match(/^\d{6}$/)) ? cInp.value.trim() : (cSel && cSel.value ? cSel.value : '');
+  } else {
+    var cStart = document.getElementById('compareStartDate');
+    var cEnd = document.getElementById('compareEndDate');
+    startDate = cStart && cStart.value ? cStart.value.trim() : '';
+    endDate = (cEnd && cEnd.value ? cEnd.value.trim() : '') || startDate;
+  }
+  if (!branchVal) {
+    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">請先選擇分店</span>';
+    disableCompareButtons();
+    return;
+  }
+  if (!yearMonth && !startDate) {
+    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">請選擇月份或日期區間以載入人員</span>';
+    disableCompareButtons();
     return;
   }
   comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">載入中...</span>';
   disableCompareButtons();
   try {
-    const url = CONFIG.GAS_URL + '?action=getPersonnelByBranch&branch=' + encodeURIComponent(branchVal);
-    const response = await fetch(url, { method: 'GET', mode: 'cors' });
-    const result = await response.json();
-    const names = (result.success && Array.isArray(result.names)) ? result.names : [];
-    renderComparePersonCheckboxes(names, {});
+    var params = 'action=getPersonnelFromSchedule&branch=' + encodeURIComponent(branchVal);
+    if (yearMonth) params += '&yearMonth=' + encodeURIComponent(yearMonth); else { params += '&startDate=' + encodeURIComponent(startDate); params += '&endDate=' + encodeURIComponent(endDate); }
+    var response = await fetch(CONFIG.GAS_URL + '?' + params, { method: 'GET', mode: 'cors' });
+    var result = await response.json();
+    var names = (result.success && Array.isArray(result.names)) ? result.names : [];
+    renderComparePersonCheckboxes(names, { fromSchedule: true });
   } catch (error) {
-    console.error('載入分店人員失敗:', error);
+    console.error('載入人員失敗:', error);
     comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">載入失敗，請重整頁面</span>';
     disableCompareButtons();
   }
@@ -1175,9 +1236,7 @@ async function loadComparePersonnel(branchVal) {
  * 處理比對區塊分店變更
  */
 function handleCompareBranchChange() {
-  const compareBranchSelect = document.getElementById('compareBranchSelect');
-  const branchVal = compareBranchSelect && compareBranchSelect.value ? compareBranchSelect.value.trim() : '';
-  loadComparePersonnel(branchVal);
+  loadComparePersonnel();
 }
 
 /**
@@ -1208,17 +1267,18 @@ function populateComparePersonCheckboxes(items, existingNames) {
  * @param {Object} opts - { checked: [] } 要預先勾選的名單
  */
 function renderComparePersonCheckboxes(names, opts) {
-  const comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
+  var comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
   if (!comparePersonCheckboxGroup) return;
-  const checkedSet = {};
+  var checkedSet = {};
   if (opts && Array.isArray(opts.checked)) opts.checked.forEach(function(n) { checkedSet[n] = true; });
+  var fromSchedule = opts && opts.fromSchedule;
   comparePersonCheckboxGroup.innerHTML = '';
   if (names.length > 0) {
     if (selectAllComparePersonsBtn) selectAllComparePersonsBtn.disabled = false;
     if (clearAllComparePersonsBtn) clearAllComparePersonsBtn.disabled = false;
     names.forEach(function(n) {
-      const label = document.createElement('label');
-      const cb = document.createElement('input');
+      var label = document.createElement('label');
+      var cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.value = n;
       if (checkedSet[n]) cb.checked = true;
@@ -1227,7 +1287,7 @@ function renderComparePersonCheckboxes(names, opts) {
       comparePersonCheckboxGroup.appendChild(label);
     });
   } else {
-    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">此分店無人員資料</span>';
+    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此月份班表無人員' : '此分店無人員資料') + '</span>';
     if (selectAllComparePersonsBtn) selectAllComparePersonsBtn.disabled = true;
     if (clearAllComparePersonsBtn) clearAllComparePersonsBtn.disabled = true;
   }
