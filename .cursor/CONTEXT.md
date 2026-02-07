@@ -498,6 +498,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.23 | 測試 | 修正 appendAttendance getRange 列數不符；檔案輸入 accept 加入 .csv。 | AI |
 | 2026-02-06 | v0.6.22 | 測試 | 打卡 CSV 上傳：人員驗證、分店 mapping、去重、寫入「打卡」sheet；GitHub Actions 部署 Pages。 | AI |
 | 2026-02-06 | v0.6.21 | 測試 | 修正查詢區分店下拉無資料：loadBranches 改為執行時查詢 DOM，確保上傳與查詢區皆正確填入。 | AI |
 | 2026-02-06 | v0.6.20 | 測試 | UI 國安班表→班表；查詢區新增分店下拉篩選；loadSchedule 支援 branch 參數；readFromSheet 不建空白 sheet。 | AI |
@@ -692,4 +693,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-06（v0.6.22 打卡 CSV 上傳、GitHub Actions 部署 Pages）*
+*最後更新：2026-02-07（v0.6.23 appendAttendance getRange 修正、accept csv）*
