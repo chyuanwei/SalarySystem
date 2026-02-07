@@ -328,12 +328,13 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 項目 | 說明 |
 |------|------|
+| **push** | 當使用者說「push」或「一起 push」時，**必須同時做兩件事**：(1) **git**：若有未 commit 變更先 `git add` + `git commit`，再 `git push`；(2) **clasp**：在 `gas-backend/test` 執行 `npx clasp push --force` 推送 GAS 測試環境。**不可只做 git 或只做 clasp**。 |
 | **go** | 等同 **執行 + 更新（僅測試環境）**：執行當下需求（改 code、測試等）→ commit/push GitHub **（commit message 須為英文）** → **clasp push 測試環境 GAS** → 更新 `.cursor/CONTEXT.md` → 提供 **Comment for GAS deploy**（格式：`v版本號：簡短描述`）。**重要**：(1) `go` 指令只推送測試環境，正式環境需另外指令。(2) **僅使用者可下 `go` 指令，AI 不可主動執行**。 |
 | **go（限制）** | **僅能操作測試環境（test）**，**不得更改正式環境（prod）程式碼**；正式環境任何變更需使用者明確指示（如 `deploy-prod`）。 |
 | **deploy-prod** | 部署到正式環境：複製 `gas-backend/test/*.gs` 到 `gas-backend/prod/` → 複製 `frontend/test/*` 到 `frontend/prod/`（保留 prod config.js）→ `cd gas-backend/prod && clasp push` → commit/push GitHub **（需附 commit message）** → 更新部署記錄 → 提供 **Comment for GAS deploy**（格式：`v版本號：簡短描述`）。**僅在使用者明確指示時執行**。 |
 | **Git commit** | 所有 `git commit` 必須附上有意義的 commit message，說明變更內容。不可使用過於簡略或無意義的訊息。 |
 | **GitHub 使用英文** | 給 GitHub 的內容（commit message、Actions 註解、PR 說明等）**一律使用英文**，不可使用中文。 |
-| **GAS 更新** | 凡修改 `gas-backend/**/*.gs`，回覆結尾須附 **Comment for GAS deploy**，格式：`v版本號：簡短描述`（例：`v0.6.32：班表上傳時透過人員 sheet 將員工名稱轉成打卡名稱後再寫入。`）。 |
+| **GAS 更新** | 凡修改 `gas-backend/**/*.gs`，回覆結尾**必附** **Comment for GAS deploy**（不可遺漏），格式：`v版本號：簡短描述`；並在 CONTEXT 部署記錄表新增一列。詳見 `.cursor/rules/gas-deploy-comment.mdc`。 |
 | **分析後先問再改** | 分析完問題或提出解法後，**須先詢問使用者意見**，經同意後才執行修改；不得直接進行程式修改。 |
 | **.clasp.json** | 已列入 .gitignore，勿提交；測試與正式環境各有各自的腳本 ID。 |
 | **測試優先** | 新增功能時先寫測試，確保程式正確性。 |
@@ -535,6 +536,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.49 | 測試 | 上傳 Tab 預設、校正送出：doPost 防呆（postData/JSON）、handleSubmitCorrection 日期正規化、前端顯示後端 error | AI |
 | 2026-02-07 | v0.6.48 | 測試 | 比對：同人同日同店允許多筆、依開始時間 1-1 配對、時間重疊顯示警示（overlapWarning） | AI |
 | 2026-02-07 | v0.6.47 | 測試 | 還原：人員篩選改回 checkbox 列表+全選/清除；結果區預設展開 | AI |
 | 2026-02-07 | v0.6.46 | 測試 | 前端 UX：查詢與比對共用條件區塊、人員改為按鈕+彈窗多選、結果區預設收合 | AI |

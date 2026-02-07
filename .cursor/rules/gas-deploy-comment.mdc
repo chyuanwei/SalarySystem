@@ -1,12 +1,12 @@
----
-description: 提供 GAS 部署時的 Comment for deploy
+--- 
+description: 提供 GAS 部署時的 Comment for deploy（不可遺漏）
 globs: ["**/*.gs", "gas-backend/**/*.gs"]
 alwaysRun: false
 ---
 
-# GAS 部署 Comment 規則
+# GAS 部署 Comment 規則（必附、不可遺漏）
 
-凡修改 `gas-backend/**/*.gs` 檔案後，在回覆**結尾**需提供 **Comment for deploy**，格式如下：
+凡修改 `gas-backend/**/*.gs` 檔案後，回覆**結尾必須**提供 **Comment for deploy**，否則視為未完成。格式如下：
 
 ---
 
@@ -29,3 +29,7 @@ v0.6.35：loadSchedule / loadAttendance 支援 startDate、endDate 日期區間�
 ---
 
 此 comment 將用於 GAS 專案的「管理版本」→「說明」欄位，供日後追蹤與回溯。
+
+---
+
+**檢查清單**：完成任何涉及 `gas-backend/**/*.gs` 的變更後，回覆中必須包含「## Comment for deploy」區塊與版本說明；若同時 commit/push，須在 CONTEXT.md 部署記錄表新增一列對應版本。

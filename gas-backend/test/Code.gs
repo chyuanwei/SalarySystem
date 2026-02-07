@@ -3,6 +3,9 @@
  * 測試環境
  */
 
+// 部署標記：每次 clasp push 後可更新此版號，Log 工作表會寫入此值，用以確認程式是否成功部署
+var DEPLOY_MARKER_VERSION = 'v0.6.50';
+
 /**
  * 處理 GET 請求
  */
@@ -164,12 +167,11 @@ function doPost(e) {
       return createJsonResponse({ success: false, error: '請求格式錯誤（非 JSON）' });
     }
     const action = requestData.action;
-    
-    logDebug(`收到 POST 請求: ${action}`, { 
+    logToSheet('GAS 部署標記: ' + DEPLOY_MARKER_VERSION, 'OPERATION', { action: action });
+    logDebug(`收到 POST 請求: ${action}`, {
       action: action,
       timestamp: new Date().toISOString()
     });
-    
     switch (action) {
       case 'upload':
         return handleUpload(requestData);
@@ -523,6 +525,7 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
  */
 function handleSubmitCorrection(requestData) {
   try {
+    logToSheet('校正送出-前端傳入內容', 'OPERATION', requestData);
     var branch = (requestData.branch || '').toString().trim();
     var empAccount = (requestData.empAccount || '').toString().trim();
     var name = (requestData.name || '').toString().trim();

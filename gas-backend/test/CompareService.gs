@@ -401,10 +401,14 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
         var a = idx < attendances.length ? attendances[idx] : null;
         var empAcc = (s && s.empAccount) || (a && a.empAccount) || '';
         var date = (s && s.date) || (a && a.date) || '';
+        var dateNorm = date ? normalizeDateToDash(date) : '';
         var start = (s && s.startTime) || (a && a.startTime) || '';
         var end = (s && s.endTime) || (a && a.endTime) || '';
         var branch = (s && s.branch) || (a && a.branch) || branchName;
-        var corrKey = buildCompareKey(empAcc, date, start, end, branch);
+        // 校正 key 與寫入時一致：以班表上下班為 key（無班表時為空），否則僅打卡的校正會查不到
+        var scheduleStartForKey = s ? s.startTime : '';
+        var scheduleEndForKey = s ? s.endTime : '';
+        var corrKey = buildCompareKey(empAcc, dateNorm, scheduleStartForKey, scheduleEndForKey, branch);
         var corr = correctionMap[corrKey] || null;
         var displayName = (a && a.name) ? a.name : (mapping.accountToAttendanceName[empAcc] || (s && s.name) || (a && a.name) || '');
         var overlapWarning = (s && idx < scheduleOverlap.length && scheduleOverlap[idx]) || (a && idx < attendanceOverlap.length && attendanceOverlap[idx]);

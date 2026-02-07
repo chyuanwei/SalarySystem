@@ -1,0 +1,19 @@
+---
+description: 使用者說 push 時必須同時執行 git push 與 clasp push
+globs: ["**/*"]
+alwaysRun: false
+---
+
+# push = git + clasp（不可只做一項）
+
+當使用者說「push」「一起 push」「全部 push」或類似意思時：
+
+1. **Git**
+   - 若有未提交變更：`git add -A` → `git commit -m "..."`（message 英文）→ `git push`
+   - 若已 commit 僅未 push：直接 `git push`
+
+2. **Clasp（GAS 測試環境）**
+   - `cd gas-backend/test && npx clasp push --force`
+   - 使用 `--force` 避免互動提示導致失敗
+
+**不可只做 git push 而漏掉 clasp push。** 兩者都完成才算完成使用者的「push」要求。
