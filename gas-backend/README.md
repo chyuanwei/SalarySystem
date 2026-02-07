@@ -102,6 +102,7 @@ npx clasp open
 |---------|---|------|
 | `SHEET_ID` | （測試用 Sheets ID） | 測試環境 Google Sheets ID |
 | `ENVIRONMENT` | `test` | 環境標識 |
+| `OVERTIME_ALERT` | 數字（分鐘）或留空 | 加班警示閾值。打卡時數 − 班表時數 > 此值時，比對畫面打卡區塊標紅；未設定或 0＝不警示。 |
 
 ### 正式環境需設定
 
@@ -109,6 +110,7 @@ npx clasp open
 |---------|---|------|
 | `SHEET_ID` | （正式用 Sheets ID） | 正式環境 Google Sheets ID |
 | `ENVIRONMENT` | `production` | 環境標識 |
+| `OVERTIME_ALERT` | 數字（分鐘）或留空 | 同上；未設定或 0＝不警示。 |
 
 ---
 

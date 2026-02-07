@@ -212,8 +212,43 @@ function buildMatchKey(empAccount, date, branch) {
 }
 
 /**
+ * 將時間字串（HH:mm 或 HHmm）轉為當日分鐘數（0–1439），失敗回傳 null
+ */
+function timeStringToMinutes(t) {
+  if (!t || typeof t !== 'string') return null;
+  var s = String(t).trim().replace(':', '');
+  if (!/^\d{3,4}$/.test(s)) return null;
+  var h = parseInt(s.length === 4 ? s.substring(0, 2) : s.substring(0, 1), 10);
+  var m = parseInt(s.length === 4 ? s.substring(2, 4) : s.substring(1, 4), 10);
+  if (isNaN(h) || isNaN(m)) return null;
+  return h * 60 + m;
+}
+
+/**
+ * 從上班/下班時間計算區間分鐘數（跨日則 +24h）。失敗回傳 null。
+ */
+function timeRangeToMinutes(startStr, endStr) {
+  var startM = timeStringToMinutes(startStr);
+  var endM = timeStringToMinutes(endStr);
+  if (startM === null || endM === null) return null;
+  var diff = endM - startM;
+  if (diff < 0) diff += 24 * 60;
+  return diff;
+}
+
+/**
+ * 時數欄位（數字或 "7.5"）轉為分鐘數，失敗回傳 null
+ */
+function hoursValueToMinutes(hours) {
+  if (hours === undefined || hours === null || hours === '') return null;
+  var n = parseFloat(String(hours).replace(/[^\d.]/g, ''));
+  if (isNaN(n)) return null;
+  return Math.round(n * 60);
+}
+
+/**
  * 班表與打卡比對（一對一，無對應另一邊空白）
- * @return {Object} { success, items: [{ key, schedule, attendance, correction }] }
+ * @return {Object} { success, items: [{ key, schedule, attendance, correction, displayName, overtimeAlert? }] }
  */
 function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchName) {
   try {
@@ -267,6 +302,9 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       keyToAttendance[key] = { empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], status: row[8], branch: branch, remark: (row[9] !== undefined && row[9] !== null) ? String(row[9]).trim() : '' };
       allKeys[key] = true;
     });
+    var config = getConfig();
+    var overtimeAlertThreshold = (config.OVERTIME_ALERT !== undefined && config.OVERTIME_ALERT !== null) ? parseInt(config.OVERTIME_ALERT, 10) : 0;
+    if (isNaN(overtimeAlertThreshold)) overtimeAlertThreshold = 0;
     var items = [];
     Object.keys(allKeys).forEach(function(key) {
       var s = keyToSchedule[key] || null;
@@ -279,7 +317,17 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       var corrKey = buildCompareKey(empAcc, date, start, end, branch);
       var corr = correctionMap[corrKey] || null;
       var displayName = (a && a.name) ? a.name : (mapping.accountToAttendanceName[empAcc] || (s && s.name) || (a && a.name) || '');
-      items.push({ key: key, schedule: s, attendance: a, correction: corr, displayName: displayName });
+      var item = { key: key, schedule: s, attendance: a, correction: corr, displayName: displayName };
+      if (s && a && overtimeAlertThreshold > 0) {
+        var scheduleMins = timeRangeToMinutes(s.startTime, s.endTime);
+        if (scheduleMins === null) scheduleMins = hoursValueToMinutes(s.hours);
+        var attendanceMins = timeRangeToMinutes(a.startTime, a.endTime);
+        if (attendanceMins === null) attendanceMins = hoursValueToMinutes(a.hours);
+        if (scheduleMins !== null && attendanceMins !== null && (attendanceMins - scheduleMins) > overtimeAlertThreshold) {
+          item.overtimeAlert = true;
+        }
+      }
+      items.push(item);
     });
     items.sort(function(x, y) {
       var d = (x.schedule && x.schedule.date) || (x.attendance && x.attendance.date) || '';

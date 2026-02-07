@@ -30,7 +30,15 @@ function getConfig() {
     MAX_FILE_SIZE: 10 * 1024 * 1024, // 10MB
     
     // 支援的 Excel 工作表名稱（用於自動偵測）
-    SUPPORTED_SHEET_NAMES: ['11501', '班表', 'Schedule', 'Attendance']
+    SUPPORTED_SHEET_NAMES: ['11501', '班表', 'Schedule', 'Attendance'],
+    
+    // 加班警示閾值（分鐘）。打卡時數 − 班表時數 > 此值時，前端將打卡區塊標紅。從 Script Property OVERTIME_ALERT 讀取，未設定時 0＝不警示。
+    OVERTIME_ALERT: (function() {
+      var v = props.getProperty('OVERTIME_ALERT');
+      if (v === null || v === undefined || String(v).trim() === '') return 0;
+      var n = parseInt(String(v).trim(), 10);
+      return isNaN(n) ? 0 : n;
+    })()
   };
 }
 

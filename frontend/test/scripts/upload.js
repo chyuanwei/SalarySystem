@@ -1268,11 +1268,12 @@ function renderCompareResults(items) {
     var scheduleRemark = s ? (s.remark || '') : '';
     var attendanceRemark = a ? (a.remark || '') : '';
 
-    var scheduleText = scheduleStart + '–' + scheduleEnd + '  ' + formatHoursWithMinutes(scheduleHours, scheduleStart, scheduleEnd);
+    var scheduleText = scheduleStart + '–' + scheduleEnd + ' | ' + formatHoursWithMinutes(scheduleHours, scheduleStart, scheduleEnd);
     var hoursPart = formatHoursWithMinutes(attendanceHours, attendanceStart, attendanceEnd);
     var statusStr = attendanceStatus ? String(attendanceStatus).trim() : '';
     var attendanceText = attendanceStart + '–' + attendanceEnd + ' | ' + hoursPart +
       (statusStr && statusStr !== '—' ? ' | ' + statusStr : '');
+    var overtimeAlert = !!(item.overtimeAlert);
 
     var payload = JSON.stringify({
       branch: branch,
@@ -1304,7 +1305,7 @@ function renderCompareResults(items) {
         '</div>' +
         '<div class="compare-card-block">' +
           '<div class="compare-card-block-title">打卡</div>' +
-          '<div class="compare-card-block-content">' + escapeHtml(attendanceText) + '</div>' +
+          '<div class="compare-card-block-content' + (overtimeAlert ? ' overtime-alert' : '') + '">' + escapeHtml(attendanceText) + '</div>' +
           (a ? '<div class="compare-card-remark-row"><span class="compare-card-row-label">備註</span><textarea class="attendance-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(attendanceRemark) + '</textarea><button type="button" class="person-btn save-remark-btn" data-type="attendance">儲存</button></div>' : '') +
         '</div>' +
         '<div class="compare-card-actions">' +
