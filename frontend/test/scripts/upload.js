@@ -423,7 +423,7 @@ async function handleSubmit() {
     sheetNameInput.disabled = false;
     
     renderResults(result);
-    showAlert('success', '✅ 解析完成，結果如下', { scrollTo: resultSection });
+    showAlert('success', '✅ 解析完成，結果如下');
     
   } catch (error) {
     console.error('上傳錯誤:', error);
@@ -464,7 +464,7 @@ function updateProgress(percent, text) {
  * 顯示提示訊息（跳出視窗）
  * @param {string} type - success | error | warning
  * @param {string} message - 訊息內容
- * @param {Object} options - { scrollTo: Element } 成功時要捲動到的區塊（modal 時仍可捲動）
+ * @param {Object} options - 保留供擴充，目前不捲動畫面以維持原位置
  */
 var alertAutoCloseTimer = null;
 
@@ -481,9 +481,6 @@ function showAlert(type, message, options) {
   }
   if (msgEl) msgEl.textContent = message;
   alertModal.classList.add('show');
-  if (type === 'success' && options && options.scrollTo) {
-    options.scrollTo.scrollIntoView({ behavior: 'auto', block: 'start' });
-  }
   if (type === 'success') {
     alertAutoCloseTimer = setTimeout(function() {
       hideAlert();
@@ -887,7 +884,6 @@ async function handleLoadSchedule() {
 
     renderScheduleResults(result);
     mergeQueryPersonFromDetails(result.details);
-    scheduleResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
   } catch (error) {
     showAlert('error', '載入班表失敗：' + error.message);
   } finally {
@@ -953,7 +949,6 @@ async function handleLoadAttendance() {
 
     renderAttendanceResults(result);
     mergeQueryPersonFromDetails(result.details);
-    scheduleResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
   } catch (error) {
     showAlert('error', '載入打卡失敗：' + error.message);
   } finally {
@@ -1163,10 +1158,7 @@ async function handleLoadCompare() {
       });
     }
     populateComparePersonCheckboxes(result.items || [], existingNames);
-    if (compareResultSection) {
-      compareResultSection.classList.add('show');
-      compareResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
-    }
+    if (compareResultSection) compareResultSection.classList.add('show');
   } catch (error) {
     showAlert('error', '載入比對失敗：' + error.message);
   } finally {
