@@ -5,6 +5,42 @@
  */
 
 /**
+ * 依分店取得人員名單（班表名稱、打卡名稱的聯集，供比對篩選用）
+ * 人員 sheet: A=員工帳號, B=班表名稱, C=打卡名稱, D=分店
+ * @param {string} branchName - 分店名稱
+ * @return {Object} { success, names: [] }
+ */
+function getPersonnelByBranch(branchName) {
+  try {
+    if (!branchName || !branchName.toString().trim()) {
+      return { success: true, names: [] };
+    }
+    var config = getConfig();
+    var sheetName = config.SHEET_NAMES.PERSONNEL || '人員';
+    var allData = readFromSheet(sheetName);
+    var nameSet = {};
+    if (!allData || allData.length < 2) {
+      return { success: true, names: [] };
+    }
+    var dataRows = allData.slice(1);
+    var branchColIndex = 3;
+    dataRows.forEach(function(row) {
+      var b = row[branchColIndex] ? String(row[branchColIndex]).trim() : '';
+      if (b !== branchName.toString().trim()) return;
+      var scheduleName = row[1] ? String(row[1]).trim() : '';
+      var attendanceName = row[2] ? String(row[2]).trim() : '';
+      if (scheduleName) nameSet[scheduleName] = true;
+      if (attendanceName) nameSet[attendanceName] = true;
+    });
+    var names = Object.keys(nameSet).sort();
+    return { success: true, names: names };
+  } catch (error) {
+    logError('取得分店人員失敗: ' + error.message, { error: error.toString() });
+    return { success: false, error: error.message, names: [] };
+  }
+}
+
+/**
  * 讀取人員對應表（班表名稱、打卡名稱 <-> 員工帳號）
  * 人員 sheet: A=員工帳號, B=班表名稱, C=打卡名稱, D=分店
  * @return {Object} { scheduleNameToAccount: {}, attendanceNameToAccount: {}, accountToScheduleName: {}, accountToAttendanceName: {} }

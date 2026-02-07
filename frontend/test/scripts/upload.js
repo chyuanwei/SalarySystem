@@ -130,6 +130,10 @@ document.querySelectorAll('input[name="compareDateMode"]').forEach(function(radi
 const loadCompareBtn = document.getElementById('loadCompareBtn');
 if (loadCompareBtn) loadCompareBtn.addEventListener('click', handleLoadCompare);
 
+// 比對區塊：選擇分店時載入該分店人員
+const compareBranchSelect = document.getElementById('compareBranchSelect');
+if (compareBranchSelect) compareBranchSelect.addEventListener('change', handleCompareBranchChange);
+
 // 頁面載入時初始化
 document.addEventListener('DOMContentLoaded', function() {
   if (yearSelect && monthSelect) initScheduleSelectors();
@@ -183,6 +187,11 @@ async function loadBranches() {
         opt.textContent = name;
         compareBranchEl.appendChild(opt);
       });
+    }
+    // 若比對區塊已有選定分店（非「請選擇分店」），載入該分店人員
+    var compareBranchVal = compareBranchEl ? compareBranchEl.value : '';
+    if (compareBranchEl && compareBranchVal && compareBranchVal.trim()) {
+      loadComparePersonnel(compareBranchVal.trim());
     }
   } catch (error) {
     console.error('載入分店清單失敗:', error);
@@ -949,7 +958,13 @@ async function handleLoadCompare() {
     }
 
     renderCompareResults(result.items || []);
-    populateComparePersonCheckboxes(result.items || []);
+    var existingNames = {};
+    if (comparePersonCheckboxGroup) {
+      comparePersonCheckboxGroup.querySelectorAll('input[type="checkbox"]').forEach(function(cb) {
+        if (cb.value) existingNames[cb.value] = true;
+      });
+    }
+    populateComparePersonCheckboxes(result.items || [], existingNames);
     if (compareResultSection) {
       compareResultSection.classList.add('show');
       compareResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
@@ -965,17 +980,69 @@ async function handleLoadCompare() {
 }
 
 /**
- * 從比對結果填入人員複選框
+ * 選擇分店時載入該分店人員（方案 C 第一步）
  */
-function populateComparePersonCheckboxes(items) {
+async function loadComparePersonnel(branchVal) {
+  const comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
+  if (!comparePersonCheckboxGroup || !branchVal) {
+    if (comparePersonCheckboxGroup && !branchVal) {
+      comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">請先選擇分店</span>';
+    }
+    return;
+  }
+  try {
+    const url = CONFIG.GAS_URL + '?action=getPersonnelByBranch&branch=' + encodeURIComponent(branchVal);
+    const response = await fetch(url, { method: 'GET', mode: 'cors' });
+    const result = await response.json();
+    const names = (result.success && Array.isArray(result.names)) ? result.names : [];
+    renderComparePersonCheckboxes(names, {});
+  } catch (error) {
+    console.error('載入分店人員失敗:', error);
+    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">載入失敗，請重整頁面</span>';
+  }
+}
+
+/**
+ * 處理比對區塊分店變更
+ */
+function handleCompareBranchChange() {
+  const compareBranchSelect = document.getElementById('compareBranchSelect');
+  const branchVal = compareBranchSelect && compareBranchSelect.value ? compareBranchSelect.value.trim() : '';
+  loadComparePersonnel(branchVal);
+}
+
+/**
+ * 從比對結果補足人員複選框（方案 C：合併比對結果中的人員）
+ * @param {Array} items - 比對結果
+ * @param {Object} existingNames - 現有人員 { name: true }
+ */
+function populateComparePersonCheckboxes(items, existingNames) {
   const comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
   if (!comparePersonCheckboxGroup) return;
-  const nameSet = {};
+  existingNames = existingNames || {};
+  const nameSet = Object.assign({}, existingNames);
   items.forEach(function(item) {
     if (item.schedule && item.schedule.name) nameSet[item.schedule.name] = true;
     if (item.attendance && item.attendance.name) nameSet[item.attendance.name] = true;
   });
   const names = Object.keys(nameSet).sort();
+  const checkedNames = [];
+  comparePersonCheckboxGroup.querySelectorAll('input[type="checkbox"]:checked').forEach(function(cb) {
+    if (cb.value) checkedNames.push(cb.value);
+  });
+  renderComparePersonCheckboxes(names, { checked: checkedNames });
+}
+
+/**
+ * 渲染比對區塊人員複選框
+ * @param {Array} names - 人員名單
+ * @param {Object} opts - { checked: [] } 要預先勾選的名單
+ */
+function renderComparePersonCheckboxes(names, opts) {
+  const comparePersonCheckboxGroup = document.getElementById('comparePersonCheckboxGroup');
+  if (!comparePersonCheckboxGroup) return;
+  const checkedSet = {};
+  if (opts && Array.isArray(opts.checked)) opts.checked.forEach(function(n) { checkedSet[n] = true; });
   comparePersonCheckboxGroup.innerHTML = '';
   if (names.length > 0) {
     names.forEach(function(n) {
@@ -983,12 +1050,13 @@ function populateComparePersonCheckboxes(items) {
       const cb = document.createElement('input');
       cb.type = 'checkbox';
       cb.value = n;
+      if (checkedSet[n]) cb.checked = true;
       label.appendChild(cb);
       label.appendChild(document.createTextNode(n));
       comparePersonCheckboxGroup.appendChild(label);
     });
   } else {
-    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">此範圍無人員資料</span>';
+    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">此分店無人員資料</span>';
   }
 }
 
@@ -1005,26 +1073,29 @@ function renderCompareResults(items) {
   }
 
   compareList.innerHTML = items.map(function(item, idx) {
-    const s = item.schedule || null;
-    const a = item.attendance || null;
-    const corr = item.correction || null;
-    const displayName = (s && s.name) || (a && a.name) || '—';
-    const empAccount = (s && s.empAccount) || (a && a.empAccount) || '';
-    const branch = (s && s.branch) || (a && a.branch) || '';
-    const date = (s && s.date) || (a && a.date) || '';
-    const scheduleStart = s ? (s.startTime || '—') : '—';
-    const scheduleEnd = s ? (s.endTime || '—') : '—';
-    const scheduleHours = s ? (s.hours || '—') : '—';
-    const attendanceStart = a ? (a.startTime || '—') : '—';
-    const attendanceEnd = a ? (a.endTime || '—') : '—';
-    const attendanceHours = a ? (a.hours || '—') : '—';
-    const attendanceStatus = a ? (a.status || '—') : '—';
+    var s = item.schedule || null;
+    var a = item.attendance || null;
+    var corr = item.correction || null;
+    var displayName = (s && s.name) || (a && a.name) || '—';
+    var empAccount = (s && s.empAccount) || (a && a.empAccount) || '';
+    var branch = (s && s.branch) || (a && a.branch) || '';
+    var date = (s && s.date) || (a && a.date) || '';
+    var scheduleStart = s ? (s.startTime || '—') : '—';
+    var scheduleEnd = s ? (s.endTime || '—') : '—';
+    var scheduleHours = s ? (s.hours || '—') : '—';
+    var attendanceStart = a ? (a.startTime || '—') : '—';
+    var attendanceEnd = a ? (a.endTime || '—') : '—';
+    var attendanceHours = a ? (a.hours || '—') : '—';
+    var attendanceStatus = a ? (a.status || '—') : '—';
 
-    const correctedStart = corr ? corr.correctedStart : '';
-    const correctedEnd = corr ? corr.correctedEnd : '';
-    const isCorrected = !!(corr && correctedStart && correctedEnd);
+    var correctedStart = corr ? corr.correctedStart : '';
+    var correctedEnd = corr ? corr.correctedEnd : '';
+    var isCorrected = !!(corr && correctedStart && correctedEnd);
 
-    const payload = JSON.stringify({
+    var scheduleText = scheduleStart + '–' + scheduleEnd + '  ' + scheduleHours + 'h';
+    var attendanceText = attendanceStart + '–' + attendanceEnd + '  ' + attendanceHours + 'h  ' + attendanceStatus;
+
+    var payload = JSON.stringify({
       branch: branch,
       empAccount: empAccount,
       name: displayName,
@@ -1038,21 +1109,27 @@ function renderCompareResults(items) {
       attendanceStatus: a ? a.status : ''
     });
 
-    const cardId = 'compare-card-' + idx;
-
     return (
-      '<div class="compare-card' + (isCorrected ? ' corrected' : '') + '" id="' + cardId + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
-        '<div class="result-row"><span class="result-label">分店</span><span class="result-value">' + escapeHtml(branch) + '</span></div>' +
-        '<div class="result-row"><span class="result-label">員工帳號</span><span class="result-value">' + escapeHtml(empAccount) + '</span></div>' +
-        '<div class="result-row"><span class="result-label">姓名</span><span class="result-value">' + escapeHtml(displayName) + '</span></div>' +
-        '<div class="result-row"><span class="result-label">日期</span><span class="result-value">' + escapeHtml(date) + '</span></div>' +
-        '<div class="result-row"><span class="result-label">班表 上班/下班/時數</span><span class="result-value">' + escapeHtml(scheduleStart) + ' / ' + escapeHtml(scheduleEnd) + ' / ' + escapeHtml(scheduleHours) + '</span></div>' +
-        '<div class="result-row"><span class="result-label">打卡 上班/下班/時數/狀態</span><span class="result-value">' + escapeHtml(attendanceStart) + ' / ' + escapeHtml(attendanceEnd) + ' / ' + escapeHtml(attendanceHours) + ' / ' + escapeHtml(attendanceStatus) + '</span></div>' +
+      '<div class="compare-card' + (isCorrected ? ' corrected' : '') + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
+        '<div class="compare-card-header">' +
+          escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(date) + '</span>' +
+          (branch ? '<div class="compare-card-row-label" style="margin-top:4px">' + escapeHtml(branch) + (empAccount ? ' · ' + escapeHtml(empAccount) : '') + '</div>' : '') +
+        '</div>' +
+        '<div class="compare-card-block">' +
+          '<div class="compare-card-block-title">班表</div>' +
+          '<div class="compare-card-block-content">' + escapeHtml(scheduleText) + '</div>' +
+        '</div>' +
+        '<div class="compare-card-block">' +
+          '<div class="compare-card-block-title">打卡</div>' +
+          '<div class="compare-card-block-content">' + escapeHtml(attendanceText) + '</div>' +
+        '</div>' +
         '<div class="compare-card-actions">' +
-          '<label><span class="result-label">校正上班</span><input type="text" class="corrected-start-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedStart) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
-          '<label><span class="result-label">校正下班</span><input type="text" class="corrected-end-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedEnd) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
+          '<div class="compare-card-actions-row">' +
+            '<label><span class="compare-card-row-label">校正上班</span><input type="text" class="corrected-start-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedStart) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
+            '<label><span class="compare-card-row-label">校正下班</span><input type="text" class="corrected-end-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedEnd) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
+          '</div>' +
           (isCorrected
-            ? '<span class="compare-card-badge">已校正</span><button type="button" class="person-btn edit-correction-btn">編輯</button>'
+            ? '<div style="display:flex;gap:10px;align-items:center"><span class="compare-card-badge">已校正</span><button type="button" class="person-btn edit-correction-btn">編輯</button></div>'
             : '<button type="button" class="load-schedule-btn submit-correction-btn">校正送出</button>') +
         '</div>' +
       '</div>'
@@ -1111,21 +1188,24 @@ function handleSubmitCorrectionClick(e) {
  * 處理編輯按鈕點擊（已校正狀態下切換為可編輯）
  */
 function handleEditCorrectionClick(e) {
-  const btn = e.target;
-  const card = btn.closest('.compare-card');
+  var btn = e.target;
+  var card = btn.closest('.compare-card');
   if (!card) return;
-  const correctedStartInput = card.querySelector('.corrected-start-input');
-  const correctedEndInput = card.querySelector('.corrected-end-input');
+  var correctedStartInput = card.querySelector('.corrected-start-input');
+  var correctedEndInput = card.querySelector('.corrected-end-input');
   if (correctedStartInput) correctedStartInput.removeAttribute('readonly');
   if (correctedEndInput) correctedEndInput.removeAttribute('readonly');
-  const badge = card.querySelector('.compare-card-badge');
-  if (badge) badge.remove();
-  const newBtn = document.createElement('button');
+  var btnRow = btn.closest('div');
+  var newBtn = document.createElement('button');
   newBtn.type = 'button';
   newBtn.className = 'load-schedule-btn submit-correction-btn';
   newBtn.textContent = '校正送出';
   newBtn.addEventListener('click', handleSubmitCorrectionClick);
-  btn.replaceWith(newBtn);
+  if (btnRow && btnRow.parentNode) {
+    btnRow.replaceWith(newBtn);
+  } else {
+    btn.replaceWith(newBtn);
+  }
 }
 
 /**

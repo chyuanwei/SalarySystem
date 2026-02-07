@@ -23,6 +23,15 @@ function doGet(e) {
         return createJsonResponse(result);
       }
       
+      case 'getPersonnelByBranch': {
+        const branchName = (e.parameter.branch || '').toString().trim() || null;
+        const result = getPersonnelByBranch(branchName);
+        if (!result.success) {
+          return createJsonResponse({ success: false, error: result.error });
+        }
+        return createJsonResponse({ success: true, names: result.names || [] });
+      }
+      
       case 'loadSchedule': {
         const config = getConfig();
         const sheetName = config.SHEET_NAMES.SCHEDULE || '班表';

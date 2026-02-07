@@ -89,40 +89,123 @@
         .compare-card {
             background: white;
             border: 1px solid #e6e9ee;
-            border-radius: 8px;
+            border-radius: 12px;
             padding: 16px;
-            margin-bottom: 12px;
+            margin-bottom: 16px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.06);
         }
 
         .compare-card.corrected {
             border-left: 4px solid #28a745;
         }
 
-        .compare-card-actions {
-            margin-top: 12px;
-            display: flex;
-            gap: 8px;
-            align-items: center;
+        .compare-card-header {
+            font-size: 17px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 12px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid #eee;
         }
 
-        .compare-card-badge {
-            display: inline-block;
-            background: #28a745;
-            color: white;
-            padding: 2px 8px;
-            border-radius: 4px;
+        .compare-card-header .compare-card-date {
+            font-size: 14px;
+            font-weight: 500;
+            color: #666;
+            margin-left: 8px;
+        }
+
+        .compare-card-row {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            margin-bottom: 10px;
+            font-size: 14px;
+        }
+
+        .compare-card-row:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .compare-card-row-label {
+            color: #888;
             font-size: 12px;
+        }
+
+        .compare-card-row-value {
+            color: #333;
+            font-weight: 500;
+        }
+
+        .compare-card-block {
+            background: #f8f9fa;
+            border-radius: 8px;
+            padding: 10px 12px;
+            margin-bottom: 10px;
+        }
+
+        .compare-card-block-title {
+            font-size: 12px;
+            color: #666;
+            margin-bottom: 6px;
+        }
+
+        .compare-card-block-content {
+            font-size: 14px;
+            color: #333;
+            font-weight: 500;
+        }
+
+        .compare-card-actions {
+            margin-top: 14px;
+            padding-top: 12px;
+            border-top: 1px solid #eee;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+
+        .compare-card-actions-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            align-items: flex-end;
         }
 
         .compare-card-actions label {
             display: flex;
             flex-direction: column;
             gap: 4px;
+            min-width: 90px;
         }
 
         .compare-card-actions .corrected-start-input,
         .compare-card-actions .corrected-end-input {
-            width: 80px;
+            padding: 10px 12px;
+            font-size: 16px;
+            min-height: 44px;
+        }
+
+        .compare-card-actions .submit-correction-btn,
+        .compare-card-actions .edit-correction-btn {
+            min-height: 44px;
+            padding: 12px 20px;
+            font-size: 15px;
+        }
+
+        .compare-card-badge {
+            display: inline-block;
+            background: #28a745;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 6px;
+            font-size: 13px;
+        }
+
+        .compare-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0;
         }
 
         .schedule-block-label {
@@ -786,6 +869,26 @@
                 font-size: 12px;
             }
 
+            .compare-card {
+                padding: 14px;
+            }
+
+            .compare-card-header {
+                font-size: 16px;
+            }
+
+            .compare-card-actions .corrected-start-input,
+            .compare-card-actions .corrected-end-input {
+                min-height: 44px;
+                font-size: 16px;
+            }
+
+            .compare-card-actions .submit-correction-btn,
+            .compare-card-actions .edit-correction-btn {
+                min-height: 44px;
+                width: 100%;
+            }
+
             .info-section {
                 padding: 12px;
             }
@@ -992,9 +1095,9 @@
                 </select>
             </div>
             <div class="schedule-block">
-                <div class="schedule-block-label">人員篩選 <span class="schedule-hint-small">（可選，可複選）</span></div>
+                <div class="schedule-block-label">人員篩選 <span class="schedule-hint-small">（選擇分店後載入，可複選）</span></div>
                 <div id="comparePersonCheckboxGroup" class="person-checkbox-group">
-                    <span class="person-placeholder">請先載入班表或打卡取得名單</span>
+                    <span class="person-placeholder">請先選擇分店</span>
                 </div>
             </div>
             <div class="schedule-block">
@@ -1002,7 +1105,7 @@
             </div>
             <div id="compareResultSection" class="result-section">
                 <h2 class="result-title">比對結果</h2>
-                <div id="compareList" class="result-list"></div>
+                <div id="compareList" class="result-list compare-list"></div>
             </div>
         </div>
 
