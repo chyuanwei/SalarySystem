@@ -197,10 +197,18 @@ function readAttendanceByConditions(yearMonth, startDate, endDate, names, branch
 }
 
 /**
- * 建立比對 key: 員工帳號|日期|上班|下班|分店
+ * 建立比對 key: 員工帳號|日期|上班|下班|分店（用於校正紀錄）
  */
 function buildCompareKey(empAccount, date, startTime, endTime, branch) {
   return [empAccount || '', date || '', startTime || '', endTime || '', branch || ''].join('|');
+}
+
+/**
+ * 建立配對 key: 員工帳號|日期|分店（用於將班表與打卡配對為同一筆）
+ * 同一人、同一日、同一分店只產生一筆，避免因上下班時間略異而拆成兩筆
+ */
+function buildMatchKey(empAccount, date, branch) {
+  return [empAccount || '', date || '', branch || ''].join('|');
 }
 
 /**
@@ -244,7 +252,7 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       var start = row[2] || '';
       var end = row[3] || '';
       var branch = row[6] ? String(row[6]).trim() : '';
-      var key = buildCompareKey(acc || sName, date, start, end, branch);
+      var key = buildMatchKey(acc || sName, date, branch);
       keyToSchedule[key] = { empAccount: acc, name: sName, date: date, startTime: start, endTime: end, hours: row[4], shift: row[5], branch: branch };
       allKeys[key] = true;
     });
@@ -255,7 +263,7 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
       var start = row[5] || '';
       var end = row[6] || '';
       var branch = row[0] ? String(row[0]).trim() : '';
-      var key = buildCompareKey(acc || aName, date, start, end, branch);
+      var key = buildMatchKey(acc || aName, date, branch);
       keyToAttendance[key] = { empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], status: row[8], branch: branch };
       allKeys[key] = true;
     });
