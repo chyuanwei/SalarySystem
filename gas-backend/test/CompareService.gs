@@ -338,9 +338,11 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
   var keyToSchedules = {};
   var keyToAttendances = {};
   var allKeys = {};
+  var scheduleKeySamples = [];
   (scheduleRecords || []).forEach(function(row) {
     var sName = row[0] ? String(row[0]).trim() : '';
-    var acc = (row.length > SCHEDULE_COL.EMP_ACCOUNT && row[SCHEDULE_COL.EMP_ACCOUNT]) ? String(row[SCHEDULE_COL.EMP_ACCOUNT]).trim() : '';
+    var accFromK = (row.length > SCHEDULE_COL.EMP_ACCOUNT && row[SCHEDULE_COL.EMP_ACCOUNT]) ? String(row[SCHEDULE_COL.EMP_ACCOUNT]).trim() : '';
+    var acc = accFromK;
     if (!acc) {
       acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
       if (!acc && sName) {
@@ -355,10 +357,17 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
     var end = row[3] || '';
     var branch = row[6] ? String(row[6]).trim() : '';
     var key = buildMatchKey(acc || sName, date, branch);
+    if (scheduleKeySamples.length < 8) {
+      scheduleKeySamples.push({ sName: sName, accFromK: accFromK || '(空)', accResolved: acc || '(無)', key: key });
+    }
     if (!keyToSchedules[key]) keyToSchedules[key] = [];
     keyToSchedules[key].push({ empAccount: acc, name: sName, date: date, startTime: start, endTime: end, hours: row[4], shift: row[5], branch: branch });
     allKeys[key] = true;
   });
+  if (scheduleKeySamples.length > 0 && typeof logToSheet === 'function') {
+    logToSheet('警示對應-班表 key 樣本', 'OPERATION', { branchName: branchName, scheduleCount: (scheduleRecords || []).length, samples: scheduleKeySamples });
+  }
+  var attendanceKeySamples = [];
   attendanceRecords.forEach(function(row) {
     var acc = row[2] ? String(row[2]).trim() : '';
     var aName = row[3] ? String(row[3]).trim() : '';
@@ -367,10 +376,25 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
     var end = row[6] || '';
     var branch = row[0] ? String(row[0]).trim() : '';
     var key = buildMatchKey(acc || aName, date, branch);
+    if (attendanceKeySamples.length < 8) {
+      attendanceKeySamples.push({ acc: acc, aName: aName, date: date, key: key });
+    }
     if (!keyToAttendances[key]) keyToAttendances[key] = [];
     keyToAttendances[key].push({ empAccount: acc, name: aName, date: date, startTime: start, endTime: end, hours: row[7], branch: branch });
     allKeys[key] = true;
   });
+  if (attendanceKeySamples.length > 0 && typeof logToSheet === 'function') {
+    logToSheet('警示對應-打卡 key 樣本', 'OPERATION', { branchName: branchName, attendanceCount: attendanceRecords.length, samples: attendanceKeySamples });
+  }
+  var keysWithAttendanceNoSchedule = [];
+  Object.keys(allKeys).forEach(function(key) {
+    var schedules = keyToSchedules[key] || [];
+    var attendances = keyToAttendances[key] || [];
+    if (attendances.length > 0 && schedules.length === 0) keysWithAttendanceNoSchedule.push(key);
+  });
+  if (keysWithAttendanceNoSchedule.length > 0 && typeof logToSheet === 'function') {
+    logToSheet('警示對應-有打卡無班表的 key（會全部標警示）', 'OPERATION', { branchName: branchName, count: keysWithAttendanceNoSchedule.length, keys: keysWithAttendanceNoSchedule.slice(0, 15) });
+  }
   var config = getConfig();
   var overtimeAlertThreshold = (config.OVERTIME_ALERT !== undefined && config.OVERTIME_ALERT !== null) ? parseInt(config.OVERTIME_ALERT, 10) : 0;
   if (isNaN(overtimeAlertThreshold)) overtimeAlertThreshold = 0;
@@ -425,6 +449,12 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
       alertMap[lookupKey] = hasAlert;
     }
   });
+  var alertCount = 0;
+  var noAlertCount = 0;
+  for (var k in alertMap) { if (alertMap[k]) alertCount++; else noAlertCount++; }
+  if (typeof logToSheet === 'function') {
+    logToSheet('警示對應-結果統計', 'OPERATION', { branchName: branchName, alertY: alertCount, alertN: noAlertCount, totalKeys: Object.keys(alertMap).length });
+  }
   return alertMap;
 }
 

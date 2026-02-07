@@ -7,6 +7,11 @@ function buildCompareKey(empAccount, date, startTime, endTime, branch) {
   return [empAccount || '', date || '', startTime || '', endTime || '', branch || ''].join('|');
 }
 
+/** 與 CompareService.gs buildMatchKey 一致：員工帳號|日期|分店 */
+function buildMatchKey(empAccount, date, branch) {
+  return [empAccount || '', date || '', branch || ''].join('|');
+}
+
 function normalizeDateToDash(value) {
   if (!value) return '';
   var s = value.toString().trim();
@@ -83,6 +88,73 @@ describe('CompareService correction key', () => {
       var lookupKey = getCorrectionKeyForItem(s, a, 'A店');
       expect(lookupKey).toBe(writtenKey);
       expect(correctionMap[lookupKey]).toBeDefined();
+    });
+  });
+
+  describe('buildMatchKey (alert/schedule-attendance grouping)', () => {
+    it('same acc+date+branch produces same key for schedule and attendance', () => {
+      var acc = 'E01';
+      var date = '2026-02-07';
+      var branch = 'A店';
+      var scheduleKey = buildMatchKey(acc, date, branch);
+      var attendanceKey = buildMatchKey(acc, date, branch);
+      expect(scheduleKey).toBe(attendanceKey);
+      expect(scheduleKey).toBe('E01|2026-02-07|A店');
+    });
+
+    it('schedule row with K column (index 10) acc should match attendance row with index 2 acc', () => {
+      var SCHEDULE_COL = { EMP_ACCOUNT: 10 };
+      var scheduleRow = ['王小明', '2026-02-07', '09:00', '18:00', 8, 'A', 'A店', '', '', '', 'E01'];
+      var attendanceRow = ['A店', '001', 'E01', '王小明', '2026-02-07', '09:00', '18:00', 8, '', '', '是', '', '', '', '', '', ''];
+      var sAcc = (scheduleRow.length > SCHEDULE_COL.EMP_ACCOUNT && scheduleRow[SCHEDULE_COL.EMP_ACCOUNT]) ? String(scheduleRow[SCHEDULE_COL.EMP_ACCOUNT]).trim() : '';
+      var aAcc = attendanceRow[2] ? String(attendanceRow[2]).trim() : '';
+      var sDate = scheduleRow[1] || '';
+      var aDate = attendanceRow[4] || '';
+      var sBranch = scheduleRow[6] ? String(scheduleRow[6]).trim() : '';
+      var aBranch = attendanceRow[0] ? String(attendanceRow[0]).trim() : '';
+      var scheduleKey = buildMatchKey(sAcc, sDate, sBranch);
+      var attendanceKey = buildMatchKey(aAcc, aDate, aBranch);
+      expect(scheduleKey).toBe(attendanceKey);
+      expect(scheduleKey).toBe('E01|2026-02-07|A店');
+    });
+
+    it('schedule row WITHOUT K column (only 10 cols) falls back to name; key must still match if mapping gives same acc', () => {
+      var SCHEDULE_COL = { EMP_ACCOUNT: 10 };
+      var scheduleRow = ['王小明', '2026-02-07', '09:00', '18:00', 8, 'A', 'A店', '', '', ''];
+      var mapping = { attendanceNameToAccount: { '王小明': 'E01' }, scheduleNameToAccount: {} };
+      var sName = scheduleRow[0] ? String(scheduleRow[0]).trim() : '';
+      var sAcc = (scheduleRow.length > SCHEDULE_COL.EMP_ACCOUNT && scheduleRow[SCHEDULE_COL.EMP_ACCOUNT]) ? String(scheduleRow[SCHEDULE_COL.EMP_ACCOUNT]).trim() : '';
+      if (!sAcc) sAcc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
+      var attendanceRow = ['A店', '001', 'E01', '王小明', '2026-02-07', '09:00', '18:00', 8, '', '', '是', '', '', '', '', '', ''];
+      var aAcc = attendanceRow[2] ? String(attendanceRow[2]).trim() : '';
+      var sDate = scheduleRow[1] || '';
+      var aDate = attendanceRow[4] || '';
+      var sBranch = scheduleRow[6] ? String(scheduleRow[6]).trim() : '';
+      var aBranch = attendanceRow[0] ? String(attendanceRow[0]).trim() : '';
+      var scheduleKey = buildMatchKey(sAcc || sName, sDate, sBranch);
+      var attendanceKey = buildMatchKey(aAcc, aDate, aBranch);
+      expect(scheduleKey).toBe(attendanceKey);
+      expect(scheduleKey).toBe('E01|2026-02-07|A店');
+    });
+
+    it('when schedule has no K column and mapping has no match, keys differ so schedules=[] for attendance key', () => {
+      var SCHEDULE_COL = { EMP_ACCOUNT: 10 };
+      var scheduleRow = ['TiNg', '2026-02-07', '09:00', '18:00', 8, 'A', 'A店', '', '', ''];
+      var mapping = { attendanceNameToAccount: {}, scheduleNameToAccount: {} };
+      var sName = scheduleRow[0] ? String(scheduleRow[0]).trim() : '';
+      var sAcc = (scheduleRow.length > SCHEDULE_COL.EMP_ACCOUNT && scheduleRow[SCHEDULE_COL.EMP_ACCOUNT]) ? String(scheduleRow[SCHEDULE_COL.EMP_ACCOUNT]).trim() : '';
+      if (!sAcc) sAcc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
+      var attendanceRow = ['A店', '001', 'E01', '王小明', '2026-02-07', '09:00', '18:00', 8, '', '', '是', '', '', '', '', '', ''];
+      var aAcc = attendanceRow[2] ? String(attendanceRow[2]).trim() : '';
+      var sDate = scheduleRow[1] || '';
+      var aDate = attendanceRow[4] || '';
+      var sBranch = scheduleRow[6] ? String(scheduleRow[6]).trim() : '';
+      var aBranch = attendanceRow[0] ? String(attendanceRow[0]).trim() : '';
+      var scheduleKey = buildMatchKey(sAcc || sName, sDate, sBranch);
+      var attendanceKey = buildMatchKey(aAcc, aDate, aBranch);
+      expect(scheduleKey).toBe('TiNg|2026-02-07|A店');
+      expect(attendanceKey).toBe('E01|2026-02-07|A店');
+      expect(scheduleKey).not.toBe(attendanceKey);
     });
   });
 });
