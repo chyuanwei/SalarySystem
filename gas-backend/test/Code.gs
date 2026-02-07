@@ -624,7 +624,19 @@ function handleSubmitCorrection(requestData) {
       return createJsonResponse({ success: false, error: result.error || '校正寫回打卡失敗' });
     }
     writeCorrection(data);
-    return createJsonResponse({ success: true, message: '校正紀錄已送出（已寫回打卡）' });
+    var item = null;
+    if (typeof getSingleCompareItem === 'function') {
+      item = getSingleCompareItem({
+        branch: branch,
+        empAccount: empAccount,
+        date: date,
+        scheduleStart: scheduleStart,
+        scheduleEnd: scheduleEnd,
+        attendanceStart: attendanceStart,
+        attendanceEnd: attendanceEnd
+      });
+    }
+    return createJsonResponse({ success: true, message: '校正紀錄已送出（已寫回打卡）', item: item });
   } catch (error) {
     logError('校正送出失敗: ' + error.message, { error: error.toString() });
     return createJsonResponse({ success: false, error: '校正送出失敗: ' + error.message });
@@ -688,7 +700,7 @@ function handleConfirmIgnoreAttendance(requestData) {
       return createJsonResponse({ success: false, error: '分店、員工帳號、日期、上班、下班為必填' });
     }
     var result = confirmIgnoreAttendance(branch, empAccount, date, start, end);
-    return createJsonResponse(result.success ? { success: true, message: '已確認' } : { success: false, error: result.error });
+    return createJsonResponse(result.success ? { success: true, message: '已確認', confirmedIgnore: true } : { success: false, error: result.error });
   } catch (err) {
     return createJsonResponse({ success: false, error: '確認失敗: ' + err.message });
   }
@@ -709,7 +721,7 @@ function handleUnconfirmIgnoreAttendance(requestData) {
       return createJsonResponse({ success: false, error: '分店、員工帳號、日期、上班、下班為必填' });
     }
     var result = unconfirmIgnoreAttendance(branch, empAccount, date, start, end);
-    return createJsonResponse(result.success ? { success: true, message: '已取消確認' } : { success: false, error: result.error });
+    return createJsonResponse(result.success ? { success: true, message: '已取消確認', confirmedIgnore: false } : { success: false, error: result.error });
   } catch (err) {
     return createJsonResponse({ success: false, error: '取消確認失敗: ' + err.message });
   }

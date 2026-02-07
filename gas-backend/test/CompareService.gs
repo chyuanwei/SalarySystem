@@ -658,6 +658,47 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
 }
 
 /**
+ * 取得單一筆比對 item（供校正送出後局部更新用）
+ * @param {Object} params - { branch, empAccount, date, scheduleStart, scheduleEnd, attendanceStart, attendanceEnd }
+ * @return {Object|null} 符合的 item 或 null
+ */
+function getSingleCompareItem(params) {
+  try {
+    var branch = (params.branch || '').toString().trim();
+    var empAccount = (params.empAccount || '').toString().trim();
+    var date = (params.date || '').toString().trim();
+    if (date && typeof normalizeDateToDash === 'function') date = normalizeDateToDash(date);
+    var scheduleStart = (params.scheduleStart || '').toString().trim();
+    var scheduleEnd = (params.scheduleEnd || '').toString().trim();
+    var attendanceStart = (params.attendanceStart || '').toString().trim();
+    var attendanceEnd = (params.attendanceEnd || '').toString().trim();
+    if (!branch || !date) return null;
+    var yearMonth = date.length >= 6 ? date.substring(0, 4) + date.substring(5, 7) : '';
+    if (yearMonth.length !== 6) yearMonth = '';
+    var cmpResult = compareScheduleAttendance(yearMonth, date, date, null, branch);
+    if (!cmpResult.success || !cmpResult.items || cmpResult.items.length === 0) return null;
+    var items = cmpResult.items;
+    for (var i = 0; i < items.length; i++) {
+      var it = items[i];
+      var s = it.schedule || null;
+      var a = it.attendance || null;
+      var acc = (s && s.empAccount) || (a && a.empAccount) || '';
+      if (acc !== empAccount) continue;
+      var sStart = s ? (s.startTime || '').toString().trim() : '';
+      var sEnd = s ? (s.endTime || '').toString().trim() : '';
+      var aStart = a ? (a.startTime || '').toString().trim() : '';
+      var aEnd = a ? (a.endTime || '').toString().trim() : '';
+      var scheduleMatch = (scheduleStart === sStart && scheduleEnd === sEnd) || (!scheduleStart && !scheduleEnd && !s);
+      var attendanceMatch = (attendanceStart === aStart && attendanceEnd === aEnd) || (!attendanceStart && !attendanceEnd && !a);
+      if (scheduleMatch && attendanceMatch) return it;
+    }
+    return null;
+  } catch (e) {
+    return null;
+  }
+}
+
+/**
  * 讀取有效校正紀錄（是否有效=是）
  * 校正 sheet 欄位：分店,員工帳號,姓名,日期,班表上班,班表下班,班表時數,打卡上班,打卡下班,打卡時數,打卡狀態,校正上班,校正下班,狀態,是否有效,建立時間
  */

@@ -1268,6 +1268,186 @@ function renderComparePersonCheckboxes(names, opts) {
 }
 
 /**
+ * 渲染單一筆比對卡片 HTML（供 renderCompareResults 與 updateCompareCardFull 共用）
+ */
+function renderSingleCompareCard(item) {
+  var s = item.schedule || null;
+  var a = item.attendance || null;
+  var corr = item.correction || null;
+  var displayName = item.displayName || (a && a.name) || (s && s.name) || '—';
+  var empAccount = (s && s.empAccount) || (a && a.empAccount) || '';
+  var branch = (s && s.branch) || (a && a.branch) || '';
+  var date = (s && s.date) || (a && a.date) || '';
+  var scheduleStart = s ? (s.startTime || '—') : '—';
+  var scheduleEnd = s ? (s.endTime || '—') : '—';
+  var scheduleHours = s ? (s.hours || '—') : '—';
+  var attendanceStart = a ? (a.startTime || '—') : '—';
+  var attendanceEnd = a ? (a.endTime || '—') : '—';
+  var attendanceHours = a ? (a.hours || '—') : '—';
+  var attendanceStatus = a ? (a.status || '—') : '—';
+  var correctedStart = corr ? corr.correctedStart : '';
+  var correctedEnd = corr ? corr.correctedEnd : '';
+  var correctionRemark = corr ? (corr.remark || '') : '';
+  var isCorrected = !!(corr && correctedStart && correctedEnd);
+  var scheduleRemark = s ? (s.remark || '') : '';
+  var attendanceRemark = a ? (a.remark || '') : '';
+  var scheduleText = scheduleStart + '–' + scheduleEnd + ' | ' + formatHoursWithMinutes(scheduleHours, scheduleStart, scheduleEnd);
+  var hoursPart = formatHoursWithMinutes(attendanceHours, attendanceStart, attendanceEnd);
+  var statusStr = attendanceStatus ? String(attendanceStatus).trim() : '';
+  var attendanceText = attendanceStart + '–' + attendanceEnd + ' | ' + hoursPart +
+    (statusStr && statusStr !== '—' ? ' | ' + statusStr : '');
+  var overtimeAlert = !!(item.overtimeAlert);
+  var noScheduleAlert = !!(item.noScheduleAlert);
+  var overlapWarning = !!(item.overlapWarning);
+  var confirmedIgnore = !!(item.confirmedIgnore);
+  var hasAlert = overtimeAlert || overlapWarning;
+  var showConfirmBtn = hasAlert && a && !confirmedIgnore;
+  var payload = JSON.stringify({
+    branch: branch,
+    empAccount: empAccount,
+    name: displayName,
+    date: date,
+    scheduleStart: s ? s.startTime : '',
+    scheduleEnd: s ? s.endTime : '',
+    scheduleHours: s ? s.hours : '',
+    attendanceStart: a ? a.startTime : '',
+    attendanceEnd: a ? a.endTime : '',
+    attendanceHours: a ? a.hours : '',
+    attendanceStatus: a ? a.status : '',
+    scheduleRemark: scheduleRemark,
+    attendanceRemark: attendanceRemark,
+    correctionRemark: correctionRemark
+  });
+  return (
+    '<div class="compare-card' + (isCorrected ? ' corrected' : '') + (overlapWarning ? ' overlap-warning' : '') + (overtimeAlert ? ' overtime-warning' : '') + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
+      (overlapWarning ? '<div class="compare-card-overlap-badge">⚠ 時間重疊</div>' : '') +
+      (overtimeAlert ? '<div class="compare-card-overtime-badge">⚠ ' + (noScheduleAlert ? '無班表警示' : '加班警示') + '</div>' : '') +
+      '<div class="compare-card-header">' +
+        escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(formatDateWithWeekday(date)) + '</span>' +
+        (confirmedIgnore ? '<span class="compare-card-confirmed-badge">已確認</span><button type="button" class="unconfirm-btn">取消確認</button>' : (showConfirmBtn ? '<button type="button" class="confirm-pending-btn">待確認</button>' : '')) +
+        (branch ? '<div class="compare-card-row-label" style="margin-top:4px">' + escapeHtml(branch) + (empAccount ? ' · ' + escapeHtml(empAccount) : '') + '</div>' : '') +
+      '</div>' +
+      '<div class="compare-card-block">' +
+        '<div class="compare-card-block-title">班表</div>' +
+        '<div class="compare-card-block-content">' + escapeHtml(scheduleText) + '</div>' +
+        (s ? '<div class="compare-card-remark-row"><span class="compare-card-row-label">備註</span><textarea class="schedule-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(scheduleRemark) + '</textarea><button type="button" class="person-btn save-remark-btn" data-type="schedule">儲存</button></div>' : '') +
+      '</div>' +
+      '<div class="compare-card-block">' +
+        '<div class="compare-card-block-title">打卡</div>' +
+        '<div class="compare-card-block-content' + (overtimeAlert ? ' overtime-alert' : '') + '">' + escapeHtml(attendanceText) + '</div>' +
+        (a ? '<div class="compare-card-remark-row"><span class="compare-card-row-label">備註</span><textarea class="attendance-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(attendanceRemark) + '</textarea><button type="button" class="person-btn save-remark-btn" data-type="attendance">儲存</button></div>' : '') +
+      '</div>' +
+      '<div class="compare-card-actions">' +
+        '<div class="compare-card-actions-row">' +
+          '<label><span class="compare-card-row-label">校正上班</span><input type="text" class="corrected-start-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedStart) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
+          '<label><span class="compare-card-row-label">校正下班</span><input type="text" class="corrected-end-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedEnd) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
+        '</div>' +
+        '<div class="compare-card-remark-row"><span class="compare-card-row-label">校正備註</span><textarea class="correction-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(correctionRemark) + '</textarea></div>' +
+        (isCorrected
+          ? '<div style="display:flex;gap:10px;align-items:center"><span class="compare-card-badge">已校正</span><button type="button" class="person-btn edit-correction-btn">編輯</button></div>'
+          : '<button type="button" class="load-schedule-btn submit-correction-btn">送出校正</button>') +
+      '</div>' +
+    '</div>'
+  );
+}
+
+/**
+ * 依 key 找出比對卡片 DOM
+ * @param {Object} keyObj - { branch, empAccount, date, attendanceStart, attendanceEnd, scheduleStart?, scheduleEnd? }
+ */
+function findCompareCardByKey(keyObj) {
+  var compareList = document.getElementById('compareList');
+  if (!compareList) return null;
+  var cards = compareList.querySelectorAll('.compare-card');
+  var wantBranch = (keyObj.branch || '').toString().trim();
+  var wantAcc = (keyObj.empAccount || '').toString().trim();
+  var wantDate = (keyObj.date || '').toString().trim();
+  var wantAStart = (keyObj.attendanceStart || '').toString().trim();
+  var wantAEnd = (keyObj.attendanceEnd || '').toString().trim();
+  var wantSStart = (keyObj.scheduleStart || '').toString().trim();
+  var wantSEnd = (keyObj.scheduleEnd || '').toString().trim();
+  for (var i = 0; i < cards.length; i++) {
+    var p = cards[i].getAttribute('data-payload');
+    if (!p) continue;
+    try {
+      var payload = JSON.parse(p);
+      var b = (payload.branch || '').toString().trim();
+      var acc = (payload.empAccount || '').toString().trim();
+      var d = (payload.date || '').toString().trim();
+      var aStart = (payload.attendanceStart || '').toString().trim();
+      var aEnd = (payload.attendanceEnd || '').toString().trim();
+      var sStart = (payload.scheduleStart || '').toString().trim();
+      var sEnd = (payload.scheduleEnd || '').toString().trim();
+      if (b !== wantBranch || acc !== wantAcc || d !== wantDate) continue;
+      if (wantAStart || wantAEnd) {
+        if (aStart !== wantAStart || aEnd !== wantAEnd) continue;
+      }
+      if (wantSStart !== undefined || wantSEnd !== undefined) {
+        if (sStart !== wantSStart || sEnd !== wantSEnd) continue;
+      }
+      return cards[i];
+    } catch (e) {}
+  }
+  return null;
+}
+
+/**
+ * 局部更新：用單一 item 替換整張卡片內容並綁定事件
+ */
+function updateCompareCardFull(card, item) {
+  if (!card || !item) return;
+  var html = renderSingleCompareCard(item);
+  var temp = document.createElement('div');
+  temp.innerHTML = html;
+  var newCard = temp.firstElementChild;
+  if (!newCard) return;
+  card.parentNode.replaceChild(newCard, card);
+  bindCompareCardEvents(newCard);
+}
+
+function bindCompareCardEvents(cardEl) {
+  if (!cardEl) return;
+  cardEl.querySelectorAll('.submit-correction-btn').forEach(function(btn) { btn.addEventListener('click', handleSubmitCorrectionClick); });
+  cardEl.querySelectorAll('.edit-correction-btn').forEach(function(btn) { btn.addEventListener('click', handleEditCorrectionClick); });
+  cardEl.querySelectorAll('.save-remark-btn').forEach(function(btn) { btn.addEventListener('click', handleSaveRemarkClick); });
+  cardEl.querySelectorAll('.confirm-pending-btn').forEach(function(btn) { btn.addEventListener('click', handleConfirmIgnoreClick); });
+  cardEl.querySelectorAll('.unconfirm-btn').forEach(function(btn) { btn.addEventListener('click', handleUnconfirmIgnoreClick); });
+}
+
+/**
+ * 局部更新：只更新卡片 header（待確認／已確認／取消確認）
+ */
+function updateCompareCardHeader(card, opts) {
+  if (!card) return;
+  var confirmedIgnore = !!(opts && opts.confirmedIgnore);
+  var header = card.querySelector('.compare-card-header');
+  if (!header) return;
+  var displayName = '';
+  var dateText = '';
+  var payloadStr = card.getAttribute('data-payload');
+  if (payloadStr) {
+    try {
+      var p = JSON.parse(payloadStr);
+      displayName = (p.name || '').toString().trim();
+    } catch (e) {}
+  }
+  var dateEl = header.querySelector('.compare-card-date');
+  if (dateEl) dateText = dateEl.textContent || '';
+  var branch = (payloadStr ? (function() { try { var x = JSON.parse(payloadStr); return (x.branch || '').toString().trim(); } catch(e) { return ''; } })() : '') || '';
+  var empAccount = (payloadStr ? (function() { try { var x = JSON.parse(payloadStr); return (x.empAccount || '').toString().trim(); } catch(e) { return ''; } })() : '') || '';
+  var hasAlert = card.classList.contains('overtime-warning') || card.classList.contains('overlap-warning');
+  var showConfirmBtn = hasAlert && !confirmedIgnore;
+  var badgeAndBtn = confirmedIgnore
+    ? '<span class="compare-card-confirmed-badge">已確認</span><button type="button" class="unconfirm-btn">取消確認</button>'
+    : (showConfirmBtn ? '<button type="button" class="confirm-pending-btn">待確認</button>' : '');
+  var newInner = escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(dateText) + '</span>' + badgeAndBtn +
+    (branch ? '<div class="compare-card-row-label" style="margin-top:4px">' + escapeHtml(branch) + (empAccount ? ' · ' + escapeHtml(empAccount) : '') + '</div>' : '');
+  header.innerHTML = newInner;
+  header.querySelectorAll('.confirm-pending-btn').forEach(function(btn) { btn.addEventListener('click', handleConfirmIgnoreClick); });
+  header.querySelectorAll('.unconfirm-btn').forEach(function(btn) { btn.addEventListener('click', handleUnconfirmIgnoreClick); });
+}
+
+/**
  * 渲染比對結果卡片
  */
 function renderCompareResults(items) {
@@ -1279,90 +1459,7 @@ function renderCompareResults(items) {
     return;
   }
 
-  compareList.innerHTML = items.map(function(item, idx) {
-    var s = item.schedule || null;
-    var a = item.attendance || null;
-    var corr = item.correction || null;
-    var displayName = item.displayName || (a && a.name) || (s && s.name) || '—';
-    var empAccount = (s && s.empAccount) || (a && a.empAccount) || '';
-    var branch = (s && s.branch) || (a && a.branch) || '';
-    var date = (s && s.date) || (a && a.date) || '';
-    var scheduleStart = s ? (s.startTime || '—') : '—';
-    var scheduleEnd = s ? (s.endTime || '—') : '—';
-    var scheduleHours = s ? (s.hours || '—') : '—';
-    var attendanceStart = a ? (a.startTime || '—') : '—';
-    var attendanceEnd = a ? (a.endTime || '—') : '—';
-    var attendanceHours = a ? (a.hours || '—') : '—';
-    var attendanceStatus = a ? (a.status || '—') : '—';
-
-    var correctedStart = corr ? corr.correctedStart : '';
-    var correctedEnd = corr ? corr.correctedEnd : '';
-    var correctionRemark = corr ? (corr.remark || '') : '';
-    var isCorrected = !!(corr && correctedStart && correctedEnd);
-    var scheduleRemark = s ? (s.remark || '') : '';
-    var attendanceRemark = a ? (a.remark || '') : '';
-
-    var scheduleText = scheduleStart + '–' + scheduleEnd + ' | ' + formatHoursWithMinutes(scheduleHours, scheduleStart, scheduleEnd);
-    var hoursPart = formatHoursWithMinutes(attendanceHours, attendanceStart, attendanceEnd);
-    var statusStr = attendanceStatus ? String(attendanceStatus).trim() : '';
-    var attendanceText = attendanceStart + '–' + attendanceEnd + ' | ' + hoursPart +
-      (statusStr && statusStr !== '—' ? ' | ' + statusStr : '');
-    var overtimeAlert = !!(item.overtimeAlert);
-    var noScheduleAlert = !!(item.noScheduleAlert);
-    var overlapWarning = !!(item.overlapWarning);
-    var confirmedIgnore = !!(item.confirmedIgnore);
-    var hasAlert = overtimeAlert || overlapWarning;
-    var showConfirmBtn = hasAlert && a && !confirmedIgnore;
-
-    var payload = JSON.stringify({
-      branch: branch,
-      empAccount: empAccount,
-      name: displayName,
-      date: date,
-      scheduleStart: s ? s.startTime : '',
-      scheduleEnd: s ? s.endTime : '',
-      scheduleHours: s ? s.hours : '',
-      attendanceStart: a ? a.startTime : '',
-      attendanceEnd: a ? a.endTime : '',
-      attendanceHours: a ? a.hours : '',
-      attendanceStatus: a ? a.status : '',
-      scheduleRemark: scheduleRemark,
-      attendanceRemark: attendanceRemark,
-      correctionRemark: correctionRemark
-    });
-
-    return (
-      '<div class="compare-card' + (isCorrected ? ' corrected' : '') + (overlapWarning ? ' overlap-warning' : '') + (overtimeAlert ? ' overtime-warning' : '') + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
-        (overlapWarning ? '<div class="compare-card-overlap-badge">⚠ 時間重疊</div>' : '') +
-        (overtimeAlert ? '<div class="compare-card-overtime-badge">⚠ ' + (noScheduleAlert ? '無班表警示' : '加班警示') + '</div>' : '') +
-        '<div class="compare-card-header">' +
-          escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(formatDateWithWeekday(date)) + '</span>' +
-          (confirmedIgnore ? '<span class="compare-card-confirmed-badge">已確認</span><button type="button" class="unconfirm-btn">取消確認</button>' : (showConfirmBtn ? '<button type="button" class="confirm-pending-btn">待確認</button>' : '')) +
-          (branch ? '<div class="compare-card-row-label" style="margin-top:4px">' + escapeHtml(branch) + (empAccount ? ' · ' + escapeHtml(empAccount) : '') + '</div>' : '') +
-        '</div>' +
-        '<div class="compare-card-block">' +
-          '<div class="compare-card-block-title">班表</div>' +
-          '<div class="compare-card-block-content">' + escapeHtml(scheduleText) + '</div>' +
-          (s ? '<div class="compare-card-remark-row"><span class="compare-card-row-label">備註</span><textarea class="schedule-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(scheduleRemark) + '</textarea><button type="button" class="person-btn save-remark-btn" data-type="schedule">儲存</button></div>' : '') +
-        '</div>' +
-        '<div class="compare-card-block">' +
-          '<div class="compare-card-block-title">打卡</div>' +
-          '<div class="compare-card-block-content' + (overtimeAlert ? ' overtime-alert' : '') + '">' + escapeHtml(attendanceText) + '</div>' +
-          (a ? '<div class="compare-card-remark-row"><span class="compare-card-row-label">備註</span><textarea class="attendance-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(attendanceRemark) + '</textarea><button type="button" class="person-btn save-remark-btn" data-type="attendance">儲存</button></div>' : '') +
-        '</div>' +
-        '<div class="compare-card-actions">' +
-          '<div class="compare-card-actions-row">' +
-            '<label><span class="compare-card-row-label">校正上班</span><input type="text" class="corrected-start-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedStart) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
-            '<label><span class="compare-card-row-label">校正下班</span><input type="text" class="corrected-end-input schedule-date-input" placeholder="HH:mm" value="' + escapeHtmlAttr(correctedEnd) + '" ' + (isCorrected ? 'readonly' : '') + '></label>' +
-          '</div>' +
-          '<div class="compare-card-remark-row"><span class="compare-card-row-label">校正備註</span><textarea class="correction-remark-input remark-input" placeholder="可填寫備註" rows="1">' + escapeHtml(correctionRemark) + '</textarea></div>' +
-          (isCorrected
-            ? '<div style="display:flex;gap:10px;align-items:center"><span class="compare-card-badge">已校正</span><button type="button" class="person-btn edit-correction-btn">編輯</button></div>'
-            : '<button type="button" class="load-schedule-btn submit-correction-btn">送出校正</button>') +
-        '</div>' +
-      '</div>'
-    );
-  }).join('');
+  compareList.innerHTML = items.map(function(item) { return renderSingleCompareCard(item); }).join('');
 
   compareList.querySelectorAll('.submit-correction-btn').forEach(function(btn) {
     btn.addEventListener('click', handleSubmitCorrectionClick);
@@ -1692,8 +1789,21 @@ async function doSubmitCorrection(payload) {
       return;
     }
     showAlert('success', '校正紀錄已送出');
-    const loadCompareBtn = document.getElementById('loadCompareBtn');
-    if (loadCompareBtn) loadCompareBtn.click();
+    var card = findCompareCardByKey({
+      branch: payload.branch,
+      empAccount: payload.empAccount,
+      date: payload.date,
+      scheduleStart: payload.scheduleStart,
+      scheduleEnd: payload.scheduleEnd,
+      attendanceStart: payload.attendanceStart,
+      attendanceEnd: payload.attendanceEnd
+    });
+    if (result.item && card) {
+      updateCompareCardFull(card, result.item);
+    } else {
+      var lb = document.getElementById('loadCompareBtn');
+      if (lb) lb.click();
+    }
   } catch (error) {
     showAlert('error', '校正送出失敗：' + (error.message || '網路或連線錯誤'));
   } finally {
@@ -1789,8 +1899,19 @@ async function doConfirmIgnoreAttendance(payload) {
       throw new Error(result.error || '確認失敗');
     }
     showAlert('success', '已確認');
-    var loadCompareBtn = document.getElementById('loadCompareBtn');
-    if (loadCompareBtn) loadCompareBtn.click();
+    var card = findCompareCardByKey({
+      branch: payload.branch,
+      empAccount: payload.empAccount,
+      date: payload.date,
+      attendanceStart: payload.attendanceStart,
+      attendanceEnd: payload.attendanceEnd
+    });
+    if (card && result.confirmedIgnore === true) {
+      updateCompareCardHeader(card, { confirmedIgnore: true });
+    } else {
+      var lb = document.getElementById('loadCompareBtn');
+      if (lb) lb.click();
+    }
   } catch (error) {
     showAlert('error', '確認失敗：' + error.message);
   } finally {
@@ -1822,8 +1943,19 @@ async function doUnconfirmIgnoreAttendance(payload) {
       throw new Error(result.error || '取消確認失敗');
     }
     showAlert('success', '已取消確認');
-    var loadCompareBtn = document.getElementById('loadCompareBtn');
-    if (loadCompareBtn) loadCompareBtn.click();
+    var card = findCompareCardByKey({
+      branch: payload.branch,
+      empAccount: payload.empAccount,
+      date: payload.date,
+      attendanceStart: payload.attendanceStart,
+      attendanceEnd: payload.attendanceEnd
+    });
+    if (card && result.confirmedIgnore === false) {
+      updateCompareCardHeader(card, { confirmedIgnore: false });
+    } else {
+      var lb = document.getElementById('loadCompareBtn');
+      if (lb) lb.click();
+    }
   } catch (error) {
     showAlert('error', '取消確認失敗：' + error.message);
   } finally {
