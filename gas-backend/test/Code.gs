@@ -294,6 +294,9 @@ function handleUpload(requestData) {
       var acc = scheduleNameToAccount[scheduleName];
       var attendanceName = acc && accountToAttendanceName[acc] ? accountToAttendanceName[acc] : scheduleName;
       r[0] = attendanceName || scheduleName;
+      if (r[1] && typeof normalizeDateToDash === 'function') {
+        r[1] = normalizeDateToDash(r[1]);
+      }
       r[4] = formatHoursForSheet(r[4]);
       return r.concat([branchName, '', scheduleNowStr, '']);
     });

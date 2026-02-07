@@ -1308,6 +1308,7 @@ function renderCompareResults(items) {
     var attendanceText = attendanceStart + '–' + attendanceEnd + ' | ' + hoursPart +
       (statusStr && statusStr !== '—' ? ' | ' + statusStr : '');
     var overtimeAlert = !!(item.overtimeAlert);
+    var noScheduleAlert = !!(item.noScheduleAlert);
     var overlapWarning = !!(item.overlapWarning);
     var confirmedIgnore = !!(item.confirmedIgnore);
     var hasAlert = overtimeAlert || overlapWarning;
@@ -1333,7 +1334,7 @@ function renderCompareResults(items) {
     return (
       '<div class="compare-card' + (isCorrected ? ' corrected' : '') + (overlapWarning ? ' overlap-warning' : '') + (overtimeAlert ? ' overtime-warning' : '') + '" data-payload="' + escapeHtmlAttr(payload) + '">' +
         (overlapWarning ? '<div class="compare-card-overlap-badge">⚠ 時間重疊</div>' : '') +
-        (overtimeAlert ? '<div class="compare-card-overtime-badge">⚠ 加班警示</div>' : '') +
+        (overtimeAlert ? '<div class="compare-card-overtime-badge">⚠ ' + (noScheduleAlert ? '無班表警示' : '加班警示') + '</div>' : '') +
         '<div class="compare-card-header">' +
           escapeHtml(displayName) + '<span class="compare-card-date">' + escapeHtml(formatDateWithWeekday(date)) + '</span>' +
           (confirmedIgnore ? '<span class="compare-card-confirmed-badge">已確認</span><button type="button" class="unconfirm-btn">取消確認</button>' : (showConfirmBtn ? '<button type="button" class="confirm-pending-btn">待確認</button>' : '')) +

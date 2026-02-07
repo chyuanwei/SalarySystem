@@ -89,9 +89,10 @@ function testParseQuanWeiSchedule() {
     // 測試 5: 日期格式化
     Logger.log('\n--- 測試 5: 日期格式化 ---');
     const testDates = [
-      { ym: '2026/01', d: 1, expected: '2026/01/01' },
-      { ym: '2026/02', d: 15, expected: '2026/02/15' },
-      { ym: '2026/12', d: 31, expected: '2026/12/31' }
+      { ym: '2026/01', d: 1, expected: '2026-01-01' },
+      { ym: '2026/02', d: 15, expected: '2026-02-15' },
+      { ym: '2026/12', d: 31, expected: '2026-12-31' },
+      { ym: '202601', d: 7, expected: '2026-01-07' }
     ];
     
     let dateTestPass = true;

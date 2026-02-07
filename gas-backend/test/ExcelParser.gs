@@ -444,14 +444,28 @@ function formatTimeString(t) {
 }
 
 /**
- * 格式化日期為 YYYY/MM/DD
- * @param {string} ym - 年月（例如：2026/01）
+ * 格式化日期為 YYYY-MM-DD（供班表寫入，與打卡、讀取 key 一致）
+ * @param {string} ym - 年月（例如：2026/01 或 202601）
  * @param {number} d - 日期數字
- * @return {string} 格式化後的日期
+ * @return {string} YYYY-MM-DD
  */
 function formatScheduleDate(ym, d) {
-  const dStr = (d < 10) ? '0' + d : d.toString();
-  return ym + '/' + dStr;
+  var y = '';
+  var m = '';
+  if (ym && typeof ym === 'string' && ym.indexOf('/') >= 0) {
+    var parts = ym.split('/');
+    y = parts[0] ? String(parts[0]).trim() : '';
+    m = parts[1] ? String(parts[1]).trim() : '';
+  } else if (ym && (typeof ym === 'string' || typeof ym === 'number')) {
+    var s = String(ym).trim();
+    if (s.length >= 6) {
+      y = s.substring(0, 4);
+      m = s.substring(4, 6);
+    }
+  }
+  if (!y || !m) return '';
+  var dStr = (parseInt(d, 10) < 10) ? '0' + parseInt(d, 10) : String(parseInt(d, 10));
+  return y + '-' + m + '-' + dStr;
 }
 
 /**

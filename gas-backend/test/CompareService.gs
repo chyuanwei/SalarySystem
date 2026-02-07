@@ -340,7 +340,7 @@ function determineAlertsForAttendanceRecords(scheduleRecords, attendanceRecords,
   var allKeys = {};
   (scheduleRecords || []).forEach(function(row) {
     var sName = row[0] ? String(row[0]).trim() : '';
-    var acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || (mapping.accountToScheduleName && sName in mapping.accountToScheduleName ? sName : '');
+    var acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
     var date = row[1] || '';
     var start = row[2] || '';
     var end = row[3] || '';
@@ -457,7 +457,7 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
     var allKeys = {};
     scheduleRecords.forEach(function(row) {
       var sName = row[0] ? String(row[0]).trim() : '';
-      var acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || (mapping.accountToScheduleName && sName in mapping.accountToScheduleName ? sName : '');
+      var acc = mapping.attendanceNameToAccount[sName] || mapping.scheduleNameToAccount[sName] || '';
       var date = row[1] || '';
       var start = row[2] || '';
       var end = row[3] || '';
@@ -542,6 +542,7 @@ function compareScheduleAttendance(yearMonth, startDate, endDate, names, branchN
         if (a) {
           if (!s) {
             item.overtimeAlert = true;
+            item.noScheduleAlert = true;
           } else if (overtimeAlertThreshold > 0) {
             var scheduleMins = timeRangeToMinutes(s.startTime, s.endTime) || hoursValueToMinutes(s.hours);
             var attendanceMins = timeRangeToMinutes(a.startTime, a.endTime) || hoursValueToMinutes(a.hours);
