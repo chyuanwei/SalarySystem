@@ -428,7 +428,125 @@ function readScheduleByYearMonth(sheetName, yearMonth, date, names, branchName) 
     };
 
   } catch (error) {
-    logError('讀取國安班表失敗: ' + error.message, {
+    logError('讀取班表失敗: ' + error.message, {
+      sheetName: sheetName,
+      yearMonth: yearMonth,
+      error: error.toString()
+    });
+    return { success: false, error: error.message };
+  }
+}
+
+/**
+ * 依年月/日期、分店與人員篩選打卡資料（AND 關係）
+ * 打卡 sheet 欄位：分店, 員工編號, 員工帳號, 員工姓名, 打卡日期, 上班時間, 下班時間, 工作時數, 狀態
+ * @param {string} sheetName - 工作表名稱（預設 打卡）
+ * @param {string} yearMonth - 年月格式 YYYYMM
+ * @param {string} date - 單日格式 YYYY-MM-DD
+ * @param {Array<string>} names - 員工姓名陣列
+ * @param {string|null} branchName - 分店名稱
+ * @return {Object} { success, records, details }
+ */
+function readAttendanceByYearMonth(sheetName, yearMonth, date, names, branchName) {
+  try {
+    if ((!yearMonth || yearMonth.length !== 6) && (!date || date.length !== 10)) {
+      return { success: false, error: '請提供 yearMonth（YYYYMM）或 date（YYYY-MM-DD）' };
+    }
+
+    var allData = readFromSheet(sheetName || '打卡');
+    if (allData.length < 2) {
+      return {
+        success: true,
+        records: [],
+        details: { yearMonth: yearMonth || '', date: date || '', names: [], branch: branchName || '', rowCount: 0 }
+      };
+    }
+
+    var dataRows = allData.slice(1);
+    var dateColIndex = 4;
+    var nameColIndex = 3;
+
+    var targetPrefix = '';
+    var targetExact = '';
+    if (date && date.length === 10) {
+      targetExact = date.replace(/-/g, '/');
+    } else if (yearMonth && yearMonth.length === 6) {
+      targetPrefix = yearMonth.substring(0, 4) + '/' + yearMonth.substring(4, 6);
+    }
+
+    var nameSet = (names && Array.isArray(names) && names.length > 0)
+      ? {}
+      : null;
+    if (nameSet) {
+      names.forEach(function(n) { nameSet[String(n).trim()] = true; });
+    }
+
+    var filteredByDate = [];
+    dataRows.forEach(function(row) {
+      var dateVal = row[dateColIndex];
+      if (!dateVal) return;
+      var dateStr = '';
+      if (dateVal instanceof Date) {
+        dateStr = Utilities.formatDate(dateVal, Session.getScriptTimeZone(), 'yyyy/MM/dd');
+      } else {
+        dateStr = dateVal.toString().trim();
+      }
+      var match = false;
+      if (targetExact) {
+        match = dateStr === targetExact;
+      } else if (targetPrefix) {
+        match = dateStr.indexOf(targetPrefix) === 0;
+      }
+      if (!match) return;
+      var normalizedRow = row.slice();
+      if (dateVal instanceof Date) {
+        normalizedRow[dateColIndex] = dateStr;
+      }
+      if (row[5]) normalizedRow[5] = normalizeTimeValue(row[5]);
+      if (row[6]) normalizedRow[6] = normalizeTimeValue(row[6]);
+      filteredByDate.push(normalizedRow);
+    });
+
+    var filteredRows = filteredByDate;
+    if (branchName && branchName.length > 0) {
+      var branchColIndex = 0;
+      filteredRows = filteredRows.filter(function(row) {
+        var b = row[branchColIndex] ? String(row[branchColIndex]).trim() : '';
+        return b === branchName;
+      });
+    }
+    if (nameSet && Object.keys(nameSet).length > 0) {
+      filteredRows = filteredRows.filter(function(row) {
+        var n = row[nameColIndex] ? String(row[nameColIndex]).trim() : '';
+        return nameSet[n];
+      });
+    }
+
+    var distinctNames = [];
+    var seen = {};
+    filteredByDate.forEach(function(row) {
+      var n = row[nameColIndex] ? String(row[nameColIndex]).trim() : '';
+      if (n && !seen[n]) {
+        seen[n] = true;
+        distinctNames.push(n);
+      }
+    });
+    distinctNames.sort();
+
+    return {
+      success: true,
+      records: filteredRows,
+      details: {
+        yearMonth: yearMonth || '',
+        date: date || '',
+        names: distinctNames,
+        branch: branchName || '',
+        rowCount: filteredRows.length
+      }
+    };
+
+  } catch (error) {
+    logError('讀取打卡失敗: ' + error.message, {
       sheetName: sheetName,
       yearMonth: yearMonth,
       error: error.toString()
@@ -494,15 +612,15 @@ function readBranchLocationMapping() {
 
 /**
  * 生成打卡去重 Key：員工帳號 + 打卡日期 + 上班時間 + 下班時間 + 分店
- * @param {Array} row - 打卡列 [員工編號, 員工姓名, 員工帳號, 打卡日期, 上班時間, 下班時間, 分店, 工作時數, 狀態]
+ * @param {Array} row - 打卡列 [分店, 員工編號, 員工帳號, 員工姓名, 打卡日期, 上班時間, 下班時間, 工作時數, 狀態]
  * @return {string}
  */
 function buildAttendanceDedupKey(row) {
+  var branch = (row[0] !== undefined && row[0] !== null) ? String(row[0]).trim() : '';
   var acc = (row[2] !== undefined && row[2] !== null) ? String(row[2]).trim() : '';
-  var date = (row[3] !== undefined && row[3] !== null) ? String(row[3]).trim() : '';
-  var start = (row[4] !== undefined && row[4] !== null) ? normalizeTimeValue(row[4]) : '';
-  var end = (row[5] !== undefined && row[5] !== null) ? normalizeTimeValue(row[5]) : '';
-  var branch = (row[6] !== undefined && row[6] !== null) ? String(row[6]).trim() : '';
+  var date = (row[4] !== undefined && row[4] !== null) ? String(row[4]).trim() : '';
+  var start = (row[5] !== undefined && row[5] !== null) ? normalizeTimeValue(row[5]) : '';
+  var end = (row[6] !== undefined && row[6] !== null) ? normalizeTimeValue(row[6]) : '';
   return [acc || '', date, start, end, branch].join('|');
 }
 

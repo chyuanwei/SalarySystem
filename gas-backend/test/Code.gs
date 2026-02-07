@@ -42,6 +42,25 @@ function doGet(e) {
         });
       }
       
+      case 'loadAttendance': {
+        const config = getConfig();
+        const sheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
+        const yearMonth = e.parameter.yearMonth || '';
+        const dateParam = e.parameter.date || '';
+        const namesParam = e.parameter.names || '';
+        const names = namesParam ? namesParam.split(',').map(function(n) { return n.trim(); }).filter(Boolean) : [];
+        const branchName = (e.parameter.branch || '').toString().trim() || null;
+        const result = readAttendanceByYearMonth(sheetName, yearMonth, dateParam, names, branchName);
+        if (!result.success) {
+          return createJsonResponse({ success: false, error: result.error });
+        }
+        return createJsonResponse({
+          success: true,
+          records: result.records,
+          details: result.details || {}
+        });
+      }
+      
       default:
         return createJsonResponse({ success: false, error: '未知的 action' });
     }
@@ -285,13 +304,13 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
       }
       
       dataRows.push([
+        branchNameFromMapping,
         r.empNo || '',
-        r.empName || '',
         r.empAccount || '',
+        r.empName || '',
         r.punchDate || '',
         r.startTime || '',
         r.endTime || '',
-        branchNameFromMapping,
         r.workHours || '',
         r.status || ''
       ]);
@@ -299,7 +318,7 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
     
     var config = getConfig();
     var targetSheetName = config.SHEET_NAMES.ATTENDANCE || '打卡';
-    var headerRow = ['員工編號', '員工姓名', '員工帳號', '打卡日期', '上班時間', '下班時間', '分店', '工作時數', '狀態'];
+    var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態'];
     var dataToWrite = [headerRow].concat(dataRows);
     
     var writeResult = appendAttendanceToSheet(dataToWrite, targetSheetName);

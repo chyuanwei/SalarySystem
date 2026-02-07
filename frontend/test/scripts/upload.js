@@ -93,12 +93,27 @@ document.querySelectorAll('input[name="uploadType"]').forEach(function(radio) {
   });
 });
 
-// 載入班表按鈕
-if (loadScheduleBtn) loadScheduleBtn.addEventListener('click', handleLoadSchedule);
+// 載入按鈕（班表／打卡共用）
+if (loadScheduleBtn) loadScheduleBtn.addEventListener('click', handleLoadQuery);
 
 // 日期篩選模式切換
 document.querySelectorAll('input[name="dateFilterMode"]').forEach(radio => {
   if (radio) radio.addEventListener('change', toggleDateFilterMode);
+});
+
+// 查詢類型切換（班表／打卡）
+document.querySelectorAll('input[name="queryType"]').forEach(radio => {
+  if (radio) radio.addEventListener('change', function() {
+    const titleEl = document.getElementById('querySectionTitle');
+    const resultTitleEl = document.getElementById('queryResultTitle');
+    if (this.value === 'attendance') {
+      if (titleEl) titleEl.textContent = '📅 查詢打卡';
+      if (resultTitleEl) resultTitleEl.textContent = '打卡資料';
+    } else {
+      if (titleEl) titleEl.textContent = '📅 查詢班表';
+      if (resultTitleEl) resultTitleEl.textContent = '班表資料';
+    }
+  });
 });
 if (datePicker) datePicker.addEventListener('change', function() {});
 
@@ -441,7 +456,7 @@ function renderResults(result) {
   const records = Array.isArray(result.records) ? result.records : [];
   const shiftCodes = Array.isArray(details.shiftCodes) ? details.shiftCodes : [];
 
-  const isAttendanceResult = result.columns && result.columns[0] === '員工編號';
+  const isAttendanceResult = result.columns && result.columns[0] === '分店' && result.columns[1] === '員工編號';
   const summaryItems = isAttendanceResult
     ? [
         { label: '新增筆數', value: details.rowCount ?? '—' },
@@ -477,17 +492,17 @@ function renderResults(result) {
     return { row, isDuplicate: false };
   });
 
-  const isAttendance = result.columns && result.columns[0] === '員工編號';
+  const isAttendance = result.columns && result.columns[0] === '分店' && result.columns[1] === '員工編號';
   resultList.innerHTML = recordList.map(({ row, isDuplicate }) => {
     const duplicateBadge = isDuplicate ? '<span class="result-card-duplicate" title="此筆為重複，已略過寫入">重複</span>' : '';
     if (isAttendance) {
-      const empNo = row[0];
-      const name = row[1];
+      const branch = row[0];
+      const empNo = row[1];
       const empAccount = row[2];
-      const date = row[3];
-      const start = row[4];
-      const end = row[5];
-      const branch = row[6];
+      const name = row[3];
+      const date = row[4];
+      const start = row[5];
+      const end = row[6];
       const hours = row[7];
       const status = row[8];
       return `
@@ -571,6 +586,18 @@ function getSelectedPersonNames() {
 }
 
 /**
+ * 載入查詢（班表或打卡，依年月/日期、分店、人員篩選）
+ */
+async function handleLoadQuery() {
+  const queryType = document.querySelector('input[name="queryType"]:checked');
+  const isAttendance = queryType && queryType.value === 'attendance';
+  if (isAttendance) {
+    return handleLoadAttendance();
+  }
+  return handleLoadSchedule();
+}
+
+/**
  * 載入班表（依年月/日期、分店、人員篩選，AND 關係）
  */
 async function handleLoadSchedule() {
@@ -619,6 +646,61 @@ async function handleLoadSchedule() {
     scheduleResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
   } catch (error) {
     showAlert('error', '載入班表失敗：' + error.message);
+  } finally {
+    loadScheduleBtn.disabled = false;
+    loadScheduleBtn.textContent = '載入';
+  }
+}
+
+/**
+ * 載入打卡（依年月/日期、分店、人員篩選，AND 關係）
+ */
+async function handleLoadAttendance() {
+  const mode = document.querySelector('input[name="dateFilterMode"]:checked');
+  let yearMonth = '';
+  let dateParam = '';
+
+  if (mode && mode.value === 'day' && datePicker && datePicker.value) {
+    dateParam = datePicker.value;
+  } else {
+    if (yearMonthInput && yearMonthInput.value.trim().match(/^\d{6}$/)) {
+      yearMonth = yearMonthInput.value.trim();
+    } else if (yearSelect && monthSelect) {
+      yearMonth = yearSelect.value + monthSelect.value;
+    }
+  }
+
+  if (!yearMonth && !dateParam) {
+    showAlert('error', '請選擇整月（年月）或單日');
+    return;
+  }
+
+  loadScheduleBtn.disabled = true;
+  loadScheduleBtn.textContent = '載入中...';
+  hideAlert();
+  scheduleResultSection.classList.remove('show');
+
+  const names = getSelectedPersonNames();
+  const queryBranchEl = document.getElementById('queryBranchSelect');
+  const branchVal = queryBranchEl && queryBranchEl.value ? queryBranchEl.value.trim() : '';
+  let url = `${CONFIG.GAS_URL}?action=loadAttendance`;
+  if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
+  if (dateParam) url += `&date=${encodeURIComponent(dateParam)}`;
+  if (branchVal) url += `&branch=${encodeURIComponent(branchVal)}`;
+  if (names.length > 0) url += `&names=${encodeURIComponent(names.join(','))}`;
+
+  try {
+    const response = await fetch(url, { method: 'GET', mode: 'cors' });
+    const result = await response.json();
+
+    if (!response.ok || !result.success) {
+      throw new Error(result.error || '載入失敗');
+    }
+
+    renderAttendanceResults(result);
+    scheduleResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
+  } catch (error) {
+    showAlert('error', '載入打卡失敗：' + error.message);
   } finally {
     loadScheduleBtn.disabled = false;
     loadScheduleBtn.textContent = '載入';
@@ -687,6 +769,79 @@ function renderScheduleResults(result) {
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
         <div class="result-row"><span class="result-label">時數</span><span class="result-value">${hours || '—'}</span></div>
+      </div>
+    `;
+  }).join('');
+
+  scheduleResultSection.classList.add('show');
+}
+
+/**
+ * 顯示打卡查詢結果
+ */
+function renderAttendanceResults(result) {
+  const details = result.details || {};
+  const records = Array.isArray(result.records) ? result.records : [];
+  const names = Array.isArray(details.names) ? details.names : [];
+
+  const branchLabel = details.branch ? details.branch : '全部';
+  scheduleSummary.innerHTML = `
+    <div class="summary-item">
+      <div class="summary-label">日期範圍</div>
+      <div class="summary-value">${details.date ? details.date.replace(/-/g, '/') : (details.yearMonth ? details.yearMonth.substring(0,4) + '/' + details.yearMonth.substring(4,6) : '—')}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">分店</div>
+      <div class="summary-value">${branchLabel}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">筆數</div>
+      <div class="summary-value">${details.rowCount ?? records.length ?? 0}</div>
+    </div>
+  `;
+
+  if (personCheckboxGroup) {
+    personCheckboxGroup.innerHTML = '';
+    if (names.length > 0) {
+      names.forEach(n => {
+        const label = document.createElement('label');
+        const cb = document.createElement('input');
+        cb.type = 'checkbox';
+        cb.value = n;
+        label.appendChild(cb);
+        label.appendChild(document.createTextNode(n));
+        personCheckboxGroup.appendChild(label);
+      });
+      if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = false;
+      if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = false;
+    } else {
+      personCheckboxGroup.innerHTML = '<span class="person-placeholder">此範圍無人員資料</span>';
+      if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
+      if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
+    }
+  }
+
+  scheduleList.innerHTML = records.map(row => {
+    const branch = row[0];
+    const empNo = row[1];
+    const empAccount = row[2];
+    const name = row[3];
+    const date = row[4];
+    const start = row[5];
+    const end = row[6];
+    const hours = row[7];
+    const status = row[8];
+    return `
+      <div class="result-card">
+        <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
+        <div class="result-row"><span class="result-label">員工編號</span><span class="result-value">${empNo || '—'}</span></div>
+        <div class="result-row"><span class="result-label">員工帳號</span><span class="result-value">${empAccount || '—'}</span></div>
+        <div class="result-row"><span class="result-label">姓名</span><span class="result-value">${name || '—'}</span></div>
+        <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${date || '—'}</span></div>
+        <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
+        <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
+        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${hours || '—'}</span></div>
+        <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${status || '—'}</span></div>
       </div>
     `;
   }).join('');
