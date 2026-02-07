@@ -6,12 +6,11 @@ let selectedFile = null;
 
 // DOM 元素
 const fileInput = document.getElementById('fileInput');
-const uploadSection = document.getElementById('uploadSection');
 const fileInfo = document.getElementById('fileInfo');
-const fileName = document.getElementById('fileName');
-const fileSize = document.getElementById('fileSize');
+const fileSelectBtn = document.getElementById('fileSelectBtn');
 const sheetNameInput = document.getElementById('sheetName');
 const sheetNameHint = document.getElementById('sheetNameHint');
+const sheetNameGroup = document.getElementById('sheetNameGroup');
 const submitBtn = document.getElementById('submitBtn');
 const progressContainer = document.getElementById('progressContainer');
 const progressFill = document.getElementById('progressFill');
@@ -37,36 +36,29 @@ var __personnelNames = [];
 // 檔案選擇事件
 fileInput.addEventListener('change', handleFileSelect);
 
-// 拖曳事件
-uploadSection.addEventListener('dragover', handleDragOver);
-uploadSection.addEventListener('dragleave', handleDragLeave);
-uploadSection.addEventListener('drop', handleDrop);
+// 選擇檔案按鈕 → 觸發 file input
+if (fileSelectBtn) fileSelectBtn.addEventListener('click', function() { fileInput.click(); });
 
 // 提交按鈕事件
 submitBtn.addEventListener('click', handleSubmit);
 
-// 上傳類型切換（更新工作表名稱說明、分店區塊顯示）
+// 上傳類型切換（分店、工作表區塊顯示）
 document.querySelectorAll('input[name="uploadType"]').forEach(function(radio) {
   radio.addEventListener('change', function() {
     const isSchedule = this.value === 'schedule';
     const isAttendance = this.value === 'attendance';
-    if (sheetNameHint) {
-      sheetNameHint.textContent = isSchedule
-        ? '請輸入要處理的 Excel 工作表名稱（例如：11501、11502）'
-        : (isAttendance ? '打卡上傳 CSV 不需輸入工作表名稱' : '請輸入要處理的 Excel 工作表名稱（例如：打卡紀錄、Sheet1）');
-    }
-    if (sheetNameInput && !sheetNameInput.value) {
-      sheetNameInput.placeholder = isSchedule ? '例如：11501' : (isAttendance ? '不需輸入' : '例如：打卡紀錄');
-    }
+    if (sheetNameHint) sheetNameHint.textContent = isSchedule ? '選檔後自動帶入工作表清單' : '打卡上傳 CSV 不需選擇工作表';
+    if (sheetNameGroup) sheetNameGroup.style.display = isSchedule ? 'block' : 'none';
     if (branchGroup) branchGroup.style.display = (isSchedule || isAttendance) ? 'block' : 'none';
     if (selectedFile) {
-      const ext = '.' + selectedFile.name.split('.').pop().toLowerCase();
-      const ok = isAttendance ? ext === '.csv' : CONFIG.ALLOWED_FILE_TYPES.includes(ext);
+      var ext = '.' + selectedFile.name.split('.').pop().toLowerCase();
+      var ok = isAttendance ? ext === '.csv' : CONFIG.ALLOWED_FILE_TYPES.includes(ext);
       if (!ok) {
         selectedFile = null;
         fileInput.value = '';
-        fileInfo.classList.remove('show');
+        if (fileInfo) fileInfo.textContent = '';
         submitBtn.classList.remove('show');
+        resetSheetSelect();
         showAlert('error', isAttendance ? '打卡請上傳 .csv 檔案，請重新選擇' : '班表請上傳 .xlsx 或 .xls 檔案，請重新選擇');
       }
     }
@@ -187,11 +179,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (qymInp) { qymInp.addEventListener('input', loadQueryPersonnel); qymInp.addEventListener('change', loadQueryPersonnel); }
   if (queryStartDate) queryStartDate.addEventListener('change', loadQueryPersonnel);
   if (queryEndDate) queryEndDate.addEventListener('change', loadQueryPersonnel);
-  // 初始顯示分店區塊（班表為預設）
-  if (branchGroup) {
-    const mode = document.querySelector('input[name="uploadType"]:checked');
-    branchGroup.style.display = mode && mode.value === 'schedule' ? 'block' : 'none';
-  }
+  // 初始顯示分店、工作表區塊（依上傳類型）
+  var mode = document.querySelector('input[name="uploadType"]:checked');
+  if (branchGroup) branchGroup.style.display = mode && (mode.value === 'schedule' || mode.value === 'attendance') ? 'block' : 'none';
+  if (sheetNameGroup) sheetNameGroup.style.display = mode && mode.value === 'schedule' ? 'block' : 'none';
 });
 
 /**
@@ -248,83 +239,96 @@ async function loadBranches() {
  * 處理檔案選擇
  */
 function handleFileSelect(e) {
-  const file = e.target.files[0];
-  if (file) {
-    validateAndDisplayFile(file);
-  }
+  var file = e.target.files[0];
+  if (file) validateAndDisplayFile(file);
 }
 
 /**
- * 處理拖曳懸停
+ * 重設工作表下拉（無選檔或打卡時）
  */
-function handleDragOver(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  uploadSection.classList.add('dragover');
+function resetSheetSelect() {
+  if (!sheetNameInput) return;
+  sheetNameInput.innerHTML = '<option value="">請先選擇檔案</option>';
+  sheetNameInput.value = '';
+  sheetNameInput.disabled = true;
 }
 
 /**
- * 處理拖曳離開
+ * 從 Excel 檔案解析工作表名稱並填入下拉
  */
-function handleDragLeave(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  uploadSection.classList.remove('dragover');
+function parseAndFillSheetNames(file) {
+  return new Promise(function(resolve, reject) {
+    if (!sheetNameInput) return resolve();
+    if (typeof XLSX === 'undefined') {
+      sheetNameInput.innerHTML = '<option value="">需載入 xlsx 套件</option>';
+      sheetNameInput.disabled = true;
+      return resolve();
+    }
+    var reader = new FileReader();
+    reader.onload = function(e) {
+      try {
+        var ab = e.target.result;
+        var workbook = XLSX.read(ab, { type: 'arraybuffer', bookSheets: true });
+        var names = workbook.SheetNames || [];
+        sheetNameInput.innerHTML = '';
+        var opt0 = document.createElement('option');
+        opt0.value = '';
+        opt0.textContent = names.length ? '請選擇工作表' : '此檔案無工作表';
+        sheetNameInput.appendChild(opt0);
+        names.forEach(function(n) {
+          var opt = document.createElement('option');
+          opt.value = n;
+          opt.textContent = n;
+          sheetNameInput.appendChild(opt);
+        });
+        sheetNameInput.disabled = names.length === 0;
+        if (names.length === 1) sheetNameInput.value = names[0];
+      } catch (err) {
+        console.error('parse sheet names:', err);
+        sheetNameInput.innerHTML = '<option value="">解析失敗</option>';
+        sheetNameInput.disabled = true;
+      }
+      resolve();
+    };
+    reader.onerror = function() { reject(new Error('讀取檔案失敗')); };
+    reader.readAsArrayBuffer(file);
+  });
 }
 
 /**
- * 處理檔案放下
- */
-function handleDrop(e) {
-  e.preventDefault();
-  e.stopPropagation();
-  uploadSection.classList.remove('dragover');
-  
-  const files = e.dataTransfer.files;
-  if (files.length > 0) {
-    validateAndDisplayFile(files[0]);
-  }
-}
-
-/**
- * 驗證並顯示檔案資訊
+ * 驗證並顯示檔案資訊，班表時並解析工作表名稱填入下拉
  */
 function validateAndDisplayFile(file) {
-  // 檢查檔案類型（班表：xlsx/xls；打卡：csv）
-  const fileExtension = '.' + file.name.split('.').pop().toLowerCase();
-  const uploadType = document.querySelector('input[name="uploadType"]:checked');
-  const isAttendance = uploadType && uploadType.value === 'attendance';
-  const allowedTypes = isAttendance ? ['.csv'] : CONFIG.ALLOWED_FILE_TYPES;
+  var fileExtension = '.' + file.name.split('.').pop().toLowerCase();
+  var uploadType = document.querySelector('input[name="uploadType"]:checked');
+  var isAttendance = uploadType && uploadType.value === 'attendance';
+  var allowedTypes = isAttendance ? ['.csv'] : CONFIG.ALLOWED_FILE_TYPES;
   if (!allowedTypes.includes(fileExtension)) {
-    showAlert('error', isAttendance ? '打卡上傳請使用 .csv 檔案' : `班表上傳請使用 ${CONFIG.ALLOWED_FILE_TYPES.join('、')} 檔案`);
+    showAlert('error', isAttendance ? '打卡上傳請使用 .csv 檔案' : '班表上傳請使用 ' + CONFIG.ALLOWED_FILE_TYPES.join('、') + ' 檔案');
     return;
   }
-  
-  // 檢查檔案大小
   if (file.size > CONFIG.MAX_FILE_SIZE) {
-    const maxSizeMB = CONFIG.MAX_FILE_SIZE / (1024 * 1024);
-    showAlert('error', `檔案過大。最大允許 ${maxSizeMB}MB。`);
+    var maxSizeMB = CONFIG.MAX_FILE_SIZE / (1024 * 1024);
+    showAlert('error', '檔案過大。最大允許 ' + maxSizeMB + 'MB。');
     return;
   }
-  
-  // 儲存檔案
   selectedFile = file;
-  
-  // 顯示檔案資訊
-  fileName.textContent = `📄 ${file.name}`;
-  fileSize.textContent = `大小: ${formatFileSize(file.size)}`;
-  fileInfo.classList.add('show');
+  if (fileInfo) fileInfo.textContent = file.name + ' (' + formatFileSize(file.size) + ')';
   submitBtn.classList.add('show');
-
-  // 只要重新選擇檔案，就解除處理中鎖定
   submitBtn.disabled = false;
   submitBtn.textContent = '開始上傳並處理';
-  sheetNameInput.disabled = false;
   progressContainer.classList.remove('show');
   clearResults();
-  
-  // 清除錯誤訊息
   hideAlert();
+  if (isAttendance) {
+    resetSheetSelect();
+    return;
+  }
+  if (fileExtension === '.xlsx' || fileExtension === '.xls') {
+    parseAndFillSheetNames(file);
+  } else {
+    sheetNameInput.disabled = false;
+  }
 }
 
 /**
@@ -374,10 +378,10 @@ async function handleSubmit() {
     }
   }
 
-  // 班表需工作表名稱；打卡不需（CSV 為整檔）
-  const sheetName = sheetNameInput.value.trim();
+  // 班表需選擇工作表；打卡不需（CSV 為整檔）
+  var sheetName = sheetNameInput && sheetNameInput.value ? sheetNameInput.value.trim() : '';
   if (uploadType && uploadType.value === 'schedule' && !sheetName) {
-    showAlert('error', '請輸入 Excel 工作表名稱');
+    showAlert('error', '請選擇 Excel 工作表名稱');
     return;
   }
   
@@ -526,12 +530,11 @@ function hideAlert() {
 function resetForm() {
   selectedFile = null;
   fileInput.value = '';
-  fileInfo.classList.remove('show');
+  if (fileInfo) fileInfo.textContent = '';
   submitBtn.classList.remove('show');
   submitBtn.disabled = false;
   submitBtn.textContent = '開始上傳並處理';
-  sheetNameInput.disabled = false;
-  sheetNameInput.value = ''; // 不再帶預設值，改由使用者每次輸入
+  resetSheetSelect();
   progressContainer.classList.remove('show');
   updateProgress(0, '');
   clearResults();

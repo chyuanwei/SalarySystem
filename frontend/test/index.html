@@ -526,85 +526,40 @@
             cursor: pointer;
         }
 
-        .upload-section {
-            background: #f8f9fa;
-            border: 2px dashed #dee2e6;
-            border-radius: 12px;
-            padding: 30px;
-            margin-bottom: 20px;
-            text-align: center;
-            transition: all 0.3s ease;
-        }
-
-        .upload-section:hover {
-            border-color: #667eea;
-            background: #f0f0ff;
-        }
-
-        .upload-section.dragover {
-            border-color: #667eea;
-            background: #e8e8ff;
-            transform: scale(1.02);
-        }
-
-        .file-input-wrapper {
-            position: relative;
-            display: inline-block;
-            margin-top: 15px;
-        }
-
         .file-input {
-            display: none;
+            position: absolute;
+            width: 0;
+            height: 0;
+            opacity: 0;
+            overflow: hidden;
         }
 
-        .file-label {
+        .file-select-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .file-select-btn {
             background: #667eea;
             color: white;
-            padding: 12px 30px;
+            border: none;
+            padding: 10px 20px;
             border-radius: 8px;
+            font-size: 15px;
             cursor: pointer;
-            display: inline-block;
-            font-size: 16px;
-            transition: all 0.3s ease;
+            white-space: nowrap;
         }
 
-        .file-label:hover {
+        .file-select-btn:hover {
             background: #5568d3;
-            transform: translateY(-2px);
-            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
         }
 
-        .file-info {
-            margin-top: 15px;
-            padding: 15px;
-            background: white;
-            border-radius: 8px;
-            display: none;
-        }
-
-        .file-info.show {
-            display: block;
-        }
-
-        .file-name {
-            color: #333;
-            font-weight: bold;
-            margin-bottom: 5px;
-        }
-
-        .file-size {
+        .file-info-inline {
             color: #666;
             font-size: 14px;
-        }
-
-        .upload-icon {
-            font-size: 48px;
-            margin-bottom: 15px;
-        }
-
-        .upload-text {
-            color: #666;
-            font-size: 16px;
+            word-break: break-all;
         }
 
         .submit-btn {
@@ -1036,7 +991,7 @@
                 box-shadow: 0 -2px 12px rgba(0,0,0,0.1);
             }
             .tab-nav-btn {
-                font-size: 11px;
+                font-size: 14px;
                 padding: 8px 4px;
                 min-height: 48px;
                 flex-direction: column;
@@ -1059,40 +1014,13 @@
                 margin-bottom: 20px;
             }
 
-            .upload-section {
-                padding: 20px 15px;
+            .file-select-btn {
+                padding: 10px 18px;
+                font-size: 15px;
             }
 
-            .upload-icon {
-                font-size: 36px;
-                margin-bottom: 10px;
-            }
-
-            .upload-text {
-                font-size: 14px;
-            }
-
-            .upload-text p {
-                margin: 3px 0;
-            }
-
-            .file-label {
-                padding: 10px 20px;
-                font-size: 14px;
-            }
-
-            .file-info {
-                padding: 12px;
+            .file-info-inline {
                 font-size: 13px;
-            }
-
-            .file-name {
-                font-size: 14px;
-                word-break: break-all;
-            }
-
-            .file-size {
-                font-size: 12px;
             }
 
             .input-group label {
@@ -1195,20 +1123,13 @@
                 font-size: 20px;
             }
 
-            .upload-section {
-                padding: 15px 10px;
+            .file-select-btn {
+                padding: 8px 14px;
+                font-size: 14px;
             }
 
-            .upload-icon {
-                font-size: 32px;
-            }
-
-            .file-label {
-                padding: 8px 16px;
-                font-size: 13px;
-            }
-
-            .input-group input {
+            .input-group input,
+            .input-group select {
                 padding: 9px 10px;
                 font-size: 13px;
             }
@@ -1255,15 +1176,6 @@
 
             .subtitle {
                 margin-bottom: 15px;
-            }
-
-            .upload-section {
-                padding: 15px;
-            }
-
-            .upload-icon {
-                font-size: 30px;
-                margin-bottom: 8px;
             }
 
             .info-section {
@@ -1376,22 +1288,6 @@
         </div>
 
         <div id="tab-pane-upload" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-upload" hidden>
-        <div class="upload-section" id="uploadSection">
-            <div class="upload-icon">📄</div>
-            <div class="upload-text">
-                <p>拖曳 Excel 檔案到這裡</p>
-                <p style="font-size: 14px; color: #999; margin-top: 5px;">或</p>
-            </div>
-            <div class="file-input-wrapper">
-                <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv">
-                <label for="fileInput" class="file-label">選擇檔案</label>
-            </div>
-            <div id="fileInfo" class="file-info">
-                <div class="file-name" id="fileName"></div>
-                <div class="file-size" id="fileSize"></div>
-            </div>
-        </div>
-
         <div class="input-group upload-type-group">
             <label>上傳類型</label>
             <div class="upload-type-radios">
@@ -1406,14 +1302,20 @@
             </select>
             <span class="hint">班表／打卡上傳時必選，來源為「分店」工作表</span>
         </div>
-        <div class="input-group">
+        <div class="input-group sheet-name-group" id="sheetNameGroup">
             <label for="sheetName">📋 Excel 工作表名稱</label>
-            <input 
-                type="text" 
-                id="sheetName" 
-                placeholder="例如：11501"
-            >
-            <span class="hint" id="sheetNameHint">請輸入要處理的 Excel 工作表名稱（例如：11501、11502）</span>
+            <select id="sheetName" class="schedule-select" disabled>
+                <option value="">請先選擇檔案</option>
+            </select>
+            <span class="hint" id="sheetNameHint">選檔後自動帶入工作表清單</span>
+        </div>
+        <div class="input-group file-select-group" id="fileSelectGroup">
+            <label>選擇檔案</label>
+            <div class="file-select-row">
+                <input type="file" id="fileInput" class="file-input" accept=".xlsx,.xls,.csv">
+                <button type="button" id="fileSelectBtn" class="file-select-btn">選擇檔案</button>
+                <span id="fileInfo" class="file-info-inline"></span>
+            </div>
         </div>
 
         <button id="submitBtn" class="submit-btn">開始上傳並處理</button>
@@ -1460,6 +1362,7 @@
     </div>
 
     <script src="config.js?v=20260209"></script>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js" crossorigin="anonymous"></script>
     <script src="scripts/upload.js?v=20260209"></script>
 </body>
 </html>
