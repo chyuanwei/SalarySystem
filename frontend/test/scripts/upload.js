@@ -548,7 +548,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
-        <div class="result-row"><span class="result-label">工作分鐘</span><span class="result-value">${formatMinutes(hours)}</span></div>
+        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatMinutes(hours)}</span></div>
         <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${status || '—'}</span></div>
       </div>
     `;
@@ -569,7 +569,7 @@ function renderResults(result) {
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${branch || '—'}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${start || '—'}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${end || '—'}</span></div>
-        <div class="result-row"><span class="result-label">分鐘</span><span class="result-value">${formatMinutes(hours)}</span></div>
+        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatMinutes(hours)}</span></div>
       </div>
     `;
   }).join('');
@@ -902,7 +902,7 @@ function renderScheduleResults(result) {
         <div class="result-row"><span class="result-label">分店</span><span class="result-value">${escapeHtml(branch || '—')}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${escapeHtml(start || '—')}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${escapeHtml(end || '—')}</span></div>
-        <div class="result-row"><span class="result-label">分鐘</span><span class="result-value">${formatMinutes(hours)}</span></div>
+        <div class="result-row"><span class="result-label">時數</span><span class="result-value">${formatMinutes(hours)}</span></div>
       </div>
     `;
   }).join('');
@@ -954,7 +954,7 @@ function renderAttendanceResults(result) {
         <div class="result-row"><span class="result-label">打卡日期</span><span class="result-value">${formatDateWithWeekday(date)}</span></div>
         <div class="result-row"><span class="result-label">上班</span><span class="result-value">${escapeHtml(start || '—')}</span></div>
         <div class="result-row"><span class="result-label">下班</span><span class="result-value">${escapeHtml(end || '—')}</span></div>
-        <div class="result-row"><span class="result-label">工作分鐘</span><span class="result-value">${formatMinutes(hours)}</span></div>
+        <div class="result-row"><span class="result-label">工作時數</span><span class="result-value">${formatMinutes(hours)}</span></div>
         <div class="result-row"><span class="result-label">狀態</span><span class="result-value">${escapeHtml(status || '—')}</span></div>
       </div>
     `;
@@ -1266,8 +1266,8 @@ function formatDateWithWeekday(dateStr) {
 }
 
 /**
- * 格式化工作時數為分鐘顯示（後端為小時，7.5 → 450分）
- * 從 7、7.0、7小時、10.5 等抽取數字後乘 60 轉為分鐘
+ * 格式化工作時數為「n.m 小時 (iii 分)」（後端為小時，7.5 → 7.5 小時 (450 分)）
+ * 從 7、7.0、7小時、10.5 等抽取數字
  */
 function formatMinutes(val) {
   if (val === undefined || val === null || String(val).trim() === '') return '—';
@@ -1277,7 +1277,8 @@ function formatMinutes(val) {
   var num = parseFloat(m[0]);
   if (isNaN(num)) return s;
   var minutes = Math.round(num * 60);
-  return minutes + '分';
+  var hoursStr = num % 1 === 0 ? String(Math.round(num)) : String(num);
+  return hoursStr + ' 小時 (' + minutes + ' 分)';
 }
 
 function escapeHtml(s) {
