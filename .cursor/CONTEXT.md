@@ -316,11 +316,11 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 項目 | 說明 |
 |------|------|
-| **go** | 等同 **執行 + 更新（僅測試環境）**：執行當下需求（改 code、測試等）→ commit/push GitHub **（需附 commit message）** → **clasp push 測試環境 GAS** → 更新 `.cursor/CONTEXT.md` → 提供 **Comment for GAS deploy**（精簡版）。**重要**：(1) `go` 指令只推送測試環境，正式環境需另外指令。(2) **僅使用者可下 `go` 指令，AI 不可主動執行**。 |
+| **go** | 等同 **執行 + 更新（僅測試環境）**：執行當下需求（改 code、測試等）→ commit/push GitHub **（需附 commit message）** → **clasp push 測試環境 GAS** → 更新 `.cursor/CONTEXT.md` → 提供 **Comment for GAS deploy**（格式：`v版本號：簡短描述`）。**重要**：(1) `go` 指令只推送測試環境，正式環境需另外指令。(2) **僅使用者可下 `go` 指令，AI 不可主動執行**。 |
 | **go（限制）** | **僅能操作測試環境（test）**，**不得更改正式環境（prod）程式碼**；正式環境任何變更需使用者明確指示（如 `deploy-prod`）。 |
-| **deploy-prod** | 部署到正式環境：複製 `gas-backend/test/*.gs` 到 `gas-backend/prod/` → 複製 `frontend/test/*` 到 `frontend/prod/`（保留 prod config.js）→ `cd gas-backend/prod && clasp push` → commit/push GitHub **（需附 commit message）** → 更新部署記錄 → 提供 **Comment for GAS deploy**。**僅在使用者明確指示時執行**。 |
+| **deploy-prod** | 部署到正式環境：複製 `gas-backend/test/*.gs` 到 `gas-backend/prod/` → 複製 `frontend/test/*` 到 `frontend/prod/`（保留 prod config.js）→ `cd gas-backend/prod && clasp push` → commit/push GitHub **（需附 commit message）** → 更新部署記錄 → 提供 **Comment for GAS deploy**（格式：`v版本號：簡短描述`）。**僅在使用者明確指示時執行**。 |
 | **Git commit** | 所有 `git commit` 必須附上有意義的 commit message，說明變更內容。不可使用過於簡略或無意義的訊息。 |
-| **GAS 更新** | 凡修改 `gas-backend/**/*.gs`，回覆結尾須附 **Comment for GAS deploy**（精簡版，1-3 行，供 GAS 部署版本說明使用）。 |
+| **GAS 更新** | 凡修改 `gas-backend/**/*.gs`，回覆結尾須附 **Comment for GAS deploy**，格式：`v版本號：簡短描述`（例：`v0.6.32：班表上傳時透過人員 sheet 將員工名稱轉成打卡名稱後再寫入。`）。 |
 | **分析後先問再改** | 分析完問題或提出解法後，**須先詢問使用者意見**，經同意後才執行修改；不得直接進行程式修改。 |
 | **.clasp.json** | 已列入 .gitignore，勿提交；測試與正式環境各有各自的腳本 ID。 |
 | **測試優先** | 新增功能時先寫測試，確保程式正確性。 |
@@ -515,6 +515,8 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.36 | 測試 | 班表與打卡上傳：以「月份＋分店」覆蓋舊資料 | AI |
+| 2026-02-07 | v0.6.35 | 測試 | loadSchedule/loadAttendance 支援 startDate、endDate；查詢區與比對區一致；卡片日期加星期幾 | AI |
 | 2026-02-07 | v0.6.34 | 測試 | go: clasp push 同步；前端快取破壞 (?v=20260207) 解決 GitHub Pages 顯示舊版 | AI |
 | 2026-02-07 | v0.6.33 | 測試 | 比對配對 key 簡化為 人+日+分店，同一人同日同分店合併為一筆 | AI |
 | 2026-02-07 | v0.6.32 | 測試 | 班表上傳：透過人員 sheet 將員工名稱轉成打卡名稱寫入 | AI |
@@ -721,4 +723,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-07（v0.6.34 go: clasp push、前端快取破壞）*
+*最後更新：2026-02-07（v0.6.36 班表與打卡上傳：月份＋分店覆蓋）*

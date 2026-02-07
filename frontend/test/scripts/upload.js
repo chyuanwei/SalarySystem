@@ -467,25 +467,28 @@ function renderResults(result) {
   const records = Array.isArray(result.records) ? result.records : [];
   const shiftCodes = Array.isArray(details.shiftCodes) ? details.shiftCodes : [];
 
+  const deletedCount = details.deletedCount ?? 0;
+  const baseAttendanceItems = [
+    { label: '新增筆數', value: details.rowCount ?? '—' },
+    ...(deletedCount > 0 ? [{ label: '已覆蓋筆數', value: deletedCount }] : []),
+    { label: '略過重複', value: details.skippedCount ?? 0 },
+    { label: '原始筆數', value: details.parsedRowCount ?? records.length ?? '—' },
+    { label: '處理時間', value: details.processTime ? `${details.processTime}s` : '—' },
+    { label: '目標工作表', value: details.targetSheet || '—' }
+  ];
+  const baseScheduleItems = [
+    { label: '新增筆數', value: details.rowCount ?? '—' },
+    ...(deletedCount > 0 ? [{ label: '已覆蓋筆數', value: deletedCount }] : []),
+    { label: '略過重複', value: details.skippedCount ?? 0 },
+    { label: '原始筆數', value: details.parsedRowCount ?? records.length ?? '—' },
+    { label: '員工數', value: details.totalEmployees || 0 },
+    { label: '班別代碼', value: shiftCodes.length ? shiftCodes.join(', ') : '—' },
+    { label: '處理時間', value: details.processTime ? `${details.processTime}s` : '—' },
+    { label: '來源工作表', value: details.sourceSheet || '—' },
+    { label: '目標工作表', value: details.targetSheet || '—' }
+  ];
   const isAttendanceResult = result.columns && result.columns[0] === '分店' && result.columns[1] === '員工編號';
-  const summaryItems = isAttendanceResult
-    ? [
-        { label: '新增筆數', value: details.rowCount ?? '—' },
-        { label: '略過重複', value: details.skippedCount ?? 0 },
-        { label: '原始筆數', value: details.parsedRowCount ?? records.length ?? '—' },
-        { label: '處理時間', value: details.processTime ? `${details.processTime}s` : '—' },
-        { label: '目標工作表', value: details.targetSheet || '—' }
-      ]
-    : [
-        { label: '新增筆數', value: details.rowCount ?? '—' },
-        { label: '略過重複', value: details.skippedCount ?? 0 },
-        { label: '原始筆數', value: details.parsedRowCount ?? records.length ?? '—' },
-        { label: '員工數', value: details.totalEmployees || 0 },
-        { label: '班別代碼', value: shiftCodes.length ? shiftCodes.join(', ') : '—' },
-        { label: '處理時間', value: details.processTime ? `${details.processTime}s` : '—' },
-        { label: '來源工作表', value: details.sourceSheet || '—' },
-        { label: '目標工作表', value: details.targetSheet || '—' }
-      ];
+  const summaryItems = isAttendanceResult ? baseAttendanceItems : baseScheduleItems;
 
   resultSummary.innerHTML = summaryItems.map(item => `
     <div class="summary-item">

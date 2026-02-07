@@ -254,6 +254,20 @@ function handleUpload(requestData) {
     const transformedData = [headerRow].concat(dataWithBranch);
     logDebug(`共 ${parseResult.data.length} 列資料`);
     
+    // 以「月份＋分店」覆蓋：先刪除既有該月份該分店資料
+    var yearMonth = '';
+    var deletedCount = 0;
+    if (parseResult.data.length > 0 && parseResult.data[0][1]) {
+      yearMonth = extractYearMonth(String(parseResult.data[0][1]));
+    }
+    if (yearMonth) {
+      var removeResult = removeScheduleRowsByYearMonthAndBranch(targetGoogleSheetTab, yearMonth, branchName);
+      deletedCount = removeResult.deletedCount || 0;
+      if (deletedCount > 0) {
+        logInfo('班表覆蓋：已刪除舊資料 ' + deletedCount + ' 筆', { yearMonth: yearMonth, branch: branchName });
+      }
+    }
+    
     // 寫入 Google Sheets（附加模式）
     const writeResult = appendToSheet(transformedData, targetGoogleSheetTab);
     
@@ -305,7 +319,8 @@ function handleUpload(requestData) {
         processTime: processTime.toFixed(2),
         shiftCodes: Object.keys(parseResult.shiftMap || {}),
         warnings: validation.warnings || [],
-        skippedCount: writeResult.skippedCount || 0
+        skippedCount: writeResult.skippedCount || 0,
+        deletedCount: deletedCount
       }
     });
     
@@ -400,6 +415,20 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
     var headerRow = ['分店', '員工編號', '員工帳號', '員工姓名', '打卡日期', '上班時間', '下班時間', '工作時數', '狀態'];
     var dataToWrite = [headerRow].concat(dataRows);
     
+    // 以「月份＋分店」覆蓋：先刪除既有該月份該分店資料
+    var yearMonth = '';
+    var deletedCount = 0;
+    if (dataRows.length > 0 && dataRows[0][4]) {
+      yearMonth = extractYearMonth(String(dataRows[0][4]));
+    }
+    if (yearMonth) {
+      var removeResult = removeAttendanceRowsByYearMonthAndBranch(targetSheetName, yearMonth, branchName);
+      deletedCount = removeResult.deletedCount || 0;
+      if (deletedCount > 0) {
+        logInfo('打卡覆蓋：已刪除舊資料 ' + deletedCount + ' 筆', { yearMonth: yearMonth, branch: branchName });
+      }
+    }
+    
     var writeResult = appendAttendanceToSheet(dataToWrite, targetSheetName);
     if (!writeResult.success) {
       return createJsonResponse({ success: false, error: writeResult.error || '寫入打卡 sheet 失敗' });
@@ -440,7 +469,8 @@ function handleAttendanceUpload(requestData, fileName, fileData, branchName, sta
         parsedRowCount: records.length,
         columnCount: headerRow.length,
         processTime: processTime,
-        skippedCount: writeResult.skippedCount || 0
+        skippedCount: writeResult.skippedCount || 0,
+        deletedCount: deletedCount
       }
     });
     

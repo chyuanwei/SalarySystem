@@ -126,6 +126,111 @@ function autoResizeColumns(sheet, colCount) {
 }
 
 /**
+ * 移除班表 sheet 中符合「年月＋分店」的資料列（覆蓋前刪除舊資料）
+ * 班表欄位：員工姓名,排班日期,上班,下班,時數,班別,分店（date=col1, branch=col6）
+ * @param {string} sheetName - 工作表名稱（班表）
+ * @param {string} yearMonth - 年月 YYYYMM（如 202601）
+ * @param {string} branchName - 分店名稱
+ * @return {Object} { success, deletedCount }
+ */
+function removeScheduleRowsByYearMonthAndBranch(sheetName, yearMonth, branchName) {
+  try {
+    if (!yearMonth || yearMonth.length !== 6 || !branchName) {
+      return { success: true, deletedCount: 0 };
+    }
+    var sheet = getOrCreateSheet(sheetName);
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { success: true, deletedCount: 0 };
+    var prefix1 = yearMonth.substring(0, 4) + '/' + yearMonth.substring(4, 6);
+    var prefix2 = yearMonth.substring(0, 4) + '-' + yearMonth.substring(4, 6);
+    var toDelete = [];
+    var data = sheet.getRange(2, 1, lastRow, 7).getValues();
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var dateVal = row[1];
+      var branchVal = (row[6] !== undefined && row[6] !== null) ? String(row[6]).trim() : '';
+      if (branchVal !== branchName) continue;
+      var dateStr = dateVal ? String(dateVal).trim() : '';
+      if (!dateStr) continue;
+      var match = dateStr.indexOf(prefix1) === 0 || dateStr.indexOf(prefix2) === 0;
+      if (match) toDelete.push(i + 2);
+    }
+    for (var j = toDelete.length - 1; j >= 0; j--) {
+      sheet.deleteRow(toDelete[j]);
+    }
+    if (toDelete.length > 0) {
+      logInfo('班表覆蓋：已刪除舊資料', { sheetName: sheetName, yearMonth: yearMonth, branch: branchName, deletedCount: toDelete.length });
+    }
+    return { success: true, deletedCount: toDelete.length };
+  } catch (error) {
+    logError('移除班表舊資料失敗: ' + error.message, { error: error.toString() });
+    return { success: false, deletedCount: 0 };
+  }
+}
+
+/**
+ * 移除打卡 sheet 中符合「年月＋分店」的資料列（覆蓋前刪除舊資料）
+ * 打卡欄位：分店,員工編號,員工帳號,員工姓名,打卡日期,上班,下班,時數,狀態（branch=col0, date=col4）
+ * @param {string} sheetName - 工作表名稱（打卡）
+ * @param {string} yearMonth - 年月 YYYYMM（如 202601）
+ * @param {string} branchName - 分店名稱
+ * @return {Object} { success, deletedCount }
+ */
+function removeAttendanceRowsByYearMonthAndBranch(sheetName, yearMonth, branchName) {
+  try {
+    if (!yearMonth || yearMonth.length !== 6 || !branchName) {
+      return { success: true, deletedCount: 0 };
+    }
+    var sheet = getOrCreateSheet(sheetName);
+    var lastRow = sheet.getLastRow();
+    if (lastRow < 2) return { success: true, deletedCount: 0 };
+    var prefix1 = yearMonth.substring(0, 4) + '/' + yearMonth.substring(4, 6);
+    var prefix2 = yearMonth.substring(0, 4) + '-' + yearMonth.substring(4, 6);
+    var toDelete = [];
+    var data = sheet.getRange(2, 1, lastRow, 9).getValues();
+    for (var i = 0; i < data.length; i++) {
+      var row = data[i];
+      var branchVal = (row[0] !== undefined && row[0] !== null) ? String(row[0]).trim() : '';
+      if (branchVal !== branchName) continue;
+      var dateVal = row[4];
+      var dateStr = dateVal ? String(dateVal).trim() : '';
+      if (!dateStr) continue;
+      var match = dateStr.indexOf(prefix1) === 0 || dateStr.indexOf(prefix2) === 0;
+      if (match) toDelete.push(i + 2);
+    }
+    for (var j = toDelete.length - 1; j >= 0; j--) {
+      sheet.deleteRow(toDelete[j]);
+    }
+    if (toDelete.length > 0) {
+      logInfo('打卡覆蓋：已刪除舊資料', { sheetName: sheetName, yearMonth: yearMonth, branch: branchName, deletedCount: toDelete.length });
+    }
+    return { success: true, deletedCount: toDelete.length };
+  } catch (error) {
+    logError('移除打卡舊資料失敗: ' + error.message, { error: error.toString() });
+    return { success: false, deletedCount: 0 };
+  }
+}
+
+/**
+ * 從日期字串或資料列取得 YYYYMM
+ * @param {string} dateStr - YYYY/MM/DD 或 YYYY-MM-DD
+ * @return {string} YYYYMM 或 ''
+ */
+function extractYearMonth(dateStr) {
+  if (!dateStr || typeof dateStr !== 'string') return '';
+  var s = dateStr.trim().replace(/-/g, '/');
+  var parts = s.split('/');
+  if (parts.length >= 2) {
+    var y = parts[0];
+    var m = parts[1];
+    if (y && m && y.length === 4 && m.length >= 1) {
+      return y + (m.length === 1 ? '0' + m : m).substring(0, 2);
+    }
+  }
+  return '';
+}
+
+/**
  * 追加資料到工作表末尾
  * @param {Array} data - 資料（可以是一維陣列或二維陣列）
  * @param {string} targetSheetName - 目標工作表名稱
