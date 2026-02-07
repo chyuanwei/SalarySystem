@@ -5,14 +5,14 @@
  */
 
 /**
- * 依該月份（或日期區間）班表取得人員名單。班表上傳時員工姓名已轉成打卡名稱，直接取用。
+ * 依該月份（或日期區間）＋分店的打卡資料取得人員名單。打卡 sheet 員工姓名欄直接取用。
  * @param {string} yearMonth - 年月 YYYYMM（與 startDate 二選一）
  * @param {string} startDate - 開始日期 YYYY-MM-DD
  * @param {string} endDate - 結束日期 YYYY-MM-DD
  * @param {string} branchName - 分店名稱（必填）
  * @return {Object} { success, names: [] }
  */
-function getPersonnelFromSchedule(yearMonth, startDate, endDate, branchName) {
+function getPersonnelFromAttendance(yearMonth, startDate, endDate, branchName) {
   try {
     if (!branchName || !branchName.toString().trim()) {
       return { success: true, names: [] };
@@ -20,20 +20,21 @@ function getPersonnelFromSchedule(yearMonth, startDate, endDate, branchName) {
     if ((!yearMonth || yearMonth.length !== 6) && (!startDate || startDate.length !== 10)) {
       return { success: false, error: '請提供年月（YYYYMM）或日期區間', names: [] };
     }
-    var sResult = readScheduleByConditions(yearMonth, startDate, endDate, null, branchName);
-    if (!sResult.success) {
-      return { success: false, error: sResult.error || '讀取班表失敗', names: [] };
+    var aResult = readAttendanceByConditions(yearMonth, startDate, endDate, null, branchName);
+    if (!aResult.success) {
+      return { success: false, error: aResult.error || '讀取打卡失敗', names: [] };
     }
-    var records = sResult.records || [];
+    var records = aResult.records || [];
     var nameSet = {};
+    var nameColIndex = 3; // 打卡: 分店,員工編號,員工帳號,員工姓名,打卡日期,...
     records.forEach(function(row) {
-      var n = row[0] ? String(row[0]).trim() : '';
+      var n = row[nameColIndex] ? String(row[nameColIndex]).trim() : '';
       if (n) nameSet[n] = true;
     });
     var names = Object.keys(nameSet).sort();
     return { success: true, names: names };
   } catch (error) {
-    logError('取得班表人員失敗: ' + error.message, { error: error.toString() });
+    logError('取得打卡人員失敗: ' + error.message, { error: error.toString() });
     return { success: false, error: error.message, names: [] };
   }
 }

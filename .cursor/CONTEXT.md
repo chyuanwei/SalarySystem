@@ -187,7 +187,7 @@ A30: "* O 10:00-20:30"   (全日班)
 | GET | `test` | 連線測試 |
 | GET | `getBranches` | 取得分店清單（來源「分店」sheet） |
 | GET | `getPersonnelByBranch` | 依分店取得人員名單（來源「人員」sheet；保留供其他用途） |
-| GET | `getPersonnelFromSchedule` | 依該月份／日期區間＋分店，從班表取得人員名單（班表內已是打卡名稱，直接取用） |
+| GET | `getPersonnelFromSchedule` | 依該月份／日期區間＋分店，從打卡資料取得人員名單（後端 getPersonnelFromAttendance） |
 | GET | `loadSchedule` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
 | GET | `loadAttendance` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
 | GET | `loadCompare` | `yearMonth`(YYYYMM) 或 `startDate`+`endDate`、`names`(逗號分隔)、`branch`(必填)；回傳班表與打卡一對一比對 items |
@@ -435,9 +435,9 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ 比對結果卡片：班表 vs 打卡（分店、員工帳號、姓名、日期、上班/下班/時數/狀態）
 - ✅ 校正：校正上班/下班輸入、校正送出、已校正顯示唯讀+編輯按鈕
 - ✅ submitCorrection API：寫入校正 sheet，再次校正時舊筆設為無效
-- ✅ 人員選單以該月份班表內的人員為來源：getPersonnelFromSchedule（分店＋月份／日期區間）；查詢區與比對區皆在選好分店與日期條件後載入人員；載入比對後仍可合併結果人員補足選單
+- ✅ 人員選單以該月份／日期區間＋分店的打卡資料為來源：getPersonnelFromAttendance（API 仍為 getPersonnelFromSchedule）；查詢區與比對區皆在選好分店與日期條件後載入人員；載入比對後仍可合併結果人員補足選單
 - ✅ 比對卡片：手機優先排版（姓名+日期主標題、班表/打卡分塊、校正區垂直排列、44px 觸控目標）
-- ✅ CompareService：getPersonnelFromSchedule、getPersonnelByBranch、readPersonnelMapping、readScheduleByConditions、readAttendanceByConditions、compareScheduleAttendance、readCorrectionsValid、writeCorrection
+- ✅ CompareService：getPersonnelFromAttendance、getPersonnelByBranch、readPersonnelMapping、readScheduleByConditions、readAttendanceByConditions、compareScheduleAttendance、readCorrectionsValid、writeCorrection
 
 ### 12.10 測試與正式環境
 - ✅ 完整的環境分離（GAS + 前端）
@@ -528,6 +528,7 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-07 | v0.6.45 | 測試 | 人員名單來源改為該月份／日期區間＋分店的打卡資料（getPersonnelFromAttendance） | AI |
 | 2026-02-07 | v0.6.44 | 測試 | 人員選單改為該月份班表內的人員（getPersonnelFromSchedule）；分店＋日期條件後載入 | AI |
 | 2026-02-07 | v0.6.43 | 測試 | 比對：班表格式改為與打卡一致（\|）；OVERTIME_ALERT 加班警示（Script Property 分鐘、打卡區塊標紅） | AI |
 | 2026-02-07 | v0.6.42 | 測試 | 比對畫面打卡狀態無資料時不顯示「 \| —」 | AI |

@@ -691,7 +691,7 @@ function toggleDateFilterMode() {
 }
 
 /**
- * 載入查詢區人員（以該月份班表內的人員為來源，getPersonnelFromSchedule）
+ * 載入查詢區人員（以該月份／日期區間＋分店的打卡資料為來源，getPersonnelFromSchedule）
  * 需同時有分店與月份／日期區間才呼叫 API
  */
 async function loadQueryPersonnel() {
@@ -759,7 +759,7 @@ function renderQueryPersonCheckboxes(names, opts, fromSchedule) {
     if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = false;
     if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = false;
   } else {
-    personCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此月份班表無人員' : '此分店無人員資料') + '</span>';
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此月份打卡無人員' : '此分店無人員資料') + '</span>';
     if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
     if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
   }
@@ -1178,7 +1178,7 @@ async function handleLoadCompare() {
 }
 
 /**
- * 載入比對區人員（以該月份班表內的人員為來源，getPersonnelFromSchedule）
+ * 載入比對區人員（以該月份／日期區間＋分店的打卡資料為來源，getPersonnelFromSchedule）
  * 需同時有分店與月份／日期區間才呼叫 API
  */
 async function loadComparePersonnel() {
@@ -1287,7 +1287,7 @@ function renderComparePersonCheckboxes(names, opts) {
       comparePersonCheckboxGroup.appendChild(label);
     });
   } else {
-    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此月份班表無人員' : '此分店無人員資料') + '</span>';
+    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此月份打卡無人員' : '此分店無人員資料') + '</span>';
     if (selectAllComparePersonsBtn) selectAllComparePersonsBtn.disabled = true;
     if (clearAllComparePersonsBtn) clearAllComparePersonsBtn.disabled = true;
   }

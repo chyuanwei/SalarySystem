@@ -37,7 +37,7 @@ function doGet(e) {
         const startDate = (e.parameter.startDate || '').toString().trim() || null;
         const endDate = (e.parameter.endDate || '').toString().trim() || null;
         const branchName = (e.parameter.branch || '').toString().trim() || null;
-        const result = getPersonnelFromSchedule(yearMonth, startDate, endDate, branchName);
+        const result = getPersonnelFromAttendance(yearMonth, startDate, endDate, branchName);
         if (!result.success) {
           return createJsonResponse({ success: false, error: result.error });
         }
