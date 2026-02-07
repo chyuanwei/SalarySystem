@@ -324,14 +324,15 @@ function normalizeTimeValue(value) {
 }
 
 /**
- * 依年月/日期與人員篩選國安班表資料（AND 關係）
- * @param {string} sheetName - 工作表名稱（預設 國安班表）
+ * 依年月/日期、分店與人員篩選班表資料（AND 關係）
+ * @param {string} sheetName - 工作表名稱（預設 班表）
  * @param {string} yearMonth - 年月格式 YYYYMM（如 202601），可與 date 二選一
  * @param {string} date - 單日格式 YYYY-MM-DD（如 2026-01-15），可與 yearMonth 二選一
  * @param {Array<string>} names - 員工姓名陣列，可多選（AND 篩選）
+ * @param {string|null} branchName - 分店名稱，可選（null 或空表示不限）
  * @return {Object} { success, records, details }
  */
-function readScheduleByYearMonth(sheetName, yearMonth, date, names) {
+function readScheduleByYearMonth(sheetName, yearMonth, date, names, branchName) {
   try {
     if ((!yearMonth || yearMonth.length !== 6) && (!date || date.length !== 10)) {
       return { success: false, error: '請提供 yearMonth（YYYYMM）或 date（YYYY-MM-DD）' };
@@ -342,7 +343,7 @@ function readScheduleByYearMonth(sheetName, yearMonth, date, names) {
       return {
         success: true,
         records: [],
-        details: { yearMonth: yearMonth || '', date: date || '', names: [], rowCount: 0 }
+        details: { yearMonth: yearMonth || '', date: date || '', names: [], branch: branchName || '', rowCount: 0 }
       };
     }
 
@@ -389,8 +390,15 @@ function readScheduleByYearMonth(sheetName, yearMonth, date, names) {
     });
 
     var filteredRows = filteredByDate;
+    if (branchName && branchName.length > 0) {
+      const branchColIndex = 6;
+      filteredRows = filteredRows.filter(function(row) {
+        const b = row[branchColIndex] ? String(row[branchColIndex]).trim() : '';
+        return b === branchName;
+      });
+    }
     if (nameSet && nameSet.size > 0) {
-      filteredRows = filteredByDate.filter(function(row) {
+      filteredRows = filteredRows.filter(function(row) {
         const n = row[nameColIndex] ? String(row[nameColIndex]).trim() : '';
         return nameSet.has(n);
       });
@@ -414,6 +422,7 @@ function readScheduleByYearMonth(sheetName, yearMonth, date, names) {
         yearMonth: yearMonth || '',
         date: date || '',
         names: distinctNames,
+        branch: branchName || '',
         rowCount: filteredRows.length
       }
     };

@@ -30,7 +30,8 @@ function doGet(e) {
         const dateParam = e.parameter.date || '';
         const namesParam = e.parameter.names || '';
         const names = namesParam ? namesParam.split(',').map(function(n) { return n.trim(); }).filter(Boolean) : [];
-        const result = readScheduleByYearMonth(sheetName, yearMonth, dateParam, names);
+        const branchName = (e.parameter.branch || '').toString().trim() || null;
+        const result = readScheduleByYearMonth(sheetName, yearMonth, dateParam, names, branchName);
         if (!result.success) {
           return createJsonResponse({ success: false, error: result.error });
         }

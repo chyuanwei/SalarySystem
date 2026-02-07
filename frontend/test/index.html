@@ -854,12 +854,12 @@
     <div class="container">
         <a href="../index.html" class="back-link">← 返回入口</a>
         <h1>💰 薪資計算系統</h1>
-        <p class="subtitle">國安班表查詢與上傳 <span class="env-badge">測試環境</span></p>
+        <p class="subtitle">班表查詢與上傳 <span class="env-badge">測試環境</span></p>
 
         <div id="alert" class="alert"></div>
 
         <div class="schedule-query-section">
-            <h3 class="schedule-query-title">📅 查詢國安班表</h3>
+            <h3 class="schedule-query-title">📅 查詢班表</h3>
 
             <div class="schedule-block schedule-block-date">
                 <div class="schedule-block-label">日期篩選</div>
@@ -881,6 +881,13 @@
                 </div>
             </div>
 
+            <div class="schedule-block schedule-block-branch">
+                <div class="schedule-block-label">分店篩選</div>
+                <select id="queryBranchSelect" class="schedule-select">
+                    <option value="">全部</option>
+                </select>
+            </div>
+
             <div class="schedule-block schedule-block-person">
                 <div class="schedule-block-label">人員篩選 <span class="schedule-hint-small">（載入後可多選）</span></div>
                 <div class="schedule-person-row">
@@ -899,7 +906,7 @@
             </div>
 
             <div id="scheduleResultSection" class="result-section">
-                <h2 class="result-title">國安班表資料</h2>
+                <h2 class="result-title">班表資料</h2>
                 <div id="scheduleSummary" class="result-summary"></div>
                 <div id="scheduleList" class="result-list"></div>
             </div>
@@ -963,7 +970,7 @@
         <div class="info-section">
             <h3>📌 說明</h3>
             <ul>
-                <li><strong>查詢：</strong>選擇年月（或輸入 202601）或單日，可多選人員篩選</li>
+                <li><strong>查詢：</strong>選擇年月（或輸入 202601）或單日，可選分店、多選人員篩選</li>
                 <li><strong>上傳：</strong>支援格式 .xlsx、.xls，檔案大小限制 10MB</li>
                 <li>系統會自動解析 Excel 中的工作表</li>
                 <li>資料將儲存至 Google Sheets「班表」</li>

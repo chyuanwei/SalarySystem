@@ -33,6 +33,7 @@ const selectAllPersonsBtn = document.getElementById('selectAllPersonsBtn');
 const clearAllPersonsBtn = document.getElementById('clearAllPersonsBtn');
 const branchSelect = document.getElementById('branchSelect');
 const branchGroup = document.getElementById('branchGroup');
+const queryBranchSelect = document.getElementById('queryBranchSelect');
 
 // 初始化年月選擇器
 function initScheduleSelectors() {
@@ -81,7 +82,7 @@ document.querySelectorAll('input[name="uploadType"]').forEach(function(radio) {
   });
 });
 
-// 載入國安班表按鈕
+// 載入班表按鈕
 if (loadScheduleBtn) loadScheduleBtn.addEventListener('click', handleLoadSchedule);
 
 // 日期篩選模式切換
@@ -107,25 +108,38 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 /**
- * 載入分店清單（從 GAS getBranches API）
+ * 載入分店清單（從 GAS getBranches API），供上傳與查詢區塊使用
  */
 async function loadBranches() {
-  if (!branchSelect) return;
+  if (!branchSelect && !queryBranchSelect) return;
   try {
     const response = await fetch(CONFIG.GAS_URL + '?action=getBranches', { method: 'GET', mode: 'cors' });
     const result = await response.json();
-    branchSelect.innerHTML = '<option value="">請選擇分店</option>';
-    if (result && result.success && Array.isArray(result.names) && result.names.length > 0) {
-      result.names.forEach(function(name) {
+    const options = result && result.success && Array.isArray(result.names) && result.names.length > 0
+      ? result.names
+      : [];
+    if (branchSelect) {
+      branchSelect.innerHTML = '<option value="">請選擇分店</option>';
+      options.forEach(function(name) {
         const opt = document.createElement('option');
         opt.value = name;
         opt.textContent = name;
         branchSelect.appendChild(opt);
       });
     }
+    if (queryBranchSelect) {
+      queryBranchSelect.innerHTML = '<option value="">全部</option>';
+      options.forEach(function(name) {
+        const opt = document.createElement('option');
+        opt.value = name;
+        opt.textContent = name;
+        queryBranchSelect.appendChild(opt);
+      });
+    }
   } catch (error) {
     console.error('載入分店清單失敗:', error);
-    branchSelect.innerHTML = '<option value="">載入失敗，請重整頁面</option>';
+    if (branchSelect) branchSelect.innerHTML = '<option value="">載入失敗，請重整頁面</option>';
+    if (queryBranchSelect) queryBranchSelect.innerHTML = '<option value="">載入失敗</option>';
   }
 }
 
@@ -506,7 +520,7 @@ function getSelectedPersonNames() {
 }
 
 /**
- * 載入國安班表（依年月/日期 + 人員篩選，AND 關係）
+ * 載入班表（依年月/日期、分店、人員篩選，AND 關係）
  */
 async function handleLoadSchedule() {
   const mode = document.querySelector('input[name="dateFilterMode"]:checked');
@@ -534,9 +548,11 @@ async function handleLoadSchedule() {
   scheduleResultSection.classList.remove('show');
 
   const names = getSelectedPersonNames();
+  const branchVal = queryBranchSelect && queryBranchSelect.value ? queryBranchSelect.value.trim() : '';
   let url = `${CONFIG.GAS_URL}?action=loadSchedule`;
   if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
   if (dateParam) url += `&date=${encodeURIComponent(dateParam)}`;
+  if (branchVal) url += `&branch=${encodeURIComponent(branchVal)}`;
   if (names.length > 0) url += `&names=${encodeURIComponent(names.join(','))}`;
 
   try {
@@ -550,7 +566,7 @@ async function handleLoadSchedule() {
     renderScheduleResults(result);
     scheduleResultSection.scrollIntoView({ behavior: 'auto', block: 'start' });
   } catch (error) {
-    showAlert('error', '載入國安班表失敗：' + error.message);
+    showAlert('error', '載入班表失敗：' + error.message);
   } finally {
     loadScheduleBtn.disabled = false;
     loadScheduleBtn.textContent = '載入';
@@ -558,17 +574,22 @@ async function handleLoadSchedule() {
 }
 
 /**
- * 顯示國安班表查詢結果
+ * 顯示班表查詢結果
  */
 function renderScheduleResults(result) {
   const details = result.details || {};
   const records = Array.isArray(result.records) ? result.records : [];
   const names = Array.isArray(details.names) ? details.names : [];
 
+  const branchLabel = details.branch ? details.branch : '全部';
   scheduleSummary.innerHTML = `
     <div class="summary-item">
       <div class="summary-label">日期範圍</div>
       <div class="summary-value">${details.date ? details.date.replace(/-/g, '/') : (details.yearMonth ? details.yearMonth.substring(0,4) + '/' + details.yearMonth.substring(4,6) : '—')}</div>
+    </div>
+    <div class="summary-item">
+      <div class="summary-label">分店</div>
+      <div class="summary-value">${branchLabel}</div>
     </div>
     <div class="summary-item">
       <div class="summary-label">筆數</div>
