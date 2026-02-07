@@ -33,3 +33,5 @@ v0.6.35：loadSchedule / loadAttendance 支援 startDate、endDate 日期區間�
 ---
 
 **檢查清單**：完成任何涉及 `gas-backend/**/*.gs` 的變更後，回覆中必須包含「## Comment for deploy」區塊與版本說明；若同時 commit/push，須在 CONTEXT.md 部署記錄表新增一列對應版本。
+
+**自動執行**：每次提供 Comment for deploy 時，須**一併**完成以下兩項，無須再詢問使用者：(1) 在 CONTEXT.md §17 部署記錄表新增一列該版本與更新內容；(2) 將 `gas-backend/test/Code.gs` 的 `DEPLOY_MARKER_VERSION` 更新為該版本號（如 `v0.6.59`）。
