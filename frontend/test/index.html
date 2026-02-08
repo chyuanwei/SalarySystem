@@ -463,6 +463,47 @@
             cursor: pointer;
         }
 
+        .tab-header-block {
+            background: #f0f7ff;
+            border: 1px solid #c5d9f0;
+            border-radius: 12px;
+            padding: 16px 20px;
+            margin-bottom: 16px;
+        }
+
+        .tab-header-pane {
+            margin: 0;
+        }
+
+        .schedule-block-query-type-prominent .schedule-block-label {
+            font-weight: 700;
+            color: #333;
+        }
+
+        .schedule-block-query-type-prominent .schedule-radio {
+            font-weight: 700;
+            font-size: 1.05rem;
+            color: #333;
+        }
+
+        .schedule-block-query-type-prominent .schedule-date-modes {
+            gap: 20px;
+        }
+
+        .schedule-block-query-type-prominent .schedule-date-modes label {
+            padding: 6px 12px;
+            border-radius: 8px;
+            background: rgba(102, 126, 234, 0.08);
+            border: 2px solid transparent;
+            transition: background 0.2s, border-color 0.2s;
+        }
+
+        .schedule-block-query-type-prominent .schedule-date-modes label:has(input:checked) {
+            background: rgba(102, 126, 234, 0.18);
+            border-color: #667eea;
+            color: #667eea;
+        }
+
         .schedule-date-month-group {
             display: flex;
             align-items: center;
@@ -1109,7 +1150,8 @@
         @media (max-width: 576px) {
             body {
                 padding: 10px;
-                padding-bottom: 72px;
+                padding-top: 68px;
+                padding-bottom: 20px;
             }
 
             .container {
@@ -1119,7 +1161,7 @@
 
             .tab-nav {
                 position: fixed;
-                bottom: 0;
+                top: 0;
                 left: 0;
                 right: 0;
                 margin: 0;
@@ -1127,7 +1169,7 @@
                 z-index: 100;
                 padding: 6px 4px 8px;
                 background: #fff;
-                box-shadow: 0 -2px 12px rgba(0,0,0,0.1);
+                box-shadow: 0 2px 12px rgba(0,0,0,0.1);
             }
             .tab-nav-btn {
                 font-size: 1rem;
@@ -1357,6 +1399,22 @@
             <button type="button" class="tab-nav-btn" role="tab" aria-selected="false" aria-controls="tab-pane-salary" id="tab-btn-salary" data-tab="salary">💰 計算</button>
         </nav>
 
+        <div id="tabHeaderBlock" class="tab-header-block" style="display:none;">
+            <div id="queryTabHeader" class="tab-header-pane" style="display:none;">
+                <div class="schedule-block schedule-block-query-type schedule-block-query-type-prominent">
+                    <div class="schedule-block-label">查詢類型</div>
+                    <div class="schedule-date-modes">
+                        <label class="schedule-radio"><input type="radio" name="queryType" value="schedule" checked> 查詢班表</label>
+                        <label class="schedule-radio"><input type="radio" name="queryType" value="attendance"> 查詢打卡</label>
+                    </div>
+                </div>
+                <h3 class="schedule-query-title" id="querySectionTitle">📅 查詢班表</h3>
+            </div>
+            <div id="compareTabHeader" class="tab-header-pane" style="display:none;">
+                <h3 class="schedule-query-title">🔄 班表與打卡比對</h3>
+            </div>
+        </div>
+
         <div id="sharedConditionBlock" class="shared-condition-block" style="display:none;">
             <div class="schedule-block schedule-block-date">
                 <div class="schedule-block-label">條件 <span class="schedule-hint-small">（月份或日期區間、分店）</span></div>
@@ -1396,14 +1454,6 @@
         <div class="tab-content">
         <div id="tab-pane-query" class="tab-pane active" role="tabpanel" aria-labelledby="tab-btn-query">
         <div class="schedule-query-section">
-            <div class="schedule-block schedule-block-query-type">
-                <div class="schedule-block-label">查詢類型</div>
-                <div class="schedule-date-modes">
-                    <label class="schedule-radio"><input type="radio" name="queryType" value="schedule" checked> 查詢班表</label>
-                    <label class="schedule-radio"><input type="radio" name="queryType" value="attendance"> 查詢打卡</label>
-                </div>
-            </div>
-            <h3 class="schedule-query-title" id="querySectionTitle">📅 查詢班表</h3>
             <div class="schedule-block schedule-block-action">
                 <button type="button" id="loadScheduleBtn" class="load-schedule-btn">載入</button>
             </div>
@@ -1423,7 +1473,6 @@
 
         <div id="tab-pane-compare" class="tab-pane" role="tabpanel" aria-labelledby="tab-btn-compare" hidden>
         <div class="compare-section" id="compareSection">
-            <h3 class="schedule-query-title">🔄 班表與打卡比對</h3>
             <div class="schedule-block">
                 <button type="button" id="loadCompareBtn" class="load-schedule-btn">載入比對</button>
             </div>

@@ -159,8 +159,14 @@ function initTabNav() {
   var nav = document.querySelector('.tab-nav');
   var sharedBlock = document.getElementById('sharedConditionBlock');
   if (!nav) return;
+  var tabHeaderBlock = document.getElementById('tabHeaderBlock');
+  var queryTabHeader = document.getElementById('queryTabHeader');
+  var compareTabHeader = document.getElementById('compareTabHeader');
   function updateSharedConditionVisibility(tabId) {
     if (sharedBlock) sharedBlock.style.display = (tabId === 'query' || tabId === 'compare') ? 'block' : 'none';
+    if (tabHeaderBlock) tabHeaderBlock.style.display = (tabId === 'query' || tabId === 'compare') ? 'block' : 'none';
+    if (queryTabHeader) queryTabHeader.style.display = tabId === 'query' ? 'block' : 'none';
+    if (compareTabHeader) compareTabHeader.style.display = tabId === 'compare' ? 'block' : 'none';
   }
   nav.addEventListener('click', function(e) {
     var btn = e.target && e.target.closest && e.target.closest('.tab-nav-btn');
@@ -184,7 +190,7 @@ function initTabNav() {
     updateSharedConditionVisibility(tabId);
     if (tabId === 'query' || tabId === 'compare') loadQueryPersonnel();
   });
-    updateSharedConditionVisibility('query');
+    updateSharedConditionVisibility('query'); // 預設查詢 tab，顯示標題區與條件區
 }
 
 function selectAllPersons() {
