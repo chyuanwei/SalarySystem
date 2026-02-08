@@ -209,6 +209,10 @@ document.addEventListener('DOMContentLoaded', function() {
   initYearMonthSelects();
   toggleDateFilterMode();
   loadBranches();
+  var refreshBranchesBtn = document.getElementById('refreshBranchesBtn');
+  if (refreshBranchesBtn) refreshBranchesBtn.addEventListener('click', function() { loadBranches(true); });
+  var refreshPersonnelBtn = document.getElementById('refreshPersonnelBtn');
+  if (refreshPersonnelBtn) refreshPersonnelBtn.addEventListener('click', function() { loadQueryPersonnel({ forceRefresh: true }); });
   // 共用人員：年月／日期變更時重新載入人員
   var qymSel = document.getElementById('queryYearMonthSelect');
   var qymInp = document.getElementById('queryYearMonthInput');
@@ -224,7 +228,9 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 var BRANCHES_CACHE_KEY = 'salarySystem_branches';
-var BRANCHES_CACHE_TTL_MS = 5 * 60 * 1000; // 5 分鐘
+var BRANCHES_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 天，有需要時用「更新分店」手動更新
+var PERSONNEL_CACHE_KEY_PREFIX = 'salarySystem_personnel';
+var PERSONNEL_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 天，有需要時用「更新人員」手動更新
 
 function applyBranchesToSelects(options) {
   var branchEl = document.getElementById('branchSelect');
@@ -262,24 +268,26 @@ function applyBranchesToSelects(options) {
 
 /**
  * 載入分店清單（從 GAS getBranches API 或 sessionStorage 快取），供上傳、查詢、比對區塊使用
+ * @param {boolean} [forceRefresh] - true 時跳過 cache 強制重新 fetch
  */
-async function loadBranches() {
+async function loadBranches(forceRefresh) {
   var branchEl = document.getElementById('branchSelect');
   var queryBranchEl = document.getElementById('queryBranchSelect');
   var compareBranchEl = document.getElementById('compareBranchSelect');
   if (!branchEl && !queryBranchEl && !compareBranchEl) return;
   try {
-    var cached = null;
-    try {
-      var raw = sessionStorage.getItem(BRANCHES_CACHE_KEY);
-      if (raw) {
-        cached = JSON.parse(raw);
-        if (cached && Array.isArray(cached.names) && cached.fetchedAt && (Date.now() - cached.fetchedAt) < BRANCHES_CACHE_TTL_MS) {
-          applyBranchesToSelects(cached.names);
-          return;
+    if (!forceRefresh) {
+      try {
+        var raw = sessionStorage.getItem(BRANCHES_CACHE_KEY);
+        if (raw) {
+          var cached = JSON.parse(raw);
+          if (cached && Array.isArray(cached.names) && cached.fetchedAt && (Date.now() - cached.fetchedAt) < BRANCHES_CACHE_TTL_MS) {
+            applyBranchesToSelects(cached.names);
+            return;
+          }
         }
-      }
-    } catch (e) { /* 忽略快取解析錯誤 */ }
+      } catch (e) { /* 忽略快取解析錯誤 */ }
+    }
     showLoadingOverlay();
     var response = await fetch(CONFIG.GAS_URL + '?action=getBranches', { method: 'GET', mode: 'cors' });
     var result = await response.json();
@@ -811,8 +819,9 @@ function toggleDateFilterMode() {
 /**
  * 載入查詢/比對共用人員名單（以該月份／日期區間＋分店的打卡資料為來源）
  * 結果填入 personCheckboxGroup，保留目前勾選狀態
+ * @param {Object} [opts] - { forceRefresh: true } 跳過 cache 強制重新 fetch
  */
-async function loadQueryPersonnel() {
+async function loadQueryPersonnel(opts) {
   var personCheckboxGroup = document.getElementById('personCheckboxGroup');
   var selectAllBtn = document.getElementById('selectAllPersonsBtn');
   var clearBtn = document.getElementById('clearAllPersonsBtn');
@@ -848,6 +857,21 @@ async function loadQueryPersonnel() {
     return;
   }
   var currentChecked = getSelectedPersonNames();
+  var cacheKey = PERSONNEL_CACHE_KEY_PREFIX + '_' + encodeURIComponent(branchVal) + '_' + (yearMonth ? encodeURIComponent(yearMonth) : encodeURIComponent(startDate) + '_' + encodeURIComponent(endDate));
+  if (!opts || !opts.forceRefresh) {
+    try {
+      var raw = sessionStorage.getItem(cacheKey);
+      if (raw) {
+        var cached = JSON.parse(raw);
+        if (cached && Array.isArray(cached.names) && cached.fetchedAt && (Date.now() - cached.fetchedAt) < PERSONNEL_CACHE_TTL_MS) {
+          __personnelNames = cached.names;
+          renderQueryPersonCheckboxes(__personnelNames, { checked: currentChecked }, true);
+          return;
+        }
+      }
+    } catch (e) { /* 忽略快取解析錯誤 */ }
+  }
+
   personCheckboxGroup.innerHTML = '<span class="person-placeholder">載入中...</span>';
   if (selectAllBtn) selectAllBtn.disabled = true;
   if (clearBtn) clearBtn.disabled = true;
@@ -858,6 +882,9 @@ async function loadQueryPersonnel() {
     var response = await fetch(CONFIG.GAS_URL + '?' + params, { method: 'GET', mode: 'cors' });
     var result = await response.json();
     __personnelNames = (result.success && Array.isArray(result.names)) ? result.names : [];
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({ names: __personnelNames, fetchedAt: Date.now() }));
+    } catch (e) { /* 忽略 storage 寫入失敗 */ }
     renderQueryPersonCheckboxes(__personnelNames, { checked: currentChecked }, true);
   } catch (error) {
     console.error('載入人員失敗:', error);

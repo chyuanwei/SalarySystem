@@ -452,6 +452,41 @@
             margin-bottom: 8px;
         }
 
+        .schedule-block-label-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .schedule-block-label-row .schedule-block-label {
+            margin-bottom: 0;
+        }
+
+        .refresh-cache-btn {
+            font-size: 0.85rem;
+            color: #667eea;
+            background: transparent;
+            border: 1px solid #667eea;
+            border-radius: 6px;
+            padding: 4px 10px;
+            cursor: pointer;
+            font-weight: 500;
+        }
+
+        .refresh-cache-btn:hover {
+            background: rgba(102, 126, 234, 0.1);
+        }
+
+        .refresh-cache-btn:disabled {
+            color: #999;
+            border-color: #ccc;
+            cursor: not-allowed;
+            background: transparent;
+        }
+
         .schedule-hint-small {
             font-weight: 400;
             color: #999;
@@ -1542,13 +1577,19 @@
                 </div>
             </div>
             <div class="schedule-block schedule-block-branch">
-                <div class="schedule-block-label">分店</div>
+                <div class="schedule-block-label-row">
+                    <span class="schedule-block-label">分店</span>
+                    <button type="button" id="refreshBranchesBtn" class="refresh-cache-btn" title="重新載入分店清單">更新分店</button>
+                </div>
                 <select id="queryBranchSelect" class="schedule-select">
                     <option value="">請選擇分店</option>
                 </select>
             </div>
             <div class="schedule-block schedule-block-person">
-                <div class="schedule-block-label">人員篩選</div>
+                <div class="schedule-block-label-row">
+                    <span class="schedule-block-label">人員篩選</span>
+                    <button type="button" id="refreshPersonnelBtn" class="refresh-cache-btn" title="重新載入人員名單">更新人員</button>
+                </div>
                 <div id="personCheckboxGroup" class="person-checkbox-group"><span class="person-placeholder">請先選擇分店與日期</span></div>
                 <div class="schedule-person-actions">
                     <button type="button" id="selectAllPersonsBtn" class="person-btn" disabled>全選</button>
