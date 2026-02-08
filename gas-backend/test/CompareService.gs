@@ -40,6 +40,58 @@ function getPersonnelFromAttendance(yearMonth, startDate, endDate, branchName) {
 }
 
 /**
+ * 依該月份（或日期區間）＋分店的班表資料取得人員名單。班表 sheet 員工姓名欄（第 0 欄）。
+ * @return {Object} { success, names: [] }
+ */
+function getPersonnelFromScheduleOnly(yearMonth, startDate, endDate, branchName) {
+  try {
+    if (!branchName || !branchName.toString().trim()) {
+      return { success: true, names: [] };
+    }
+    if ((!yearMonth || yearMonth.length !== 6) && (!startDate || startDate.length !== 10)) {
+      return { success: false, error: '請提供年月（YYYYMM）或日期區間', names: [] };
+    }
+    var sResult = readScheduleByConditions(yearMonth, startDate, endDate, null, branchName);
+    if (!sResult.success) {
+      return { success: false, error: sResult.error || '讀取班表失敗', names: [] };
+    }
+    var records = sResult.records || [];
+    var nameSet = {};
+    var nameColIndex = 0; // 班表: 員工姓名,排班日期,...
+    records.forEach(function(row) {
+      var n = row[nameColIndex] ? String(row[nameColIndex]).trim() : '';
+      if (n) nameSet[n] = true;
+    });
+    var names = Object.keys(nameSet).sort();
+    return { success: true, names: names };
+  } catch (error) {
+    logError('取得班表人員失敗: ' + error.message, { error: error.toString() });
+    return { success: false, error: error.message, names: [] };
+  }
+}
+
+/**
+ * 依該月份（或日期區間）＋分店，取得「班表人員 ∪ 打卡人員」名單（聯集，供查詢/比對人員篩選用）。
+ * @return {Object} { success, names: [] }
+ */
+function getPersonnelUnion(yearMonth, startDate, endDate, branchName) {
+  try {
+    var scheduleResult = getPersonnelFromScheduleOnly(yearMonth, startDate, endDate, branchName);
+    var attendanceResult = getPersonnelFromAttendance(yearMonth, startDate, endDate, branchName);
+    if (!scheduleResult.success) return scheduleResult;
+    if (!attendanceResult.success) return attendanceResult;
+    var nameSet = {};
+    (scheduleResult.names || []).forEach(function(n) { if (n) nameSet[n] = true; });
+    (attendanceResult.names || []).forEach(function(n) { if (n) nameSet[n] = true; });
+    var names = Object.keys(nameSet).sort();
+    return { success: true, names: names };
+  } catch (error) {
+    logError('取得人員聯集失敗: ' + error.message, { error: error.toString() });
+    return { success: false, error: error.message, names: [] };
+  }
+}
+
+/**
  * 依分店取得人員名單（班表名稱、打卡名稱的聯集，供比對篩選用）
  * 人員 sheet: A=員工帳號, B=班表名稱, C=打卡名稱, D=分店
  * @param {string} branchName - 分店名稱

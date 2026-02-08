@@ -188,7 +188,7 @@ A30: "* O 10:00-20:30"   (全日班)
 | GET | `test` | 連線測試 |
 | GET | `getBranches` | 取得分店清單（來源「分店」sheet） |
 | GET | `getPersonnelByBranch` | 依分店取得人員名單（來源「人員」sheet；保留供其他用途） |
-| GET | `getPersonnelFromSchedule` | 依該月份／日期區間＋分店，從打卡資料取得人員名單（後端 getPersonnelFromAttendance） |
+| GET | `getPersonnelFromSchedule` | 依該月份／日期區間＋分店，取得「班表人員 ∪ 打卡人員」名單（後端 getPersonnelUnion） |
 | GET | `loadSchedule` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
 | GET | `loadAttendance` | `yearMonth`(YYYYMM)、`date`(YYYY-MM-DD)、`names`(逗號分隔)、`branch`，AND 篩選 |
 | GET | `loadCompare` | `yearMonth`(YYYYMM) 或 `startDate`+`endDate`、`names`(逗號分隔)、`branch`(必填)；回傳班表與打卡比對 items（同人同日同店可多筆，依開始時間 1-1 配對；時間重疊時 item 含 overlapWarning） |
@@ -458,7 +458,7 @@ A30: "* O 10:00-20:30"   (全日班)
 - ✅ **比對局部 AJAX 更新**：送出校正、待確認、取消確認改為只更新該張卡片，不再觸發 loadCompareBtn；後端 getSingleCompareItem、handleSubmitCorrection 回傳 item、confirm/unconfirm 回傳 confirmedIgnore
 - ✅ 讀取打卡（readAttendanceByConditions）僅取「是否有效=是」的列；算薪以打卡 sheet 有效列為準
 - ✅ Config.gs：ATTENDANCE_COL、SCHEDULE_COL 固定打卡 17 欄／班表 11 欄（含 K 員工帳號），避免對錯欄
-- ✅ 人員選單以該月份／日期區間＋分店的打卡資料為來源（getPersonnelFromSchedule）；載入比對後可合併結果人員補足選單
+- ✅ 人員選單以該月份／日期區間＋分店的「班表人員 ∪ 打卡人員」為來源（getPersonnelUnion）；空名單時顯示「此時間與分店下尚無班表或打卡人員」
 - ✅ 比對卡片：手機優先排版、44px 觸控目標；加班警示（OVERTIME_ALERT）時打卡區塊標紅
 - ✅ 打卡 Q 欄「警示」：loadCompare 後依比對結果同步（overtimeAlert/overlapWarning 設 Y）；薪資計算前檢查 Q=Y 且 O≠Y 則阻擋並提示
 - ✅ CompareService：getPersonnelFromAttendance、readScheduleByConditions、readAttendanceByConditions（篩選有效）、compareScheduleAttendance、readCorrectionsValid、writeCorrection、writeCorrectionToAttendance、**getSingleCompareItem**（校正後用 correctedStart/End 查詢）
@@ -548,12 +548,21 @@ A30: "* O 10:00-20:30"   (全日班)
 
 **備註**：若 CORS 被瀏覽器阻擋，前端將無法顯示結果，但後端仍可能已完成寫入。
 
+### 16.2 載入結果 cache 設計（約定）
+
+查詢／比對的「載入結果」cache 應依下列方式運作，**不以條件組合當 key**：
+
+- **儲存**：用單一 key 存一份 **list**；每筆為 `{ dateRange, branch, result, fetchedAt }`。每次 fetch 完將結果 **append** 進 list 並寫回。
+- **載入時**：先到 cache list **搜尋**是否有 `dateRange`、`branch` 符合本次請求的筆數；**找得到**則用該筆 result（依目前人員篩選），不 fetch；**找不到**才 fetch，並將新結果 append 進 list。
+- **是否 fetch** 由「cache 裡是否找得到對應資料」決定，而非由條件組合當 key 做一次 get。可選優化：同一 dateRange+branch 只保留一筆（覆蓋或認最新）、TTL 過期清理、或建索引加速查找。
+
 ---
 
 ## 17. 部署記錄
 
 | 日期 | 版本 | 環境 | 更新內容 | 部署者 |
 |------|------|------|----------|--------|
+| 2026-02-08 | v0.6.67 | 測試 | 人員名單改為時間+分店的班表∪打卡聯集（getPersonnelUnion）；空名單文案改為「此時間與分店下尚無班表或打卡人員」 | AI |
 | 2026-02-08 | v0.6.66 | 測試 | 載入結果 cache key 改為僅年月/區間+分店，存全量；縮小人員時從 cache 篩選不 fetch | AI |
 | 2026-02-08 | v0.6.65 | 測試 | 載入結果 cache 註解：條件變了先查 cache，沒有才 fetch（查詢／比對） | AI |
 | 2026-02-08 | v0.6.64 | 測試 | 回頂端鈕全區域、依可捲動與否顯示（方案 B）；查詢/比對結果 cache 先查再 fetch；按鈕文案更新分店清單/更新人員清單 | AI |
@@ -781,4 +790,4 @@ npx clasp open
 ---
 
 *本檔案為專案專用 context，請隨重要變更更新。*
-*最後更新：2026-02-08（§17 部署 v0.6.66：cache key 僅日期+分店、縮小人員從 cache 篩選）*
+*最後更新：2026-02-08（§17 部署 v0.6.67：人員名單改為班表∪打卡聯集）*

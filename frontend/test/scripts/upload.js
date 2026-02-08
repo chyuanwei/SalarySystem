@@ -938,7 +938,7 @@ function renderQueryPersonCheckboxes(names, opts, fromSchedule) {
     if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = false;
     if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = false;
   } else {
-    personCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此月份打卡無人員' : '此分店無人員資料') + '</span>';
+    personCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此時間與分店下尚無班表或打卡人員' : '此分店無人員資料') + '</span>';
     if (selectAllPersonsBtn) selectAllPersonsBtn.disabled = true;
     if (clearAllPersonsBtn) clearAllPersonsBtn.disabled = true;
   }
@@ -1424,7 +1424,7 @@ function renderComparePersonCheckboxes(names, opts) {
       comparePersonCheckboxGroup.appendChild(label);
     });
   } else {
-    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此月份打卡無人員' : '此分店無人員資料') + '</span>';
+    comparePersonCheckboxGroup.innerHTML = '<span class="person-placeholder">' + (fromSchedule ? '此時間與分店下尚無班表或打卡人員' : '此分店無人員資料') + '</span>';
     if (selectAllComparePersonsBtn) selectAllComparePersonsBtn.disabled = true;
     if (clearAllComparePersonsBtn) clearAllComparePersonsBtn.disabled = true;
   }
