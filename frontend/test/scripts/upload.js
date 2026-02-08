@@ -184,7 +184,7 @@ function initTabNav() {
     updateSharedConditionVisibility(tabId);
     if (tabId === 'query' || tabId === 'compare') loadQueryPersonnel();
   });
-  updateSharedConditionVisibility('upload');
+    updateSharedConditionVisibility('query');
 }
 
 function selectAllPersons() {
@@ -217,49 +217,73 @@ document.addEventListener('DOMContentLoaded', function() {
   setFileInputAccept();
 });
 
+var BRANCHES_CACHE_KEY = 'salarySystem_branches';
+var BRANCHES_CACHE_TTL_MS = 5 * 60 * 1000; // 5 分鐘
+
+function applyBranchesToSelects(options) {
+  var branchEl = document.getElementById('branchSelect');
+  var queryBranchEl = document.getElementById('queryBranchSelect');
+  var compareBranchEl = document.getElementById('compareBranchSelect');
+  if (branchEl) {
+    branchEl.innerHTML = '<option value="">請選擇分店</option>';
+    options.forEach(function(name) {
+      var opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      branchEl.appendChild(opt);
+    });
+  }
+  if (queryBranchEl) {
+    queryBranchEl.innerHTML = '<option value="">請選擇分店</option>';
+    options.forEach(function(name) {
+      var opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      queryBranchEl.appendChild(opt);
+    });
+  }
+  if (compareBranchEl) {
+    compareBranchEl.innerHTML = '<option value="">請選擇分店</option>';
+    options.forEach(function(name) {
+      var opt = document.createElement('option');
+      opt.value = name;
+      opt.textContent = name;
+      compareBranchEl.appendChild(opt);
+    });
+  }
+  loadQueryPersonnel();
+}
+
 /**
- * 載入分店清單（從 GAS getBranches API），供上傳、查詢、比對區塊使用
+ * 載入分店清單（從 GAS getBranches API 或 sessionStorage 快取），供上傳、查詢、比對區塊使用
  */
 async function loadBranches() {
-  const branchEl = document.getElementById('branchSelect');
-  const queryBranchEl = document.getElementById('queryBranchSelect');
-  const compareBranchEl = document.getElementById('compareBranchSelect');
+  var branchEl = document.getElementById('branchSelect');
+  var queryBranchEl = document.getElementById('queryBranchSelect');
+  var compareBranchEl = document.getElementById('compareBranchSelect');
   if (!branchEl && !queryBranchEl && !compareBranchEl) return;
   try {
+    var cached = null;
+    try {
+      var raw = sessionStorage.getItem(BRANCHES_CACHE_KEY);
+      if (raw) {
+        cached = JSON.parse(raw);
+        if (cached && Array.isArray(cached.names) && cached.fetchedAt && (Date.now() - cached.fetchedAt) < BRANCHES_CACHE_TTL_MS) {
+          applyBranchesToSelects(cached.names);
+          return;
+        }
+      }
+    } catch (e) { /* 忽略快取解析錯誤 */ }
     showLoadingOverlay();
-    const response = await fetch(CONFIG.GAS_URL + '?action=getBranches', { method: 'GET', mode: 'cors' });
-    const result = await response.json();
-    const options = result && result.success && Array.isArray(result.names) && result.names.length > 0
+    var response = await fetch(CONFIG.GAS_URL + '?action=getBranches', { method: 'GET', mode: 'cors' });
+    var result = await response.json();
+    var options = result && result.success && Array.isArray(result.names) && result.names.length > 0
       ? result.names
       : [];
-    if (branchEl) {
-      branchEl.innerHTML = '<option value="">請選擇分店</option>';
-      options.forEach(function(name) {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        branchEl.appendChild(opt);
-      });
-    }
-    if (queryBranchEl) {
-      queryBranchEl.innerHTML = '<option value="">請選擇分店</option>';
-      options.forEach(function(name) {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        queryBranchEl.appendChild(opt);
-      });
-    }
-    if (compareBranchEl) {
-      compareBranchEl.innerHTML = '<option value="">請選擇分店</option>';
-      options.forEach(function(name) {
-        const opt = document.createElement('option');
-        opt.value = name;
-        opt.textContent = name;
-        compareBranchEl.appendChild(opt);
-      });
-    }
-    loadQueryPersonnel();
+    try {
+      sessionStorage.setItem(BRANCHES_CACHE_KEY, JSON.stringify({ names: options, fetchedAt: Date.now() }));
+    } catch (e) { /* 忽略 storage 寫入失敗 */ }
+    applyBranchesToSelects(options);
   } catch (error) {
     console.error('載入分店清單失敗:', error);
     if (branchEl) branchEl.innerHTML = '<option value="">載入失敗，請重整頁面</option>';
