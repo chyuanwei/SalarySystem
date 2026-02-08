@@ -100,6 +100,7 @@ document.querySelectorAll('input[name="queryType"]').forEach(radio => {
       if (scheduleSummary) scheduleSummary.innerHTML = '';
       if (scheduleList) scheduleList.innerHTML = '';
       scheduleResultSection.classList.remove('show');
+      updateBackToTopVisibility();
     }
   });
 });
@@ -203,7 +204,15 @@ function clearAllPersons() {
   if (group) group.querySelectorAll('input[type="checkbox"]').forEach(function(cb) { cb.checked = false; });
 }
 
-// 頁面載入時初始化
+// 全區域回頂端鈕：依可捲動與否顯示（方案 B），未來新增頁面也須加入此鈕
+function updateBackToTopVisibility() {
+  var btn = document.getElementById('backToTopBtn');
+  if (!btn) return;
+  var scrollHeight = document.documentElement.scrollHeight || document.body.scrollHeight;
+  var innerHeight = window.innerHeight || document.documentElement.clientHeight;
+  btn.style.display = (scrollHeight > innerHeight) ? 'block' : 'none';
+}
+
 document.addEventListener('DOMContentLoaded', function() {
   initTabNav();
   initYearMonthSelects();
@@ -213,6 +222,10 @@ document.addEventListener('DOMContentLoaded', function() {
   if (refreshBranchesBtn) refreshBranchesBtn.addEventListener('click', function() { loadBranches(true); });
   var refreshPersonnelBtn = document.getElementById('refreshPersonnelBtn');
   if (refreshPersonnelBtn) refreshPersonnelBtn.addEventListener('click', function() { loadQueryPersonnel({ forceRefresh: true }); });
+  var backToTopBtn = document.getElementById('backToTopBtn');
+  if (backToTopBtn) backToTopBtn.addEventListener('click', function() { window.scrollTo({ top: 0, behavior: 'smooth' }); });
+  window.addEventListener('resize', updateBackToTopVisibility);
+  updateBackToTopVisibility();
   // 共用人員：年月／日期變更時重新載入人員
   var qymSel = document.getElementById('queryYearMonthSelect');
   var qymInp = document.getElementById('queryYearMonthInput');
@@ -230,7 +243,11 @@ document.addEventListener('DOMContentLoaded', function() {
 var BRANCHES_CACHE_KEY = 'salarySystem_branches';
 var BRANCHES_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 天，有需要時用「更新分店」手動更新
 var PERSONNEL_CACHE_KEY_PREFIX = 'salarySystem_personnel';
-var PERSONNEL_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 天，有需要時用「更新人員」手動更新
+var PERSONNEL_CACHE_TTL_MS = 7 * 24 * 60 * 60 * 1000; // 7 天，有需要時用「更新人員清單」手動更新
+var QUERY_RESULT_CACHE_KEY_PREFIX = 'salarySystem_queryResult';
+var QUERY_RESULT_CACHE_TTL_MS = 60 * 60 * 1000; // 1 小時，條件不變用 cache
+var COMPARE_RESULT_CACHE_KEY_PREFIX = 'salarySystem_compareResult';
+var COMPARE_RESULT_CACHE_TTL_MS = 30 * 60 * 1000; // 30 分鐘，條件不變用 cache
 
 function applyBranchesToSelects(options) {
   var branchEl = document.getElementById('branchSelect');
@@ -749,6 +766,7 @@ function renderResults(result) {
   }).join('');
 
   resultSection.classList.add('show');
+  updateBackToTopVisibility();
 }
 
 /**
@@ -758,6 +776,7 @@ function clearResults() {
   resultSummary.innerHTML = '';
   resultList.innerHTML = '';
   resultSection.classList.remove('show');
+  updateBackToTopVisibility();
 }
 
 /**
@@ -991,9 +1010,25 @@ async function handleLoadSchedule() {
   loadScheduleBtn.textContent = '載入中...';
   hideAlert();
   scheduleResultSection.classList.remove('show');
-  showLoadingOverlay();
+  updateBackToTopVisibility();
 
   const names = getSelectedPersonNames();
+  const cacheKey = QUERY_RESULT_CACHE_KEY_PREFIX + '_schedule_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal) + '_' + (names.slice().sort().join(',') || '');
+  try {
+    var raw = sessionStorage.getItem(cacheKey);
+    if (raw) {
+      var cached = JSON.parse(raw);
+      if (cached && cached.fetchedAt && (Date.now() - cached.fetchedAt) < QUERY_RESULT_CACHE_TTL_MS && cached.result) {
+        renderScheduleResults(cached.result);
+        mergeQueryPersonFromDetails(cached.result.details || {});
+        loadScheduleBtn.disabled = false;
+        loadScheduleBtn.textContent = '載入';
+        return;
+      }
+    }
+  } catch (e) { /* 忽略 */ }
+
+  showLoadingOverlay();
   let url = `${CONFIG.GAS_URL}?action=loadSchedule&branch=${encodeURIComponent(branchVal)}`;
   if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
   if (startDate) url += `&startDate=${encodeURIComponent(startDate)}`;
@@ -1007,6 +1042,10 @@ async function handleLoadSchedule() {
     if (!response.ok || !result.success) {
       throw new Error(result.error || '載入失敗');
     }
+
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({ result: result, fetchedAt: Date.now() }));
+    } catch (e) { /* 忽略 */ }
 
     renderScheduleResults(result);
     mergeQueryPersonFromDetails(result.details);
@@ -1058,9 +1097,25 @@ async function handleLoadAttendance() {
   loadScheduleBtn.textContent = '載入中...';
   hideAlert();
   scheduleResultSection.classList.remove('show');
-  showLoadingOverlay();
+  updateBackToTopVisibility();
 
   const names = getSelectedPersonNames();
+  const cacheKey = QUERY_RESULT_CACHE_KEY_PREFIX + '_attendance_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal) + '_' + (names.slice().sort().join(',') || '');
+  try {
+    var raw = sessionStorage.getItem(cacheKey);
+    if (raw) {
+      var cached = JSON.parse(raw);
+      if (cached && cached.fetchedAt && (Date.now() - cached.fetchedAt) < QUERY_RESULT_CACHE_TTL_MS && cached.result) {
+        renderAttendanceResults(cached.result);
+        mergeQueryPersonFromDetails(cached.result.details || {});
+        loadScheduleBtn.disabled = false;
+        loadScheduleBtn.textContent = '載入';
+        return;
+      }
+    }
+  } catch (e) { /* 忽略 */ }
+
+  showLoadingOverlay();
   let url = `${CONFIG.GAS_URL}?action=loadAttendance&branch=${encodeURIComponent(branchVal)}`;
   if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
   if (startDate) url += `&startDate=${encodeURIComponent(startDate)}`;
@@ -1074,6 +1129,10 @@ async function handleLoadAttendance() {
     if (!response.ok || !result.success) {
       throw new Error(result.error || '載入失敗');
     }
+
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({ result: result, fetchedAt: Date.now() }));
+    } catch (e) { /* 忽略 */ }
 
     renderAttendanceResults(result);
     mergeQueryPersonFromDetails(result.details);
@@ -1154,6 +1213,7 @@ function renderScheduleResults(result) {
     btn.addEventListener('click', handleSaveRemarkClick);
   });
   scheduleResultSection.classList.add('show');
+  updateBackToTopVisibility();
 }
 
 /**
@@ -1212,6 +1272,7 @@ function renderAttendanceResults(result) {
     btn.addEventListener('click', handleSaveRemarkClick);
   });
   scheduleResultSection.classList.add('show');
+  updateBackToTopVisibility();
 }
 
 /**
@@ -1250,6 +1311,24 @@ async function handleLoadCompare() {
   loadCompareBtn.textContent = '載入中...';
   hideAlert();
   if (compareResultSection) compareResultSection.classList.remove('show');
+  updateBackToTopVisibility();
+
+  var cacheKey = COMPARE_RESULT_CACHE_KEY_PREFIX + '_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal) + '_' + (names.slice().sort().join(',') || '');
+  try {
+    var raw = sessionStorage.getItem(cacheKey);
+    if (raw) {
+      var cached = JSON.parse(raw);
+      if (cached && cached.fetchedAt && (Date.now() - cached.fetchedAt) < COMPARE_RESULT_CACHE_TTL_MS && Array.isArray(cached.items)) {
+        renderCompareResults(cached.items);
+        populateComparePersonCheckboxes(cached.items, {});
+        if (compareResultSection) compareResultSection.classList.add('show');
+        updateBackToTopVisibility();
+        if (loadCompareBtn) { loadCompareBtn.disabled = false; loadCompareBtn.textContent = '載入比對'; }
+        return;
+      }
+    }
+  } catch (e) { /* 忽略 */ }
+
   showLoadingOverlay();
   var url = CONFIG.GAS_URL + '?action=loadCompare&branch=' + encodeURIComponent(branchVal);
   if (yearMonth) url += '&yearMonth=' + encodeURIComponent(yearMonth);
@@ -1260,9 +1339,14 @@ async function handleLoadCompare() {
     var response = await fetch(url, { method: 'GET', mode: 'cors' });
     var result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || '載入失敗');
-    renderCompareResults(result.items || []);
-    populateComparePersonCheckboxes(result.items || [], {});
+    var items = result.items || [];
+    try {
+      sessionStorage.setItem(cacheKey, JSON.stringify({ items: items, fetchedAt: Date.now() }));
+    } catch (e) { /* 忽略 */ }
+    renderCompareResults(items);
+    populateComparePersonCheckboxes(items, {});
     if (compareResultSection) compareResultSection.classList.add('show');
+    updateBackToTopVisibility();
   } catch (error) {
     showAlert('error', '載入比對失敗：' + error.message);
   } finally {
