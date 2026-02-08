@@ -233,6 +233,8 @@
             padding: 16px;
             margin-bottom: 16px;
             box-shadow: 0 2px 8px rgba(0,0,0,0.06);
+            min-width: 0;
+            overflow: hidden;
         }
 
         .compare-card.corrected {
@@ -246,6 +248,8 @@
             margin-bottom: 12px;
             padding-bottom: 8px;
             border-bottom: 1px solid #eee;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
 
         .compare-card-header .compare-card-date {
@@ -294,6 +298,8 @@
             font-size: 1rem;
             color: #333;
             font-weight: 500;
+            word-break: break-word;
+            overflow-wrap: break-word;
         }
         .compare-card-block-content.overtime-alert {
             color: #c00;
@@ -436,6 +442,7 @@
             display: flex;
             flex-direction: column;
             gap: 0;
+            min-width: 0;
         }
 
         .schedule-block-label {
@@ -843,6 +850,11 @@
             display: grid;
             grid-template-columns: repeat(2, minmax(0, 1fr));
             gap: 12px;
+            min-width: 0;
+        }
+
+        .result-list > * {
+            min-width: 0;
         }
 
         .result-card {
@@ -852,6 +864,8 @@
             padding: 12px;
             background: #ffffff;
             box-shadow: 0 4px 12px rgba(0, 0, 0, 0.05);
+            min-width: 0;
+            overflow: hidden;
         }
 
         .result-card--duplicate {
@@ -878,6 +892,7 @@
             gap: 8px;
             font-size: 1rem;
             margin-bottom: 6px;
+            min-width: 0;
         }
 
         .result-row:last-child {
@@ -887,6 +902,7 @@
         .result-label {
             color: #666;
             flex: 0 0 auto;
+            flex-shrink: 0;
         }
 
         .result-value {
@@ -894,7 +910,9 @@
             font-weight: 600;
             text-align: right;
             flex: 1 1 auto;
+            min-width: 0;
             word-break: break-word;
+            overflow-wrap: break-word;
         }
 
         .result-row-remark,
@@ -903,6 +921,7 @@
             align-items: flex-start;
             gap: 8px;
             margin-top: 8px;
+            min-width: 0;
         }
 
         .result-row-remark .result-label,
@@ -913,6 +932,7 @@
 
         .remark-input {
             flex: 1 1 auto;
+            min-width: 0;
             min-height: 48px;
             padding: 6px 8px;
             font-size: 1rem;
@@ -1234,40 +1254,126 @@
                 font-size: 1rem;
             }
 
+            .result-section-header .result-title {
+                font-size: 1.25rem;
+            }
+
             .result-summary {
                 grid-template-columns: 1fr;
+                gap: 12px;
+                margin-bottom: 20px;
+            }
+
+            .summary-item {
+                padding: 12px 14px;
+            }
+
+            .summary-label {
+                font-size: 1rem;
+                margin-bottom: 6px;
+            }
+
+            .summary-value {
+                font-size: 1.2rem;
             }
 
             .result-list {
                 grid-template-columns: 1fr;
+                gap: 14px;
             }
 
             .result-card {
-                padding: 10px;
-            }
-
-            .result-row {
-                font-size: 1rem;
-            }
-
-            .compare-card {
                 padding: 14px;
             }
 
-            .compare-card-header {
+            .result-row {
                 font-size: 1.1rem;
+                margin-bottom: 8px;
+            }
+
+            .result-label {
+                font-size: 1rem;
+            }
+
+            .result-value {
+                font-size: 1.1rem;
+            }
+
+            .result-card-duplicate {
+                font-size: 1rem;
+                padding: 4px 8px;
+            }
+
+            .result-row-remark {
+                flex-wrap: wrap;
+            }
+
+            .result-row-remark .remark-input {
+                width: 100%;
+                font-size: 1.05rem;
+                min-height: 44px;
+            }
+
+            .compare-card {
+                padding: 16px;
+                margin-bottom: 18px;
+            }
+
+            .compare-card-header {
+                font-size: 1.2rem;
+                margin-bottom: 14px;
+            }
+
+            .compare-card-header .compare-card-date {
+                font-size: 1.05rem;
+                display: inline-block;
+                margin-top: 2px;
+            }
+
+            .compare-card-block {
+                padding: 12px 14px;
+                margin-bottom: 12px;
+            }
+
+            .compare-card-block-title {
+                font-size: 1rem;
+                margin-bottom: 8px;
+            }
+
+            .compare-card-block-content {
+                font-size: 1.1rem;
+            }
+
+            .compare-card-row-label {
+                font-size: 1rem;
+            }
+
+            .compare-card-overlap-badge,
+            .compare-card-overtime-badge {
+                font-size: 1.05rem;
+                padding: 8px 12px;
             }
 
             .compare-card-actions .corrected-start-input,
             .compare-card-actions .corrected-end-input {
                 min-height: 44px;
-                font-size: 1.1rem;
+                font-size: 1.15rem;
             }
 
             .compare-card-actions .submit-correction-btn,
             .compare-card-actions .edit-correction-btn {
                 min-height: 44px;
                 width: 100%;
+                font-size: 1.1rem;
+            }
+
+            .compare-card-actions .compare-card-row-label {
+                font-size: 1rem;
+            }
+
+            .compare-card-remark-row .remark-input {
+                font-size: 1.05rem;
+                min-height: 44px;
             }
 
             .info-section {
