@@ -1014,6 +1014,7 @@ async function handleLoadSchedule() {
 
   const names = getSelectedPersonNames();
   const cacheKey = QUERY_RESULT_CACHE_KEY_PREFIX + '_schedule_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal) + '_' + (names.slice().sort().join(',') || '');
+  // 載入結果 cache：條件變了先查 cache，沒有才 fetch
   try {
     var raw = sessionStorage.getItem(cacheKey);
     if (raw) {
@@ -1101,6 +1102,7 @@ async function handleLoadAttendance() {
 
   const names = getSelectedPersonNames();
   const cacheKey = QUERY_RESULT_CACHE_KEY_PREFIX + '_attendance_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal) + '_' + (names.slice().sort().join(',') || '');
+  // 載入結果 cache：條件變了先查 cache，沒有才 fetch
   try {
     var raw = sessionStorage.getItem(cacheKey);
     if (raw) {
@@ -1314,6 +1316,7 @@ async function handleLoadCompare() {
   updateBackToTopVisibility();
 
   var cacheKey = COMPARE_RESULT_CACHE_KEY_PREFIX + '_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal) + '_' + (names.slice().sort().join(',') || '');
+  // 載入結果 cache：條件變了先查 cache，沒有才 fetch
   try {
     var raw = sessionStorage.getItem(cacheKey);
     if (raw) {
