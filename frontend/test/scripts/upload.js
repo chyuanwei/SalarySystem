@@ -1013,14 +1013,17 @@ async function handleLoadSchedule() {
   updateBackToTopVisibility();
 
   const names = getSelectedPersonNames();
-  const cacheKey = QUERY_RESULT_CACHE_KEY_PREFIX + '_schedule_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal) + '_' + (names.slice().sort().join(',') || '');
-  // 載入結果 cache：條件變了先查 cache，沒有才 fetch
+  const cacheKey = QUERY_RESULT_CACHE_KEY_PREFIX + '_schedule_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal);
+  // 載入結果 cache：key 僅年月/區間+分店，存全量；縮小人員時從 cache 篩選，不 fetch
   try {
     var raw = sessionStorage.getItem(cacheKey);
     if (raw) {
       var cached = JSON.parse(raw);
       if (cached && cached.fetchedAt && (Date.now() - cached.fetchedAt) < QUERY_RESULT_CACHE_TTL_MS && cached.result) {
-        renderScheduleResults(cached.result);
+        var fullRecords = Array.isArray(cached.result.records) ? cached.result.records : [];
+        var records = names.length === 0 ? fullRecords : fullRecords.filter(function(row) { return names.indexOf(row[0]) !== -1; });
+        var filteredResult = { success: true, records: records, details: Object.assign({}, cached.result.details, { rowCount: records.length }) };
+        renderScheduleResults(filteredResult);
         mergeQueryPersonFromDetails(cached.result.details || {});
         loadScheduleBtn.disabled = false;
         loadScheduleBtn.textContent = '載入';
@@ -1034,8 +1037,7 @@ async function handleLoadSchedule() {
   if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
   if (startDate) url += `&startDate=${encodeURIComponent(startDate)}`;
   if (endDate) url += `&endDate=${encodeURIComponent(endDate)}`;
-  if (names.length > 0) url += `&names=${encodeURIComponent(names.join(','))}`;
-
+  // fetch 不帶 names，取全量存 cache，之後縮小人員從 cache 篩選
   try {
     const response = await fetch(url, { method: 'GET', mode: 'cors' });
     const result = await response.json();
@@ -1048,7 +1050,10 @@ async function handleLoadSchedule() {
       sessionStorage.setItem(cacheKey, JSON.stringify({ result: result, fetchedAt: Date.now() }));
     } catch (e) { /* 忽略 */ }
 
-    renderScheduleResults(result);
+    var fullRecords = Array.isArray(result.records) ? result.records : [];
+    var records = names.length === 0 ? fullRecords : fullRecords.filter(function(row) { return names.indexOf(row[0]) !== -1; });
+    var filteredResult = { success: true, records: records, details: Object.assign({}, result.details, { rowCount: records.length }) };
+    renderScheduleResults(filteredResult);
     mergeQueryPersonFromDetails(result.details);
   } catch (error) {
     showAlert('error', '載入班表失敗：' + error.message);
@@ -1101,14 +1106,17 @@ async function handleLoadAttendance() {
   updateBackToTopVisibility();
 
   const names = getSelectedPersonNames();
-  const cacheKey = QUERY_RESULT_CACHE_KEY_PREFIX + '_attendance_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal) + '_' + (names.slice().sort().join(',') || '');
-  // 載入結果 cache：條件變了先查 cache，沒有才 fetch
+  const cacheKey = QUERY_RESULT_CACHE_KEY_PREFIX + '_attendance_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal);
+  // 載入結果 cache：key 僅年月/區間+分店，存全量；縮小人員時從 cache 篩選，不 fetch
   try {
     var raw = sessionStorage.getItem(cacheKey);
     if (raw) {
       var cached = JSON.parse(raw);
       if (cached && cached.fetchedAt && (Date.now() - cached.fetchedAt) < QUERY_RESULT_CACHE_TTL_MS && cached.result) {
-        renderAttendanceResults(cached.result);
+        var fullRecords = Array.isArray(cached.result.records) ? cached.result.records : [];
+        var records = names.length === 0 ? fullRecords : fullRecords.filter(function(row) { return names.indexOf(row[3]) !== -1; });
+        var filteredResult = { success: true, records: records, details: Object.assign({}, cached.result.details, { rowCount: records.length }) };
+        renderAttendanceResults(filteredResult);
         mergeQueryPersonFromDetails(cached.result.details || {});
         loadScheduleBtn.disabled = false;
         loadScheduleBtn.textContent = '載入';
@@ -1122,8 +1130,7 @@ async function handleLoadAttendance() {
   if (yearMonth) url += `&yearMonth=${encodeURIComponent(yearMonth)}`;
   if (startDate) url += `&startDate=${encodeURIComponent(startDate)}`;
   if (endDate) url += `&endDate=${encodeURIComponent(endDate)}`;
-  if (names.length > 0) url += `&names=${encodeURIComponent(names.join(','))}`;
-
+  // fetch 不帶 names，取全量存 cache
   try {
     const response = await fetch(url, { method: 'GET', mode: 'cors' });
     const result = await response.json();
@@ -1136,7 +1143,10 @@ async function handleLoadAttendance() {
       sessionStorage.setItem(cacheKey, JSON.stringify({ result: result, fetchedAt: Date.now() }));
     } catch (e) { /* 忽略 */ }
 
-    renderAttendanceResults(result);
+    var fullRecords = Array.isArray(result.records) ? result.records : [];
+    var records = names.length === 0 ? fullRecords : fullRecords.filter(function(row) { return names.indexOf(row[3]) !== -1; });
+    var filteredResult = { success: true, records: records, details: Object.assign({}, result.details, { rowCount: records.length }) };
+    renderAttendanceResults(filteredResult);
     mergeQueryPersonFromDetails(result.details);
   } catch (error) {
     showAlert('error', '載入打卡失敗：' + error.message);
@@ -1315,15 +1325,20 @@ async function handleLoadCompare() {
   if (compareResultSection) compareResultSection.classList.remove('show');
   updateBackToTopVisibility();
 
-  var cacheKey = COMPARE_RESULT_CACHE_KEY_PREFIX + '_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal) + '_' + (names.slice().sort().join(',') || '');
-  // 載入結果 cache：條件變了先查 cache，沒有才 fetch
+  var cacheKey = COMPARE_RESULT_CACHE_KEY_PREFIX + '_' + (yearMonth ? yearMonth : startDate + '_' + endDate) + '_' + encodeURIComponent(branchVal);
+  // 載入結果 cache：key 僅年月/區間+分店，存全量；縮小人員時從 cache 篩選，不 fetch
   try {
     var raw = sessionStorage.getItem(cacheKey);
     if (raw) {
       var cached = JSON.parse(raw);
       if (cached && cached.fetchedAt && (Date.now() - cached.fetchedAt) < COMPARE_RESULT_CACHE_TTL_MS && Array.isArray(cached.items)) {
-        renderCompareResults(cached.items);
-        populateComparePersonCheckboxes(cached.items, {});
+        var fullItems = cached.items;
+        var items = names.length === 0 ? fullItems : fullItems.filter(function(item) {
+          var n = item.displayName || (item.attendance && item.attendance.name) || (item.schedule && item.schedule.name);
+          return n && names.indexOf(n) !== -1;
+        });
+        renderCompareResults(items);
+        populateComparePersonCheckboxes(items, {});
         if (compareResultSection) compareResultSection.classList.add('show');
         updateBackToTopVisibility();
         if (loadCompareBtn) { loadCompareBtn.disabled = false; loadCompareBtn.textContent = '載入比對'; }
@@ -1337,15 +1352,19 @@ async function handleLoadCompare() {
   if (yearMonth) url += '&yearMonth=' + encodeURIComponent(yearMonth);
   if (startDate) url += '&startDate=' + encodeURIComponent(startDate);
   if (endDate) url += '&endDate=' + encodeURIComponent(endDate);
-  if (names.length > 0) url += '&names=' + encodeURIComponent(names.join(','));
+  // fetch 不帶 names，取全量存 cache
   try {
     var response = await fetch(url, { method: 'GET', mode: 'cors' });
     var result = await response.json();
     if (!response.ok || !result.success) throw new Error(result.error || '載入失敗');
-    var items = result.items || [];
+    var fullItems = result.items || [];
     try {
-      sessionStorage.setItem(cacheKey, JSON.stringify({ items: items, fetchedAt: Date.now() }));
+      sessionStorage.setItem(cacheKey, JSON.stringify({ items: fullItems, fetchedAt: Date.now() }));
     } catch (e) { /* 忽略 */ }
+    var items = names.length === 0 ? fullItems : fullItems.filter(function(item) {
+      var n = item.displayName || (item.attendance && item.attendance.name) || (item.schedule && item.schedule.name);
+      return n && names.indexOf(n) !== -1;
+    });
     renderCompareResults(items);
     populateComparePersonCheckboxes(items, {});
     if (compareResultSection) compareResultSection.classList.add('show');
