@@ -292,7 +292,7 @@ A30: "* O 10:00-20:30"   (全日班)
 1. 在 `gas-backend/test/` 開發並測試
 2. 執行 `go` 指令：
    - 自動 commit & push GitHub
-   - 自動 `clasp push` 到測試環境
+   - 僅當有修改 `gas-backend/**/*.gs` 時才執行 `clasp push` 到測試環境（GAS 未變動不執行）
    - 自動更新 CONTEXT.md
 3. 使用 `frontend/test/index.html` 驗證功能
 
@@ -338,8 +338,8 @@ A30: "* O 10:00-20:30"   (全日班)
 
 | 項目 | 說明 |
 |------|------|
-| **push** | 當使用者說「push」或「一起 push」時，**必須同時做兩件事**：(1) **git**：若有未 commit 變更先 `git add` + `git commit`，再 `git push`；(2) **clasp**：在 `gas-backend/test` 執行 `npx clasp push --force` 推送 GAS 測試環境。**不可只做 git 或只做 clasp**。 |
-| **go** | 等同 **執行 + 更新（僅測試環境）**：執行當下需求（改 code、測試等）→ commit/push GitHub **（commit message 須為英文）** → **clasp push 測試環境 GAS** → 更新 `.cursor/CONTEXT.md` → 提供 **Comment for GAS deploy**（格式：`v版本號：簡短描述`）。**重要**：(1) `go` 指令只推送測試環境，正式環境需另外指令。(2) **僅使用者可下 `go` 指令，AI 不可主動執行**。 |
+| **push** | 當使用者說「push」或「一起 push」時：(1) **git**：若有未 commit 變更先 `git add` + `git commit`，再 `git push`；(2) **clasp**：**僅當本次有修改 `gas-backend/**/*.gs` 時**才在 `gas-backend/test` 執行 `npx clasp push --force`；GAS 程式未變動時不執行 clasp push。 |
+| **go** | 等同 **執行 + 更新（僅測試環境）**：執行當下需求（改 code、測試等）→ commit/push GitHub **（commit message 須為英文）** → **僅當有修改 `gas-backend/**/*.gs` 時**才執行 clasp push 測試環境 GAS，否則不執行 → 更新 `.cursor/CONTEXT.md` → 若有 GAS 變更則提供 **Comment for GAS deploy**（格式：`v版本號：簡短描述`）。**重要**：(1) `go` 只推送測試環境。(2) **僅使用者可下 `go` 指令，AI 不可主動執行**。 |
 | **go（限制）** | **僅能操作測試環境（test）**，**不得更改正式環境（prod）程式碼**；正式環境任何變更需使用者明確指示（如 `deploy-prod`）。 |
 | **deploy-prod** | 部署到正式環境：複製 `gas-backend/test/*.gs` 到 `gas-backend/prod/` → 複製 `frontend/test/*` 到 `frontend/prod/`（保留 prod config.js）→ `cd gas-backend/prod && clasp push` → commit/push GitHub **（需附 commit message）** → 更新部署記錄 → 提供 **Comment for GAS deploy**（格式：`v版本號：簡短描述`）。**僅在使用者明確指示時執行**。 |
 | **Git commit** | 所有 `git commit` 必須附上有意義的 commit message，說明變更內容。不可使用過於簡略或無意義的訊息。 |
